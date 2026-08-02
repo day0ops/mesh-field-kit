@@ -785,7 +785,7 @@ export class KubernetesHelper {
 }
 
 export async function checkDependencies() {
-  const required = ['kubectl', 'helm', 'terraform'];
+  const required = ['kubectl', 'helm', 'terraform', 'ssh', 'scp', 'istioctl'];
   const missing = [];
 
   Logger.info('Checking dependencies...');
