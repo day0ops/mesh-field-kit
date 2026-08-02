@@ -18,3 +18,7 @@ spec:
       role: workload
     - name: west
       role: workload
+
+  vms:
+    - name: vm1
+      role: workload
