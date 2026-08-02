@@ -1,0 +1,69 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: outlier-detection
+  description: >
+    Passively eject an unhealthy endpoint from the load-balancing pool after
+    consecutive 5xx errors, via a waypoint-enforced DestinationRule.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: httpbin
+        namespace: httpbin
+      - name: curl
+        namespace: httpbin
+
+  features:
+    - name: waypoint
+      description: Deploy waypoint proxy for httpbin service
+      config:
+        waypointName: httpbin-waypoint
+        namespace: httpbin
+        labels:
+          target: service
+          serviceName: httpbin
+
+    - name: fault-injection
+      description: Force httpbin to always return 500s
+      config:
+        routeName: httpbin-fault
+        namespace: httpbin
+        host: httpbin
+        faultType: abort
+        abort:
+          httpStatus: 500
+          percentage: 100
+
+    - name: destination-rule
+      description: Eject httpbin after 3 consecutive 5xx errors
+      config:
+        ruleName: httpbin-outlier-detection
+        namespace: httpbin
+        host: httpbin
+        trafficPolicy:
+          outlierDetection:
+            consecutive5xxErrors: 3
+            baseEjectionTime: 15s
+            maxEjectionPercent: 100
+
+  tests:
+    - name: endpoint-ejected-after-failures
+      description: >-
+        First requests surface the injected 500, then the single endpoint is
+        ejected and subsequent requests fail fast with 503 (no healthy
+        upstream) instead of reaching the backend
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec deploy/curl -n httpbin -- sh -c '
+            for i in 1 2 3 4 5; do
+              curl -s -o /dev/null -w "%{http_code}\n" --max-time 5 http://httpbin.httpbin.svc.cluster.local:8000/get;
+            done'
+          timeout: 60s
+        - action: verify
+          expect:
+            contains:
+              - "500"
+              - "503"
