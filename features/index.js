@@ -45,6 +45,9 @@ import { GlooMigrateCheckFeature } from './migration/gloo-migrate-check/index.js
 import { SidecarCutoverFeature } from './migration/sidecar-cutover/index.js';
 import { EnableAmbientFeature } from './migration/enable-ambient/index.js';
 
+// Hybrid Features
+import { VmIntegrationFeature } from './hybrid/vm-integration/index.js';
+
 // Register all features
 // Traffic Management
 FeatureManager.register('gateway', GatewayFeature);
@@ -83,6 +86,9 @@ FeatureManager.register('tracing-provider', TracingProviderFeature);
 FeatureManager.register('gloo-migrate-check', GlooMigrateCheckFeature);
 FeatureManager.register('sidecar-cutover', SidecarCutoverFeature);
 FeatureManager.register('enable-ambient', EnableAmbientFeature);
+
+// Hybrid
+FeatureManager.register('vm-integration', VmIntegrationFeature);
 
 // Re-export for convenience
 export { FeatureManager };
@@ -124,3 +130,6 @@ export { IstiodMetricsFeature } from './observability/istiod-metrics/index.js';
 export { GlooMigrateCheckFeature } from './migration/gloo-migrate-check/index.js';
 export { SidecarCutoverFeature } from './migration/sidecar-cutover/index.js';
 export { EnableAmbientFeature } from './migration/enable-ambient/index.js';
+
+// Hybrid
+export { VmIntegrationFeature } from './hybrid/vm-integration/index.js';

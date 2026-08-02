@@ -66,6 +66,7 @@ Provisioned infra state written to `._output/infra/<name>/state.yaml`. Kubeconfi
 - **Security** (`features/security/`): waypoint, deny-all-policy, authorization-policy, egress-waypoint, egress-authorization
 - **Multicluster** (`features/multicluster/`): certificates, eastwest-gateway, cluster-link, global-service, segment, global-alias, multicluster-verify
 - **Observability** (`features/observability/`): ztunnel-metrics, istiod-metrics
+- **Hybrid** (`features/hybrid/`): vm-integration
 - **Addons** (`addons/`): cilium, cert-manager, keycloak, solo-ui
 
 Each feature directory contains `index.js` (the Feature subclass) and optionally `config/` (YAML templates applied to the cluster).
