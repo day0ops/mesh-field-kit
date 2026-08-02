@@ -1,0 +1,77 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: claims-authorization
+  description: |
+    Enforce L4 authorization based on custom workload claims embedded in
+    mTLS certificates via pod annotations (solo.io.security-claims/*),
+    using a CEL "when" clause in an AuthorizationPolicy. Enforced entirely
+    by ztunnel at L4 - no waypoint required. Requires
+    ENABLE_WORKLOAD_CLAIMS=true on ztunnel (already set on the
+    eks-single-cluster-mesh-with-cilium profile).
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: httpbin
+        namespace: httpbin
+      - name: curl
+        namespace: httpbin
+
+  features:
+    - name: authorization-policy
+      description: Only allow callers whose workload cert claims zone=PCI-DSS
+      config:
+        policyName: allow-pci-zone-only
+        namespace: httpbin
+        action: ALLOW
+        rules:
+          - when:
+              - key: "source.claims['solo.io.security-claims.zone']"
+                values:
+                  - "PCI-DSS"
+
+  tests:
+    - name: unclaimed-client-denied
+      description: >-
+        Without the required claim annotation, curl's connection to
+        httpbin is rejected at L4 by ztunnel.
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec deploy/curl -n httpbin --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 5
+            http://httpbin.httpbin.svc.cluster.local:8000/get
+          timeout: 15s
+          retries: 1
+          retryDelay: 3000
+        - action: verify
+          expect:
+            contains: "000"
+
+    - name: claimed-client-allowed
+      description: >-
+        Annotating curl with the required claim and rolling it out embeds
+        the claim in its workload cert, so it can reach httpbin.
+      setup:
+        - action: exec
+          command: >-
+            kubectl patch deployment curl -n httpbin --type merge
+            -p '{"spec":{"template":{"metadata":{"annotations":{"solo.io.security-claims/zone":"PCI-DSS"}}}}}'
+          timeout: 15s
+        - action: exec
+          command: kubectl rollout status deployment/curl -n httpbin --timeout=60s
+          timeout: 70s
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec deploy/curl -n httpbin --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 5
+            http://httpbin.httpbin.svc.cluster.local:8000/get
+          timeout: 15s
+          retries: 2
+          retryDelay: 5000
+        - action: verify
+          expect:
+            contains: "200"

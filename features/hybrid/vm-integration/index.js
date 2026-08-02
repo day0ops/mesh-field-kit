@@ -134,6 +134,8 @@ export class VmIntegrationFeature extends Feature {
         await ssh.exec(vmIp, `sudo mkdir -p ${remoteDir}`);
         await ssh.copyFile(join(tokenDir, `${workload.name}.token`), vmIp, `/tmp/${workload.name}.token`);
         await ssh.exec(vmIp, `sudo mv /tmp/${workload.name}.token ${remoteDir}/token`);
+        // ztunnel runs as a non-root distroless user; the token must be world-readable for it to load.
+        await ssh.exec(vmIp, `sudo chmod 644 ${remoteDir}/token`);
       }
     } finally {
       rmSync(tokenDir, { recursive: true, force: true });

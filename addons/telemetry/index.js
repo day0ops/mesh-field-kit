@@ -63,11 +63,11 @@ const SOLO_COP_DASHBOARDS = [
  * Profile YAML: set chartVersions on the addon entry (sibling of config), or under config.
  *   version: string,              // Shorthand for chartVersions.otel (opentelemetry-collector)
  *   chartVersions: {              // Helm chart version overrides
- *     kube-prom-stack: string,    // kube-prometheus-stack (default: 86.1.0)
- *     loki: string,               // grafana/loki (default: 7.0.0)
+ *     kube-prom-stack: string,    // kube-prometheus-stack (default: 88.0.1)
+ *     loki: string,               // grafana/loki (default: 7.2.0)
  *     tempo: string,              // grafana/tempo-distributed (default: 1.61.3)
- *     alloy: string,              // grafana/alloy (default: 1.8.2)
- *     otel: string,               // opentelemetry-collector (default: 0.158.0)
+ *     alloy: string,              // grafana/alloy (default: 1.11.0)
+ *     otel: string,               // opentelemetry-collector (default: 0.165.0)
  *   },
  *   namespace: string,            // Default: 'telemetry'
  *   enableLogs: boolean,          // Default: true  — install Loki + Alloy

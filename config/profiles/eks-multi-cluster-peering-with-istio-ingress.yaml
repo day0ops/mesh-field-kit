@@ -49,6 +49,9 @@ spec:
             network: "{{cluster.name}}"
             proxy:
               clusterDomain: cluster.local
+          gateways:
+            spire:
+              workloads: true
           meshConfig:
             accessLogFile: /dev/stdout
             trustDomain: "{{cluster.name}}.local"
@@ -82,6 +85,8 @@ spec:
             ISTIO_META_DNS_CAPTURE: "true"
             # required when a unique trust domain is set for each cluster
             SKIP_VALIDATE_TRUST_DOMAIN: "true"
+          spire:
+            enabled: true
           configValidation: true
           istioNamespace: istio-system
           namespace: istio-system
@@ -122,13 +127,15 @@ spec:
                   namespaces:
                     from: All
 
-    certificates:
-      mode: self-signed
-
   addons:
     clusters:
       - name: east
         addons:
+          - name: spire
+            phase: pre
+            certMode: self-signed
+            trustDomain: "{{cluster.name}}.local"
+
           - name: external-dns
             description: Automatic DNS record management via Route53
             namespace: external-dns
@@ -138,8 +145,22 @@ spec:
               region: "{{env.aws.region}}"
 
           - name: telemetry
+            description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
             phase: post
             namespace: telemetry
+            chartVersions:
+              kube-prom-stack: 88.0.1
+              loki: 7.2.0
+              tempo: 1.61.3
+              alloy: 1.11.0
+              otel: 0.165.0
+            config:
+              database:
+                storageClass: gp3
+                storageSize: 100Gi
+              retention: 120h
+              grafanaServiceType: LoadBalancer
+              grafanaHostname: '{{env.domains.grafana}}'
 
           - name: solo-ui
             mode: management
@@ -151,6 +172,11 @@ spec:
 
       - name: west
         addons:
+          - name: spire
+            phase: pre
+            certMode: self-signed
+            trustDomain: "{{cluster.name}}.local"
+
           - name: solo-ui
             mode: relay
             phase: post

@@ -1,0 +1,31 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: self-identity
+  description: |
+    Query a workload's own SPIFFE identity from the ztunnel node-local
+    metadata server (169.254.169.111:80), without managing certificate
+    files directly. The metadata server is automatically available to any
+    ambient-enrolled workload - no feature config or policy is required.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: curl
+        namespace: curl
+
+  tests:
+    - name: query-self-identity
+      description: >-
+        The curl workload queries its own SPIFFE identity from the
+        ztunnel metadata server.
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec deploy/curl -n curl --
+            curl -s --max-time 5 http://169.254.169.111/self-identity
+          timeout: 15s
+        - action: verify
+          expect:
+            contains: "spiffe://"

@@ -277,7 +277,9 @@ export class UseCaseTestRunner {
 
           let finalCmd = command;
           if (context && command.startsWith('kubectl ') && !command.includes('--context')) {
-            finalCmd = command.replace('kubectl ', `kubectl --context=${context} `);
+            // replaceAll so every kubectl invocation in a piped command gets the context,
+            // not just the first (e.g. `kubectl create ... | kubectl apply -f -`).
+            finalCmd = command.replaceAll('kubectl ', `kubectl --context=${context} `);
           }
 
           spinner.setText(`Executing: ${step.name || command.substring(0, 60)}...`);

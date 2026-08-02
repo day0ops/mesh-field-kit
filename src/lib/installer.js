@@ -666,9 +666,12 @@ export class InstallerManager {
     const otherClusters = clusters.filter(c => c.role !== 'management');
     const orderedClusters = [...mgmtClusters, ...otherClusters];
 
-    // For multicluster: install shared root CA + per-cluster intermediate CAs
-    // before istiod starts so cacerts secret is present at istiod startup.
-    if (clusters.length > 1) {
+    // Install a shared root CA + per-cluster intermediate CA(s) before istiod starts,
+    // so the cacerts secret is present at istiod startup. Only runs when the profile
+    // explicitly opts in via spec.mesh.certificates — profiles relying on SPIRE or
+    // istiod's own ephemeral CA don't set this, on single or multiple clusters alike.
+    const certificatesConfig = ProfileSchema.getCertificates(profile);
+    if (Object.keys(certificatesConfig).length > 0) {
       const certMode = ProfileSchema.getCertMode(profile);
       const clusterList = orderedClusters.map(c => ({ name: c.name, context: c.context }));
       console.log();
@@ -992,6 +995,21 @@ export class InstallerManager {
       console.log();
       Logger.info(`Uninstalling from cluster: ${cluster.name} (${cluster.role || 'default'})`);
       await this.uninstallCluster({ cluster, profile, uninstallAddons });
+    }
+
+    if (profile) {
+      const certificatesConfig = ProfileSchema.getCertificates(profile);
+      if (Object.keys(certificatesConfig).length > 0) {
+        console.log();
+        Logger.info('Cleaning up shared root of trust...');
+        const clusterList = orderedClusters.map(c => ({ name: c.name, context: c.context }));
+        const certMode = ProfileSchema.getCertMode(profile);
+        try {
+          await new CertificateManager({ mode: certMode, clusters: clusterList }).cleanup();
+        } catch {
+          Logger.warn('Could not clean up certificates');
+        }
+      }
     }
 
     const elapsed = Date.now() - uninstallStartTime;

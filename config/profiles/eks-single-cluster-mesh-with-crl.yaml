@@ -1,8 +1,8 @@
 apiVersion: mesh.demo/v1
 kind: Profile
 metadata:
-  name: eks-single-cluster-mesh-with-spire
-  description: Single-cluster ambient mesh with SPIRE workload identity attestation
+  name: eks-single-cluster-mesh-with-crl
+  description: Single-cluster ambient mesh with a plugged-in CA and certificate revocation list (CRL) enforcement
 
 spec:
   infra: eks-single-cluster
@@ -24,18 +24,15 @@ spec:
         values:
           global:
             network: "{{cluster.name}}"
-          gateways:
-            spire:
-              workloads: true
           meshConfig:
             accessLogFile: /dev/stdout
             defaultConfig:
               proxyMetadata:
                 ISTIO_META_DNS_CAPTURE: "true"
-            trustDomain: "{{ cluster.name }}"
           env:
             PILOT_ENABLE_IP_AUTOALLOCATE: "true"
-            PILOT_SKIP_VALIDATE_TRUST_DOMAIN: "true"
+            # propagates the cacerts secret's ca-crl.pem entry to a ConfigMap in every namespace
+            PILOT_ENABLE_CA_CRL: "true"
           pilot:
             cni:
               namespace: istio-system
@@ -43,15 +40,12 @@ spec:
       - cni
       - name: ztunnel
         values:
-          spire:
-            enabled: true
           env:
-            # validates that an ancestor CA cert in the chain carries a SAN matching the
-            # leaf's trust domain, rejecting spoofed certs from an untrusted CA
-            VALIDATE_SPIFFE_TRUST_DOMAIN_NAMES: STRICT
+            ISTIO_META_DNS_CAPTURE: "true"
+          # rejects peers whose cert serial number appears in the propagated CRL
+          peerCaCrl:
+            enabled: true
           network: "{{cluster.name}}"
 
-  addons:
-    - name: spire
-      phase: pre
-      certMode: self-signed
+    certificates:
+      mode: self-signed

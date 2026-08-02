@@ -38,6 +38,10 @@ const VALID_CERT_MODES = ['self-signed', 'cert-manager', 'manual'];
  *     }
  *   }
  * }
+ *
+ * self-signed and cert-manager modes both stamp the intermediate CA cert with a
+ * trustDomain SAN (DNS + SPIFFE URI), which ztunnel's VALIDATE_SPIFFE_TRUST_DOMAIN_NAMES=STRICT
+ * chain verification requires. manual mode's supplied CA must carry the same SAN itself.
  */
 export class SpireFeature extends AddonFeature {
   constructor(name, config) {
@@ -96,6 +100,9 @@ export class SpireFeature extends AddonFeature {
         isCA: true,
         commonName: `SPIRE Intermediate CA - ${this.trustDomain}`,
         subject: { organizations: ['SPIRE'] },
+        // required for ztunnel's VALIDATE_SPIFFE_TRUST_DOMAIN_NAMES=STRICT chain verification
+        dnsNames: [this.trustDomain],
+        uris: [`spiffe://${this.trustDomain}`],
         issuerRef: { name: issuerRef.name, kind: issuerRef.kind, group: 'cert-manager.io' },
         secretTemplate: { labels: { 'spire.io/upstream-ca': 'true' } },
         privateKey: { algorithm: 'RSA', size: 2048 },
@@ -172,13 +179,17 @@ export class SpireFeature extends AddonFeature {
     // Generate per-cluster intermediate CA
     this.log(`Generating intermediate CA for trust domain '${this.trustDomain}'...`, 'info');
 
+    // subjectAltName carries the trust domain on the intermediate CA itself (not just the
+    // leaf SVID) - required for ztunnel's VALIDATE_SPIFFE_TRUST_DOMAIN_NAMES=STRICT chain
+    // verification, which walks the chain looking for an ancestor SAN matching the trust domain.
     writeFileSync(extFilePath,
       '[req]\ndistinguished_name = req_distinguished_name\n' +
       'req_extensions = v3_req\nprompt = no\n' +
       '[req_distinguished_name]\nCN = SPIRE Intermediate CA\n' +
       '[v3_req]\nkeyUsage = critical, keyCertSign, cRLSign\n' +
       'basicConstraints = critical, CA:true, pathlen:1\n' +
-      'subjectKeyIdentifier = hash\n'
+      'subjectKeyIdentifier = hash\n' +
+      `subjectAltName = DNS:${this.trustDomain}, URI:spiffe://${this.trustDomain}\n`
     );
 
     await CommandRunner.exec(`openssl genrsa -out "${caKeyPath}" 2048`);

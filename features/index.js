@@ -30,6 +30,7 @@ import { EgressWaypointFeature } from './security/egress-waypoint/index.js';
 import { EgressAuthorizationFeature } from './security/egress-authorization/index.js';
 import { NetworkPolicyFeature } from './security/network-policy/index.js';
 import { PeerAuthenticationFeature } from './security/peer-authentication/index.js';
+import { CrlEnforcementFeature } from './security/crl-enforcement/index.js';
 
 // Multicluster Features
 import { GlobalServiceFeature } from './multicluster/global-service/index.js';
@@ -73,6 +74,7 @@ FeatureManager.register('egress-waypoint', EgressWaypointFeature);
 FeatureManager.register('egress-authorization', EgressAuthorizationFeature);
 FeatureManager.register('network-policy', NetworkPolicyFeature);
 FeatureManager.register('peer-authentication', PeerAuthenticationFeature);
+FeatureManager.register('crl-enforcement', CrlEnforcementFeature);
 
 // Multicluster
 FeatureManager.register('global-service', GlobalServiceFeature);
@@ -118,6 +120,7 @@ export { EgressWaypointFeature } from './security/egress-waypoint/index.js';
 export { EgressAuthorizationFeature } from './security/egress-authorization/index.js';
 export { NetworkPolicyFeature } from './security/network-policy/index.js';
 export { PeerAuthenticationFeature } from './security/peer-authentication/index.js';
+export { CrlEnforcementFeature } from './security/crl-enforcement/index.js';
 
 // Multicluster
 export { GlobalServiceFeature } from './multicluster/global-service/index.js';

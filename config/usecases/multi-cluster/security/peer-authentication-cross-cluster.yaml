@@ -58,15 +58,17 @@ spec:
   tests:
     - name: cross-cluster-request-succeeds-under-strict-mtls
       description: >-
-        productpage on east reaches reviews on west over the east-west
-        gateway even though west now requires STRICT mTLS - the connection
-        is genuinely mTLS-authenticated across the trust domain boundary.
+        A workload in bookinfo/east reaches reviews on west over the
+        east-west gateway even though west now requires STRICT mTLS - the
+        connection is genuinely mTLS-authenticated across the trust domain
+        boundary. Uses ratings-v1 (not productpage-v1, whose image has no
+        curl binary) as the client.
       clusters:
         - name: east
       steps:
         - action: exec
           command: >-
-            kubectl exec -n bookinfo deploy/productpage-v1 --
+            kubectl exec -n bookinfo deploy/ratings-v1 --
             curl -s -o /dev/null -w '%{http_code}' --max-time 10
             http://reviews.bookinfo.mesh.internal:9080/reviews/1
           timeout: 30s

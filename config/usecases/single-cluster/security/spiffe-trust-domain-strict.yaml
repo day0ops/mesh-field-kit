@@ -1,0 +1,55 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: spiffe-trust-domain-strict
+  description: |
+    Enable ztunnel's STRICT SPIFFE trust-domain chain verification
+    (VALIDATE_SPIFFE_TRUST_DOMAIN_NAMES=STRICT): during the mTLS handshake,
+    ztunnel walks the peer's certificate chain from parent to trust anchor
+    and requires an ancestor CA cert to carry a SAN matching the trust
+    domain declared in the leaf's SPIFFE URI, rejecting certs from any CA
+    that doesn't carry that SAN. Requires the
+    eks-single-cluster-mesh-with-spire profile, which stamps the SPIRE
+    intermediate CA with the matching trust-domain SAN and sets this
+    ztunnel env var.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: httpbin
+        namespace: httpbin
+      - name: curl
+        namespace: httpbin
+
+  tests:
+    - name: in-mesh-request-succeeds-under-strict-validation
+      description: >-
+        With STRICT trust-domain validation enabled, legitimate
+        SPIRE-issued workload certs still chain-verify correctly and
+        traffic flows normally.
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec deploy/curl -n httpbin --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://httpbin.httpbin.svc.cluster.local:8000/get
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "200"
+
+    - name: mtls-verified-via-ztunnel
+      description: Confirm the httpbin endpoint is served over ztunnel, not just reachable
+      steps:
+        - action: istioctl-zc-endpoints
+          service: httpbin
+          serviceNamespace: httpbin
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains:
+              - httpbin
+              - Healthy

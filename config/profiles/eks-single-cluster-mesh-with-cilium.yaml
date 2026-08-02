@@ -40,6 +40,8 @@ spec:
         values:
           env:
             ISTIO_META_DNS_CAPTURE: "true"
+            # embeds pod annotation claims (solo.io.security-claims/*) into workload certs for CEL-based L4 authorization
+            ENABLE_WORKLOAD_CLAIMS: "true"
           network: "{{cluster.name}}"
 
   addons:
@@ -50,6 +52,19 @@ spec:
       enableHealthProbePolicy: true
 
     - name: telemetry
-      description: Prometheus, Grafana, Tempo, and Loki stack for mesh observability
+      description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
       phase: post
       namespace: telemetry
+      chartVersions:
+        kube-prom-stack: 88.0.1
+        loki: 7.2.0
+        tempo: 1.61.3
+        alloy: 1.11.0
+        otel: 0.165.0
+      config:
+        database:
+          storageClass: gp3
+          storageSize: 100Gi
+        retention: 120h
+        grafanaServiceType: LoadBalancer
+        grafanaHostname: '{{env.domains.grafana}}'

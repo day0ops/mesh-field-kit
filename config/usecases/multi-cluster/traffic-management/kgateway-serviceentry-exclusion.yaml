@@ -49,6 +49,16 @@ spec:
       clusters:
         - name: east
 
+    - name: global-service
+      description: Make httpbin globally accessible
+      config:
+        namespace: httpbin
+        services:
+          - name: httpbin
+            scope: global
+      clusters:
+        - name: east
+
     - name: ingress-httproute
       description: Route external traffic to productpage - never excluded, used as a control
       config:

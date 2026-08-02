@@ -1,0 +1,39 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: crl-enforcement
+  description: |
+    Demonstrate certificate revocation list (CRL) enforcement for the mesh's
+    plugged-in CA: issue two throwaway test certs signed by the same
+    intermediate CA istiod uses, revoke one, and install the resulting CRL
+    onto the live cacerts secret. The feature itself verifies with
+    `openssl verify -crl_check` that the revoked cert is rejected while the
+    other still validates - it fails loudly if either check doesn't hold.
+    Requires the eks-single-cluster-mesh-with-crl profile
+    (mesh.certificates.mode: self-signed, istiod PILOT_ENABLE_CA_CRL, and
+    ztunnel peerCaCrl.enabled).
+    Note: this validates the CRL generation/distribution/verification
+    plumbing at the PKI layer. It does not exercise a live ztunnel mTLS
+    handshake against a real workload.
+spec:
+  diagram: false
+
+  features:
+    - name: crl-enforcement
+      description: >-
+        Issue, revoke, and verify test certificates against the mesh's CA,
+        then install the resulting CRL onto the live cacerts secret
+      config: {}
+
+  tests:
+    - name: crl-installed-on-cacerts
+      description: The cacerts secret now carries the generated CRL (ca-crl.pem)
+      steps:
+        - action: exec
+          command: >-
+            test -n "$(kubectl get secret cacerts -n istio-system
+            -o jsonpath='{.data.ca-crl\.pem}')" && echo PRESENT || echo MISSING
+          timeout: 15s
+        - action: verify
+          expect:
+            contains: "PRESENT"
