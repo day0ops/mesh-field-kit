@@ -114,6 +114,7 @@ export class InfraManager {
     const provider = InfraSchema.getProvider(infraProfile);
     const clusters = InfraSchema.getAllClusters(infraProfile);
     const settings = InfraSchema.getSettings(infraProfile);
+    const vms = InfraSchema.getAllVms(infraProfile);
     const environment = await this.loadEnvironment(infraProfile);
     const region = InfraSchema.getRegion(infraProfile, environment);
     const clusterWord = clusters.length === 1 ? 'cluster' : 'clusters';
@@ -122,6 +123,10 @@ export class InfraManager {
 
     if (dnsConfig) {
       Logger.info(`DNS enabled: ${dnsConfig.childZone}.${dnsConfig.parentZone?.domain}`);
+    }
+
+    if (InfraSchema.isVmEnabled(infraProfile)) {
+      Logger.info(`VM integration enabled: ${vms.map(vm => vm.name).join(', ')}`);
     }
 
     await this.checkConflicts(clusters.map(c => c.name));
@@ -156,16 +161,23 @@ export class InfraManager {
         kubeconfigDir: this.kubeconfigDir,
         autoApprove,
         dnsConfig,
+        vms,
       });
 
-      const { clusters: clusterResults, dns: dnsOutputs } = await runner.provision();
+      const { clusters: clusterResults, dns: dnsOutputs, vms: vmOutputs } = await runner.provision();
 
-      await InfraStateManager.setProvisioned(this.infraName, provider, clusterResults, dnsOutputs);
+      await InfraStateManager.setProvisioned(this.infraName, provider, clusterResults, dnsOutputs, vmOutputs);
 
       Logger.success(`Provisioned ${clusters.length} ${provider} ${clusterWord}`);
 
       if (dnsOutputs?.enabled) {
         Logger.info(`DNS zone created: ${dnsOutputs.zoneName} (${dnsOutputs.zoneId})`);
+      }
+
+      if (vmOutputs?.length > 0) {
+        for (const vm of vmOutputs) {
+          Logger.info(`VM workload provisioned: ${vm.name} (${vm.publicIp})`);
+        }
       }
 
       const envShPath = InfraStateManager.getEnvShPath(this.infraName);
@@ -202,6 +214,7 @@ export class InfraManager {
     const provider = InfraSchema.getProvider(infraProfile);
     const clusters = InfraSchema.getAllClusters(infraProfile);
     const settings = InfraSchema.getSettings(infraProfile);
+    const vms = InfraSchema.getAllVms(infraProfile);
     const environment = await this.loadEnvironment(infraProfile);
     const region = InfraSchema.getRegion(infraProfile, environment);
     const clusterWord = clusters.length === 1 ? 'cluster' : 'clusters';
@@ -240,6 +253,7 @@ export class InfraManager {
         kubeconfigDir: this.kubeconfigDir,
         autoApprove,
         dnsConfig,
+        vms,
       });
 
       await runner.destroy();
@@ -268,6 +282,7 @@ export class InfraManager {
       provisioned: state?.status?.provisioned || false,
       clusters: state?.status?.clusters || [],
       dns: InfraStateManager.getDnsState(state),
+      vms: InfraStateManager.getVms(state),
       updatedAt: state?.metadata?.updatedAt || null,
       envShPath: InfraStateManager.getEnvShPath(this.infraName),
       error: state?.status?.error || null,

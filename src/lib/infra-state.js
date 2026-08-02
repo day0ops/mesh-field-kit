@@ -210,6 +210,7 @@ export class InfraStateManager {
         phase: 'pending', // pending, provisioning, provisioned, failed, destroying
         provisioned: false,
         clusters: [],
+        vms: [],
       },
     };
   }
@@ -229,6 +230,7 @@ export class InfraStateManager {
       name: cluster.name,
       provisioned: false,
     }));
+    state.status.vms = [];
 
     // Clear any previous error
     delete state.status.error;
@@ -255,7 +257,7 @@ export class InfraStateManager {
     return state;
   }
 
-  static async setProvisioned(infraName, provider, clusters, dns = null) {
+  static async setProvisioned(infraName, provider, clusters, dns = null, vms = null) {
     let state = await this.load(infraName);
 
     if (!state) {
@@ -293,6 +295,9 @@ export class InfraStateManager {
         nameservers: dns.nameservers || [],
       };
     }
+
+    // Store VM outputs (empty array if VM support wasn't enabled for this profile)
+    state.status.vms = vms || [];
 
     await this.save(infraName, state);
     return state;
@@ -353,6 +358,10 @@ export class InfraStateManager {
       return null;
     }
     return state.status.dns;
+  }
+
+  static getVms(state) {
+    return state?.status?.vms || [];
   }
 
   static getClusterNetwork(state, clusterName) {

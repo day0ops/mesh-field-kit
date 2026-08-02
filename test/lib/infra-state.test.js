@@ -98,6 +98,44 @@ test('getClusterNetwork returns null for unknown cluster', async () => {
   expect(network).toBeNull();
 });
 
+test('setProvisioned stores vms array when provided', async () => {
+  const clusters = [
+    { name: 'east', context: 'eks-east-abc', cluster: 'east-cluster', kubeconfig: '/tmp/east.yaml', provisioned: true },
+  ];
+  const vms = [
+    {
+      name: 'vm1',
+      publicIp: '1.2.3.4',
+      privateIp: '10.0.0.5',
+      instanceId: 'i-0abc123',
+      securityGroupId: 'sg-0def456',
+      sshPrivateKeyPath: '/tmp/vm1-key.pem',
+      provisioned: true,
+    },
+  ];
+
+  const state = await InfraStateManager.setProvisioned(TEST_INFRA_NAME, 'eks', clusters, null, vms);
+
+  expect(state.status.vms).toEqual(vms);
+  expect(InfraStateManager.getVms(state)).toEqual(vms);
+});
+
+test('setProvisioned defaults vms to empty array when not provided', async () => {
+  const clusters = [
+    { name: 'east', context: 'eks-east-abc', cluster: 'east-cluster', kubeconfig: '/tmp/east.yaml', provisioned: true },
+  ];
+
+  const state = await InfraStateManager.setProvisioned(TEST_INFRA_NAME, 'eks', clusters);
+
+  expect(state.status.vms).toEqual([]);
+  expect(InfraStateManager.getVms(state)).toEqual([]);
+});
+
+test('getVms returns empty array for state without vms', () => {
+  expect(InfraStateManager.getVms({ status: {} })).toEqual([]);
+  expect(InfraStateManager.getVms(null)).toEqual([]);
+});
+
 test('formatProjectPath returns relative path inside project root', () => {
   const absPath = join(InfraStateManager.INFRA_OUTPUT_BASE, 'some-profile', 'kubeconfig', 'demo.yaml');
   const result = InfraStateManager.formatProjectPath(absPath);

@@ -18,6 +18,7 @@ export class BaseProvisionerRunner {
     this.kubeconfigDir = options.kubeconfigDir;
     this.autoApprove = options.autoApprove || false;
     this.dnsConfig = options.dnsConfig || null;
+    this.vms = options.vms || [];
 
     if (new.target === BaseProvisionerRunner) {
       throw new Error('BaseProvisionerRunner is an abstract class and cannot be instantiated directly');

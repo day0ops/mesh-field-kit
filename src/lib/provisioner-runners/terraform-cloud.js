@@ -64,6 +64,11 @@ const PROVIDER_CONFIGS = {
         vars.dns_parent_domain = dnsConfig.parentZone.domain;
         vars.dns_child_zone_name = dnsConfig.childZone;
       }
+      // Ambient VM integration (attaches a workload VM to the first cluster's VPC)
+      if (config.enableVm) {
+        vars.enable_vm = true;
+        if (config.vmInstanceType) vars.vm_instance_type = config.vmInstanceType;
+      }
       return vars;
     },
   },
@@ -208,7 +213,10 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
     // Extract DNS outputs if DNS was enabled
     const dnsOutputs = await this.extractDnsInfo(terraform);
 
-    return { clusters: clusterResults, dns: dnsOutputs };
+    // Extract VM outputs if VM integration was enabled
+    const vmOutputs = await this.extractVmInfo(terraform, config);
+
+    return { clusters: clusterResults, dns: dnsOutputs, vms: vmOutputs };
   }
 
   async destroy() {
@@ -331,6 +339,8 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       kubernetesVersion: provisioner.kubernetes_version || process.env.KUBERNETES_VERSION || undefined,
       enableDns64: provisioner.enable_dns64,
       enableBastion: provisioner.enable_bastion,
+      enableVm: this.vms.length > 0,
+      vmInstanceType: this.vms[0]?.instance_type || undefined,
       gkeProject: provisioner.project || (this.providerType === 'gke' ? process.env.GCP_PROJECT : undefined),
       aksServicePrincipal: (provisioner.arm_client_id || process.env.ARM_CLIENT_ID) ? {
         object_id: provisioner.arm_object_id || process.env.ARM_OBJECT_ID,
@@ -654,6 +664,40 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
     } catch (_error) {
       this.logWarn('Could not extract DNS outputs from Terraform state');
       return null;
+    }
+  }
+
+  async extractVmInfo(terraform, config) {
+    if (!config.enableVm) {
+      return [];
+    }
+
+    const prefix = this.providerConfig.outputPrefix;
+
+    try {
+      const instanceId = await terraform.getOutput(this.stateFile, `${prefix}_vm_instance_id`);
+
+      if (!instanceId) {
+        return [];
+      }
+
+      const publicIp = await terraform.getOutput(this.stateFile, `${prefix}_vm_public_ip`);
+      const privateIp = await terraform.getOutput(this.stateFile, `${prefix}_vm_private_ip`);
+      const securityGroupId = await terraform.getOutput(this.stateFile, `${prefix}_vm_security_group_id`);
+      const sshPrivateKeyPath = await terraform.getOutput(this.stateFile, `${prefix}_vm_ssh_private_key_path`);
+
+      return [{
+        name: this.vms[0]?.name || 'vm',
+        publicIp: publicIp || null,
+        privateIp: privateIp || null,
+        instanceId,
+        securityGroupId: securityGroupId || null,
+        sshPrivateKeyPath: sshPrivateKeyPath || null,
+        provisioned: true,
+      }];
+    } catch {
+      this.logWarn('Could not extract VM outputs from Terraform state');
+      return [];
     }
   }
 
