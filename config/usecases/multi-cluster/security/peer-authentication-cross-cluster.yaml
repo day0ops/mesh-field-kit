@@ -1,0 +1,114 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: peer-authentication-cross-cluster
+  description: |
+    Enforce STRICT mTLS on the bookinfo namespace on the west cluster only,
+    and verify:
+    - Legitimate cross-cluster mesh traffic from east to west (over the
+      east-west gateway) still works - it's still authenticated mTLS even
+      though it crosses a trust domain boundary (each cluster has its own
+      trust domain here: "{{cluster.name}}.local").
+    - A client with no mesh identity on west is still rejected by ztunnel,
+      same as the single-cluster case.
+    No waypoint is required - PeerAuthentication is enforced by ztunnel at L4.
+spec:
+  diagram: |
+    flowchart LR
+      PP[productpage\nbookinfo/east] -->|reviews.bookinfo.mesh.internal| ZTe[ztunnel east]
+      ZTe -->|HBONE/mTLS| EWG[east-west gw]
+      EWG --> ZTw[ztunnel west]
+      PA[PeerAuthentication STRICT] -.->|enforced by| ZTw
+      ZTw --> R[reviews west]
+
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: west
+          - name: east
+
+  features:
+    - name: global-service
+      description: Make reviews on west reachable from east via mesh.internal
+      config:
+        namespace: bookinfo
+        services:
+          - name: reviews
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: Any
+      clusters:
+        - name: west
+        - name: east
+
+    - name: peer-authentication
+      description: Require STRICT mTLS for all workloads in bookinfo on west
+      config:
+        policyName: bookinfo-strict-mtls
+        namespace: bookinfo
+        mtls:
+          mode: STRICT
+      clusters:
+        - name: west
+
+  tests:
+    - name: cross-cluster-request-succeeds-under-strict-mtls
+      description: >-
+        productpage on east reaches reviews on west over the east-west
+        gateway even though west now requires STRICT mTLS - the connection
+        is genuinely mTLS-authenticated across the trust domain boundary.
+      clusters:
+        - name: east
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec -n bookinfo deploy/productpage-v1 --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://reviews.bookinfo.mesh.internal:9080/reviews/1
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: "200"
+
+    - name: non-mesh-client-rejected-on-west
+      description: >-
+        A client with no mesh identity on west cannot reach reviews once
+        STRICT mTLS is enforced there - same failure mode as the
+        single-cluster peer-authentication-strict usecase.
+      clusters:
+        - name: west
+      setup:
+        - action: exec
+          command: kubectl create namespace no-mesh --dry-run=client -o yaml | kubectl apply -f -
+          timeout: 15s
+        - action: exec
+          command: >-
+            kubectl run plaintext-client -n no-mesh
+            --image=curlimages/curl:8.11.0 --restart=Never
+            --command -- sleep 3600
+          timeout: 15s
+        - action: exec
+          command: kubectl wait --for=condition=ready pod/plaintext-client -n no-mesh --timeout=60s
+          timeout: 70s
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec plaintext-client -n no-mesh --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 5
+            http://reviews.bookinfo.svc.cluster.local:9080/reviews/1
+          timeout: 15s
+          retries: 1
+          retryDelay: 3000
+        - action: verify
+          expect:
+            contains: "000"
+      teardown:
+        - action: exec
+          command: kubectl delete namespace no-mesh --ignore-not-found
+          timeout: 30s
