@@ -110,6 +110,59 @@ export class IstioctlHelper {
   }
 
   /**
+   * Run istioctl vm add-workload to add a single workload identity to a VM.
+   *
+   * The first call for a given VM's gateway (external + hostname) prints a
+   * BOOTSTRAP_TOKEN needed to start ztunnel; later calls for additional
+   * workloads on the same VM reuse the existing gateway and don't reprint it.
+   *
+   * @param {object} options
+   * @param {string} options.name - Workload name
+   * @param {string} options.address - VM IP address
+   * @param {string} options.namespace - Kubernetes namespace for the workload
+   * @param {string} options.ports - Port spec, e.g. 'http:80:8080' or 'http:80:8080/grpc:9090'
+   * @param {boolean} [options.external] - Mark the workload external (creates the gateway)
+   * @param {string} [options.hostname] - VM hostname (required with `external`)
+   * @param {string} options.outputDir - Directory to write the workload token file to
+   * @param {string} [options.context] - Kubernetes context
+   * @param {string} [options.istioImage]
+   * @returns {Promise<{bootstrapToken: string|null, tokenFile: string}>}
+   */
+  static async vmAddWorkload({ name, address, namespace, ports, external = false, hostname = null, outputDir, context = null, istioImage } = {}) {
+    const istioctl = await this.resolve({ istioImage });
+    if (!istioctl) {
+      throw new Error(`Failed to resolve istioctl for vm add-workload '${name}'`);
+    }
+
+    const bin = istioctl.includes('/') ? `"${istioctl}"` : istioctl;
+    const flags = [
+      `--address ${address}`,
+      `--namespace ${namespace}`,
+      `--ports ${ports}`,
+      `--output-dir ${outputDir}`,
+    ];
+    if (external) flags.push('--external');
+    if (hostname) flags.push(`--hostname ${hostname}`);
+    if (context) flags.push(`--context=${context}`);
+
+    const result = await CommandRunner.exec(`${bin} vm add-workload ${name} ${flags.join(' ')}`, {
+      ignoreError: true,
+    });
+
+    if (result.exitCode) {
+      const output = [result.stdout, result.stderr].filter(Boolean).join('\n');
+      throw new Error(`istioctl vm add-workload failed for '${name}' (exit ${result.exitCode}): ${output || '(no output)'}`);
+    }
+
+    const tokenMatch = result.stdout?.match(/BOOTSTRAP_TOKEN=(\S+)/);
+
+    return {
+      bootstrapToken: tokenMatch ? tokenMatch[1] : null,
+      tokenFile: join(outputDir, `${name}.token`),
+    };
+  }
+
+  /**
    * Run istioctl zc endpoints for a service in a cluster context.
    * @returns {Promise<string>} combined stdout/stderr output
    */
