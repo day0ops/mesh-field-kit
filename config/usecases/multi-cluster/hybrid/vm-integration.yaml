@@ -1,0 +1,58 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: vm-integration
+  description: |
+    Onboard a plain VM's workload into the ambient mesh using the
+    multi-workload istioctl vm add-workload path (each workload gets its
+    own SPIFFE identity), then verify cluster -> VM connectivity.
+spec:
+  diagram: |
+    flowchart LR
+      subgraph "east cluster"
+        Client[bookinfo ratings-v1] -->|app1.vm-apps| GW[VM gateway :15008]
+      end
+      subgraph VM
+        GW --> App1["app1 demo responder (:8080)"]
+      end
+      App1 -.->|SOCKS5, manual verification| PP[productpage]
+
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: east
+
+  features:
+    - name: vm-integration
+      description: Onboard the VM's app1 workload into the ambient mesh
+      config:
+        namespace: vm-apps
+        context: "{{infra.clusters.east.context}}"
+        vmIp: "{{infra.vms.vm1.publicIp}}"
+        meshAddress: "{{infra.vms.vm1.privateIp}}"
+        sshKeyPath: "{{infra.vms.vm1.sshPrivateKeyPath}}"
+        workloads:
+          - name: app1
+            ports:
+              - "http:80:8080"
+      notes:
+        - "VM -> cluster (outbound) connectivity is not covered by the automated test. To verify manually, SSH into the VM and run: ALL_PROXY=socks5h://app1.vm-apps:pass@127.0.0.1:15080 curl productpage.bookinfo:9080"
+
+  tests:
+    - name: cluster-to-vm-connectivity
+      description: Verify a cluster pod (bookinfo's ratings-v1) can reach the VM workload via its cluster-side Service hostname
+      clusters:
+        - name: east
+      steps:
+        - action: exec
+          command: kubectl exec deploy/ratings-v1 -n bookinfo -- curl -s -o /dev/null -w '%{http_code}' --max-time 10 app1.vm-apps
+          timeout: 20s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: "200"
