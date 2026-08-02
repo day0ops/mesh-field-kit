@@ -64,9 +64,10 @@ const PROVIDER_CONFIGS = {
         vars.dns_parent_domain = dnsConfig.parentZone.domain;
         vars.dns_child_zone_name = dnsConfig.childZone;
       }
-      // Ambient VM integration (attaches a workload VM to the first cluster's VPC)
+      // Ambient VM integration (attaches a workload VM to one cluster's VPC)
       if (config.enableVm) {
         vars.enable_vm = true;
+        vars.vm_cluster_index = config.vmClusterIndex;
         if (config.vmInstanceType) vars.vm_instance_type = config.vmInstanceType;
       }
       return vars;
@@ -340,6 +341,9 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       enableDns64: provisioner.enable_dns64,
       enableBastion: provisioner.enable_bastion,
       enableVm: this.vms.length > 0,
+      vmClusterIndex: this.vms.length > 0
+        ? Math.max(0, this.clusters.findIndex(c => c.name === this.vms[0].cluster))
+        : 0,
       vmInstanceType: this.vms[0]?.instance_type || undefined,
       gkeProject: provisioner.project || (this.providerType === 'gke' ? process.env.GCP_PROJECT : undefined),
       aksServicePrincipal: (provisioner.arm_client_id || process.env.ARM_CLIENT_ID) ? {
@@ -688,6 +692,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
 
       return [{
         name: this.vms[0]?.name || 'vm',
+        cluster: this.vms[0]?.cluster || null,
         publicIp: publicIp || null,
         privateIp: privateIp || null,
         instanceId,

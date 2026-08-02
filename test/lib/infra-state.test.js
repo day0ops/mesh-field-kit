@@ -105,6 +105,7 @@ test('setProvisioned stores vms array when provided', async () => {
   const vms = [
     {
       name: 'vm1',
+      cluster: 'east',
       publicIp: '1.2.3.4',
       privateIp: '10.0.0.5',
       instanceId: 'i-0abc123',

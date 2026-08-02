@@ -107,6 +107,17 @@ export class InfraManager {
     return environment?.spec?.dns || null;
   }
 
+  /**
+   * VMs with `cluster` always resolved (explicit spec.vms[].cluster, or the
+   * first cluster if unset), so downstream consumers never need to re-derive it.
+   */
+  resolveVms(infraProfile) {
+    return InfraSchema.getAllVms(infraProfile).map(vm => ({
+      ...vm,
+      cluster: InfraSchema.getVmClusterName(infraProfile, vm),
+    }));
+  }
+
   async provision(options = {}) {
     const { autoApprove = false } = options;
     const infraProfile = await this.loadInfraProfile();
@@ -114,7 +125,7 @@ export class InfraManager {
     const provider = InfraSchema.getProvider(infraProfile);
     const clusters = InfraSchema.getAllClusters(infraProfile);
     const settings = InfraSchema.getSettings(infraProfile);
-    const vms = InfraSchema.getAllVms(infraProfile);
+    const vms = this.resolveVms(infraProfile);
     const environment = await this.loadEnvironment(infraProfile);
     const region = InfraSchema.getRegion(infraProfile, environment);
     const clusterWord = clusters.length === 1 ? 'cluster' : 'clusters';
@@ -126,7 +137,7 @@ export class InfraManager {
     }
 
     if (InfraSchema.isVmEnabled(infraProfile)) {
-      Logger.info(`VM integration enabled: ${vms.map(vm => vm.name).join(', ')}`);
+      Logger.info(`VM integration enabled: ${vms.map(vm => `${vm.name} (cluster: ${vm.cluster})`).join(', ')}`);
     }
 
     await this.checkConflicts(clusters.map(c => c.name));
@@ -214,7 +225,7 @@ export class InfraManager {
     const provider = InfraSchema.getProvider(infraProfile);
     const clusters = InfraSchema.getAllClusters(infraProfile);
     const settings = InfraSchema.getSettings(infraProfile);
-    const vms = InfraSchema.getAllVms(infraProfile);
+    const vms = this.resolveVms(infraProfile);
     const environment = await this.loadEnvironment(infraProfile);
     const region = InfraSchema.getRegion(infraProfile, environment);
     const clusterWord = clusters.length === 1 ? 'cluster' : 'clusters';

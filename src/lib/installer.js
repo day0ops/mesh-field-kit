@@ -14,6 +14,8 @@ import { FeatureManager } from './feature.js';
 import { CertificateManager, EastWestGateway, ClusterLinker, PeeringInstaller } from './multicluster.js';
 import { EnvironmentManager } from './environment.js';
 import { InfraStateManager } from './infra-state.js';
+import { InfraManager } from './infra-manager.js';
+import { InfraSchema } from './infra-schema.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -81,6 +83,7 @@ function resolveConfig(profile, options = {}) {
     installMethod: ProfileSchema.getInstallMethod(profile),
     namespace: options.namespace || process.env.NAMESPACE || DEFAULTS.NAMESPACE,
     waitTimeout: options.waitTimeout || process.env.WAIT_TIMEOUT || DEFAULTS.WAIT_TIMEOUT,
+    vmClusterName: options.vmClusterName || null,
   };
 }
 
@@ -310,15 +313,15 @@ function getPostValidator(componentName, namespace, flags, spinner = null, istio
  * with no such fallback, so the two must be seeded from the same value or ztunnel's
  * address resolution silently breaks (including waypoint routing).
  */
-function buildComponentBaseValues(componentName, cfg, clusterName) {
+export function buildComponentBaseValues(componentName, cfg, clusterName, isVmCluster = false) {
   switch (componentName) {
     case 'base':
       return {
         defaultRevision: cfg.istioRevision,
         profile: cfg.meshProfile,
       };
-    case 'istiod':
-      return {
+    case 'istiod': {
+      const values = {
         revision: ConfigResolver.chartRevision(cfg.istioRevision),
         global: {
           hub: cfg.istioRepo,
@@ -329,6 +332,14 @@ function buildComponentBaseValues(componentName, cfg, clusterName) {
         profile: cfg.meshProfile,
         license: { value: cfg.licenseKey },
       };
+      // Ambient VM integration needs istiod to accept the long-lived tokens
+      // istioctl vm add-workload generates, which requires disabling the
+      // default bound (3rd-party) token requirement on the VM's cluster.
+      if (isVmCluster) {
+        values.env = { REQUIRE_3P_TOKEN: 'false' };
+      }
+      return values;
+    }
     case 'cni':
       return {
         revision: ConfigResolver.chartRevision(cfg.istioRevision),
@@ -550,7 +561,8 @@ export class InstallerManager {
           continue;
         }
 
-        const componentBase = buildComponentBaseValues(component, cfg, cluster.name);
+        const isVmCluster = !!cfg.vmClusterName && cfg.vmClusterName === cluster.name;
+        const componentBase = buildComponentBaseValues(component, cfg, cluster.name, isVmCluster);
         const mergedValues = ConfigResolver.deepMerge(componentBase, resolved.componentValues[component] || {});
         const valuesYaml = yaml.dump(mergedValues, { lineWidth: -1, quotingType: '"', forceQuotes: false });
         const componentNamespace = COMPONENT_NAMESPACE_MAP[component] || cfg.namespace;
@@ -625,9 +637,18 @@ export class InstallerManager {
 
     const infraProfileName = ProfileSchema.getInfra(profile);
     let infraState = null;
+    let vmClusterName = null;
     if (infraProfileName) {
       try {
         infraState = await InfraStateManager.load(infraProfileName);
+      } catch { /* best effort */ }
+      try {
+        const infraProfile = await new InfraManager(infraProfileName).loadInfraProfile();
+        if (InfraSchema.isVmEnabled(infraProfile)) {
+          const vm = InfraSchema.getAllVms(infraProfile)[0];
+          vmClusterName = InfraSchema.getVmClusterName(infraProfile, vm);
+          Logger.info(`VM integration enabled: istiod on '${vmClusterName}' will get REQUIRE_3P_TOKEN=false`);
+        }
       } catch { /* best effort */ }
     }
 
@@ -666,6 +687,7 @@ export class InstallerManager {
         templateContext: templateCtx,
         allClusters: orderedClusters,
         licenseKey,
+        vmClusterName,
       });
     }
 

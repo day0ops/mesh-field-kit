@@ -91,3 +91,38 @@ test('isVmEnabled is true when spec.vms has entries', () => {
 test('getValidVmRoles returns the vm role list', () => {
   expect(InfraSchema.getValidVmRoles()).toEqual(['workload']);
 });
+
+function multiClusterProfile(overrides = {}) {
+  return baseProfile({
+    clusters: [{ name: 'east', role: 'workload' }, { name: 'west', role: 'workload' }],
+    ...overrides,
+  });
+}
+
+test('validate passes when vm.cluster references an existing cluster', () => {
+  const profile = multiClusterProfile({ vms: [{ name: 'vm1', cluster: 'west' }] });
+  const result = InfraSchema.validate(profile);
+  expect(result.valid).toBe(true);
+});
+
+test('validate rejects vm.cluster referencing an unknown cluster', () => {
+  const profile = multiClusterProfile({ vms: [{ name: 'vm1', cluster: 'north' }] });
+  const result = InfraSchema.validate(profile);
+  expect(result.valid).toBe(false);
+  expect(result.errors).toContain('spec.vms[0]: Unknown cluster: north. Must be one of: east, west');
+});
+
+test('getVmClusterName returns the explicit cluster field', () => {
+  const profile = multiClusterProfile();
+  expect(InfraSchema.getVmClusterName(profile, { name: 'vm1', cluster: 'west' })).toBe('west');
+});
+
+test('getVmClusterName defaults to the first cluster when unset', () => {
+  const profile = multiClusterProfile();
+  expect(InfraSchema.getVmClusterName(profile, { name: 'vm1' })).toBe('east');
+});
+
+test('getVmClusterName returns null when there are no clusters', () => {
+  const profile = baseProfile({ clusters: [] });
+  expect(InfraSchema.getVmClusterName(profile, { name: 'vm1' })).toBeNull();
+});

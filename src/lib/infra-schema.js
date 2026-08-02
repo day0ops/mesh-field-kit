@@ -101,6 +101,15 @@ export const InfraSchema = {
                 `${prefix}: Invalid role: ${vm.role}. Valid values: ${VALID_VM_ROLES.join(', ')}`
               );
             }
+
+            if (vm.cluster) {
+              const clusterNames = (infraProfile.spec.clusters || []).map(c => c.name);
+              if (!clusterNames.includes(vm.cluster)) {
+                errors.push(
+                  `${prefix}: Unknown cluster: ${vm.cluster}. Must be one of: ${clusterNames.join(', ')}`
+                );
+              }
+            }
           });
         }
       }
@@ -119,6 +128,14 @@ export const InfraSchema = {
 
   isVmEnabled(infraProfile) {
     return this.getAllVms(infraProfile).length > 0;
+  },
+
+  /**
+   * Resolve the cluster name a VM attaches to: the explicit `vm.cluster` field,
+   * or the first entry in spec.clusters[] if unset.
+   */
+  getVmClusterName(infraProfile, vm) {
+    return vm?.cluster || infraProfile.spec?.clusters?.[0]?.name || null;
   },
 
   getProvider(infraProfile) {

@@ -15,18 +15,25 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-function makeRunner({ vms = [] } = {}) {
-  const clusters = [
+function makeRunner({ vms = [], clusters } = {}) {
+  const defaultClusters = [
     {
       name: 'east',
       provisioner: { type: 'eks', owner: 'kasunt', region: 'ap-southeast-1', cluster_name: 'maple' },
     },
   ];
-  return new TerraformCloudRunner('eks-multi-cluster', clusters, {
+  return new TerraformCloudRunner('eks-multi-cluster', clusters || defaultClusters, {
     outputDir: dir,
     kubeconfigDir: join(dir, 'kubeconfig'),
     vms,
   });
+}
+
+function multiClusterList() {
+  return [
+    { name: 'east', provisioner: { type: 'eks', owner: 'kasunt', region: 'ap-southeast-1', cluster_name: 'maple' } },
+    { name: 'west', provisioner: { type: 'eks', owner: 'kasunt', region: 'ap-southeast-1', cluster_name: 'maple' } },
+  ];
 }
 
 test('resolveConfiguration reports enableVm false with no vms', () => {
@@ -62,4 +69,34 @@ test('writeTerraformVars omits enable_vm when no vms configured', () => {
 
   const content = readFileSync(runner.varFile, 'utf8');
   expect(content).not.toContain('enable_vm');
+});
+
+test('resolveConfiguration defaults vmClusterIndex to 0 with a single cluster', () => {
+  const config = makeRunner({ vms: [{ name: 'vm1', cluster: 'east' }] }).resolveConfiguration();
+  expect(config.vmClusterIndex).toBe(0);
+});
+
+test('resolveConfiguration resolves vmClusterIndex from vm.cluster in a multi-cluster list', () => {
+  const config = makeRunner({
+    clusters: multiClusterList(),
+    vms: [{ name: 'vm1', cluster: 'west' }],
+  }).resolveConfiguration();
+  expect(config.vmClusterIndex).toBe(1);
+});
+
+test('resolveConfiguration falls back to index 0 for an unmatched vm.cluster', () => {
+  const config = makeRunner({
+    clusters: multiClusterList(),
+    vms: [{ name: 'vm1', cluster: 'unknown' }],
+  }).resolveConfiguration();
+  expect(config.vmClusterIndex).toBe(0);
+});
+
+test('writeTerraformVars emits vm_cluster_index when enabled', () => {
+  const runner = makeRunner({ clusters: multiClusterList(), vms: [{ name: 'vm1', cluster: 'west' }] });
+  runner.ensureDirectories();
+  runner.writeTerraformVars(runner.resolveConfiguration());
+
+  const content = readFileSync(runner.varFile, 'utf8');
+  expect(content).toContain('vm_cluster_index = 1');
 });
