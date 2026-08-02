@@ -3,6 +3,7 @@ import { getAvailableProvisionerTypes } from './provisioner-runners/index.js';
 const VALID_PROVIDERS = ['eks-ipv6', 'eks', 'gke', 'aks', 'multicluster'];
 const VALID_CLOUDS = ['eks', 'eks-ipv6', 'gke', 'aks'];
 const VALID_ROLES = ['management', 'workload', 'gateway'];
+const VALID_VM_ROLES = ['workload'];
 const VALID_DNS_PROVIDERS = ['route53', 'azure-dns', 'cloud-dns'];
 
 export const InfraSchema = {
@@ -72,6 +73,37 @@ export const InfraSchema = {
           }
         });
       }
+
+      if (infraProfile.spec.vms !== undefined) {
+        if (!Array.isArray(infraProfile.spec.vms)) {
+          errors.push('Invalid field: spec.vms (must be an array)');
+        } else {
+          if (infraProfile.spec.vms.length > 0 && infraProfile.spec.provider !== 'eks') {
+            errors.push(
+              `spec.vms is only supported for provider 'eks' (got '${infraProfile.spec.provider}')`
+            );
+          }
+
+          const vmNames = new Set();
+          infraProfile.spec.vms.forEach((vm, index) => {
+            const prefix = `spec.vms[${index}]`;
+            if (!vm.name) {
+              errors.push(`${prefix}: Missing required field: name`);
+            } else {
+              if (vmNames.has(vm.name)) {
+                errors.push(`${prefix}: Duplicate vm name: ${vm.name}`);
+              }
+              vmNames.add(vm.name);
+            }
+
+            if (vm.role && !VALID_VM_ROLES.includes(vm.role)) {
+              errors.push(
+                `${prefix}: Invalid role: ${vm.role}. Valid values: ${VALID_VM_ROLES.join(', ')}`
+              );
+            }
+          });
+        }
+      }
     }
 
     return { valid: errors.length === 0, errors };
@@ -79,6 +111,14 @@ export const InfraSchema = {
 
   getAllClusters(infraProfile) {
     return infraProfile.spec?.clusters || [];
+  },
+
+  getAllVms(infraProfile) {
+    return infraProfile.spec?.vms || [];
+  },
+
+  isVmEnabled(infraProfile) {
+    return this.getAllVms(infraProfile).length > 0;
   },
 
   getProvider(infraProfile) {
@@ -124,6 +164,10 @@ export const InfraSchema = {
 
   getValidRoles() {
     return [...VALID_ROLES];
+  },
+
+  getValidVmRoles() {
+    return [...VALID_VM_ROLES];
   },
 
   getValidDnsProviders() {
