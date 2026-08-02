@@ -1,0 +1,72 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: request-timeouts
+  description: >
+    Cap how long a client waits for a response using an HTTPRoute request
+    timeout enforced by a waypoint proxy.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: httpbin
+        namespace: httpbin
+      - name: curl
+        namespace: httpbin
+
+  features:
+    - name: waypoint
+      description: Deploy waypoint proxy for httpbin service
+      config:
+        waypointName: httpbin-waypoint
+        namespace: httpbin
+        labels:
+          target: service
+          serviceName: httpbin
+
+    - name: header-routing
+      description: Cap the request timeout to 500ms for httpbin
+      config:
+        routeName: httpbin-timeout
+        namespace: httpbin
+        # Mesh (east/west) routes attach to the Service, not the waypoint Gateway -
+        # see https://docs.solo.io/istio/1.30.x/ambient/traffic-management/overview/
+        parentRefs:
+          - group: ""
+            kind: Service
+            name: httpbin
+            port: 8000
+        rules:
+          - timeouts:
+              request: 500ms
+            backendRefs:
+              - name: httpbin
+                port: 8000
+
+  tests:
+    - name: fast-request-succeeds
+      description: A request well under the timeout completes normally
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec deploy/curl -n httpbin --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://httpbin.httpbin.svc.cluster.local:8000/get
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "200"
+
+    - name: slow-request-times-out
+      description: A request slower than the 500ms timeout is cut off by the waypoint
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec deploy/curl -n httpbin --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://httpbin.httpbin.svc.cluster.local:8000/delay/2
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "504"
