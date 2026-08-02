@@ -1,0 +1,71 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: circuit-breaker
+  description: >
+    Protect httpbin from overload by capping concurrent connections and
+    pending requests via a waypoint-enforced DestinationRule connection pool.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: httpbin
+        namespace: httpbin
+      - name: curl
+        namespace: httpbin
+
+  features:
+    - name: waypoint
+      description: Deploy waypoint proxy for httpbin service
+      config:
+        waypointName: httpbin-waypoint
+        namespace: httpbin
+        labels:
+          target: service
+          serviceName: httpbin
+
+    - name: destination-rule
+      description: Trip the circuit breaker under concurrent load
+      config:
+        ruleName: httpbin-circuit-breaker
+        namespace: httpbin
+        host: httpbin
+        trafficPolicy:
+          connectionPool:
+            tcp:
+              maxConnections: 1
+            http:
+              http1MaxPendingRequests: 1
+              maxRequestsPerConnection: 1
+
+  tests:
+    - name: single-request-succeeds
+      description: A single request under the connection pool limits succeeds
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec deploy/curl -n httpbin --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://httpbin.httpbin.svc.cluster.local:8000/get
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "200"
+
+    - name: concurrent-requests-trip-breaker
+      description: >-
+        Firing several concurrent requests overflows the connection pool and
+        trips the breaker (503, UO in the access log)
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec deploy/curl -n httpbin -- sh -c '
+            for i in $(seq 1 20); do
+              curl -s -o /dev/null -w "%{http_code}\n" --max-time 5 http://httpbin.httpbin.svc.cluster.local:8000/get &
+            done;
+            wait'
+          timeout: 60s
+        - action: verify
+          expect:
+            contains: "503"
