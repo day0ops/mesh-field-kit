@@ -13,6 +13,8 @@ const TEMPLATE_REGEX = /\{\{\s*([^}]+?)\s*\}\}/g;
  *   {{ env.aws.region }}                        - environment spec fields (requires environment)
  *   {{ infra.clusters.<name>.network.vpcId }}          - infra state network fields (requires infraState)
  *   {{ infra.clusters.<name>.network.privateSubnetIds}} - resolves to array (full-value token)
+ *   {{ infra.vms.<name>.publicIp }}                     - infra state VM fields (requires infraState)
+ *   {{ infra.vms.<name>.sshPrivateKeyPath }}
  */
 export const TemplateResolver = {
   /**
@@ -34,10 +36,13 @@ export const TemplateResolver = {
     if (environment?.spec) {
       ctx.env = environment.spec;
     }
-    if (infraState?.status?.clusters) {
+    if (infraState?.status?.clusters || infraState?.status?.vms) {
       ctx.infra = {
         clusters: Object.fromEntries(
-          infraState.status.clusters.map(c => [c.name, c])
+          (infraState.status.clusters || []).map(c => [c.name, c])
+        ),
+        vms: Object.fromEntries(
+          (infraState.status.vms || []).map(v => [v.name, v])
         ),
       };
     }

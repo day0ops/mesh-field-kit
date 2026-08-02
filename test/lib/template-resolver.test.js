@@ -34,6 +34,49 @@ const mockInfraState = {
   },
 };
 
+const mockInfraStateWithVms = {
+  status: {
+    clusters: mockInfraState.status.clusters,
+    vms: [
+      {
+        name: 'vm1',
+        publicIp: '1.2.3.4',
+        privateIp: '10.0.0.5',
+        sshPrivateKeyPath: '/tmp/vm1-key.pem',
+      },
+    ],
+  },
+};
+
+test('buildContext with infraState exposes infra.vms keyed by name', () => {
+  const ctx = TemplateResolver.buildContext(
+    { name: 'east', context: 'ctx', role: 'workload' },
+    mockEnvironment,
+    mockInfraStateWithVms
+  );
+  expect(ctx.infra.vms.vm1).toBeDefined();
+  expect(ctx.infra.vms.vm1.publicIp).toBe('1.2.3.4');
+});
+
+test('resolveString resolves {{infra.vms.vm1.publicIp}} and {{infra.vms.vm1.sshPrivateKeyPath}}', () => {
+  const ctx = TemplateResolver.buildContext(
+    { name: 'east', context: 'ctx', role: 'workload' },
+    mockEnvironment,
+    mockInfraStateWithVms
+  );
+  expect(TemplateResolver.resolveString('{{infra.vms.vm1.publicIp}}', ctx)).toBe('1.2.3.4');
+  expect(TemplateResolver.resolveString('{{infra.vms.vm1.sshPrivateKeyPath}}', ctx)).toBe('/tmp/vm1-key.pem');
+});
+
+test('buildContext with infraState lacking vms exposes an empty infra.vms', () => {
+  const ctx = TemplateResolver.buildContext(
+    { name: 'east', context: 'ctx', role: 'workload' },
+    mockEnvironment,
+    mockInfraState
+  );
+  expect(ctx.infra.vms).toEqual({});
+});
+
 test('buildContext without infraState has no infra key', () => {
   const ctx = TemplateResolver.buildContext({ name: 'east', context: 'ctx', role: 'workload' }, mockEnvironment);
   expect(ctx.infra).toBeUndefined();
