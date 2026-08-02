@@ -29,6 +29,7 @@ import { AuthorizationPolicyFeature } from './security/authorization-policy/inde
 import { EgressWaypointFeature } from './security/egress-waypoint/index.js';
 import { EgressAuthorizationFeature } from './security/egress-authorization/index.js';
 import { NetworkPolicyFeature } from './security/network-policy/index.js';
+import { PeerAuthenticationFeature } from './security/peer-authentication/index.js';
 
 // Multicluster Features
 import { GlobalServiceFeature } from './multicluster/global-service/index.js';
@@ -71,6 +72,7 @@ FeatureManager.register('authorization-policy', AuthorizationPolicyFeature);
 FeatureManager.register('egress-waypoint', EgressWaypointFeature);
 FeatureManager.register('egress-authorization', EgressAuthorizationFeature);
 FeatureManager.register('network-policy', NetworkPolicyFeature);
+FeatureManager.register('peer-authentication', PeerAuthenticationFeature);
 
 // Multicluster
 FeatureManager.register('global-service', GlobalServiceFeature);
@@ -115,6 +117,7 @@ export { AuthorizationPolicyFeature } from './security/authorization-policy/inde
 export { EgressWaypointFeature } from './security/egress-waypoint/index.js';
 export { EgressAuthorizationFeature } from './security/egress-authorization/index.js';
 export { NetworkPolicyFeature } from './security/network-policy/index.js';
+export { PeerAuthenticationFeature } from './security/peer-authentication/index.js';
 
 // Multicluster
 export { GlobalServiceFeature } from './multicluster/global-service/index.js';
