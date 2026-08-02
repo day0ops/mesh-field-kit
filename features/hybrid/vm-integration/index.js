@@ -30,6 +30,9 @@ import { EastWestGateway } from '../../../src/lib/multicluster.js';
  *   eastWestNamespace: string,  // Optional: namespace for the east-west gateway (default: 'istio-eastwest')
  *   istioImage: string,         // Optional: ztunnel image tag (default: ISTIO_IMAGE/ISTIO_VERSION env)
  *   istioRepo: string,          // Optional: ztunnel image repo (default: 'us-docker.pkg.dev/soloio-img/istio')
+ *   installDemoApp: boolean,    // Optional: start a minimal static HTTP responder on each
+ *                               // workload's target port (default: true). Set to false if
+ *                               // the VM already runs a real application on those ports.
  *   workloads: [                // Required: at least one workload
  *     { name: string, ports: string[] }, // ports e.g. ['http:80:8080']
  *   ],
@@ -71,6 +74,7 @@ export class VmIntegrationFeature extends Feature {
       eastWestNamespace = 'istio-eastwest',
       istioImage = process.env.ISTIO_IMAGE || process.env.ISTIO_VERSION,
       istioRepo = process.env.ISTIO_REPO || 'us-docker.pkg.dev/soloio-img/istio',
+      installDemoApp = true,
       workloads,
     } = this.config;
 
@@ -147,6 +151,31 @@ export class VmIntegrationFeature extends Feature {
     );
 
     this.log(`ztunnel started on VM ${vmIp}`, 'success');
+
+    if (installDemoApp) {
+      await this.#startDemoApps(ssh, vmIp, workloads);
+    }
+  }
+
+  /**
+   * Start a minimal static HTTP responder on each workload's target port, so
+   * there's something to actually reach through the mesh. The doc's own scope
+   * is connectivity, not a real workload, so this is intentionally trivial.
+   */
+  async #startDemoApps(ssh, vmIp, workloads) {
+    const targetPorts = new Set();
+    for (const workload of workloads) {
+      for (const portSpec of workload.ports) {
+        const parts = portSpec.split(':');
+        targetPorts.add(parts[2] || parts[1]);
+      }
+    }
+
+    for (const port of targetPorts) {
+      this.log(`Starting demo HTTP responder on VM port ${port}...`, 'info');
+      await ssh.exec(vmIp, `pkill -f "http.server ${port}"`, { ignoreError: true });
+      await ssh.exec(vmIp, `nohup python3 -m http.server ${port} --bind 127.0.0.1 > /tmp/mesh-demo-${port}.log 2>&1 &`);
+    }
   }
 
   async #ensureDocker(ssh, vmIp) {
