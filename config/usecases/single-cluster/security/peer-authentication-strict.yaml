@@ -1,0 +1,94 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: peer-authentication-strict
+  description: |
+    Enforce STRICT mTLS on a namespace via PeerAuthentication and verify it:
+    - In-mesh traffic is transparently upgraded to mTLS by ztunnel, no
+      workload changes required.
+    - A client with no mesh identity is rejected once STRICT is enforced.
+    - istioctl confirms the ztunnel-side endpoint is actually there and
+      healthy, not just "allowed".
+    No waypoint is required - PeerAuthentication is enforced by ztunnel at L4.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: httpbin
+        namespace: httpbin
+      - name: curl
+        namespace: httpbin
+
+  features:
+    - name: peer-authentication
+      description: Require STRICT mTLS for all workloads in the httpbin namespace
+      config:
+        policyName: httpbin-strict-mtls
+        namespace: httpbin
+        mtls:
+          mode: STRICT
+
+  tests:
+    - name: in-mesh-request-succeeds
+      description: An in-mesh client reaches httpbin transparently under STRICT mTLS
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec deploy/curl -n httpbin --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://httpbin.httpbin.svc.cluster.local:8000/get
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "200"
+
+    - name: mtls-verified-via-ztunnel
+      description: Confirm the httpbin endpoint is served over ztunnel, not just reachable
+      steps:
+        - action: istioctl-zc-endpoints
+          service: httpbin
+          serviceNamespace: httpbin
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains:
+              - httpbin
+              - Healthy
+
+    - name: non-mesh-client-rejected
+      description: >-
+        A client with no mesh identity cannot reach httpbin once STRICT mTLS
+        is enforced - ztunnel intercepts the inbound connection on the
+        httpbin side and rejects the plaintext handshake.
+      setup:
+        - action: exec
+          command: kubectl create namespace no-mesh --dry-run=client -o yaml | kubectl apply -f -
+          timeout: 15s
+        - action: exec
+          command: >-
+            kubectl run plaintext-client -n no-mesh
+            --image=curlimages/curl:8.11.0 --restart=Never
+            --command -- sleep 3600
+          timeout: 15s
+        - action: exec
+          command: kubectl wait --for=condition=ready pod/plaintext-client -n no-mesh --timeout=60s
+          timeout: 70s
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec plaintext-client -n no-mesh --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 5
+            http://httpbin.httpbin.svc.cluster.local:8000/get
+          timeout: 15s
+          retries: 1
+          retryDelay: 3000
+        - action: verify
+          expect:
+            contains: "000"
+      teardown:
+        - action: exec
+          command: kubectl delete namespace no-mesh --ignore-not-found
+          timeout: 30s
