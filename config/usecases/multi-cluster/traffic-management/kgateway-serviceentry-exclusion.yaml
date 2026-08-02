@@ -1,0 +1,159 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: kgateway-serviceentry-exclusion
+  description: |
+    Demonstrate Solo Enterprise for kgateway's serviceEntriesExclusionLabelSelectors
+    Helm value, which excludes matching Istio ServiceEntry resources from
+    kgateway's backend and endpoint discovery.
+    - productpage and httpbin are both globally scoped (global ServiceEntries)
+    - two independent HTTPRoutes route ingress traffic to each, via Hostname
+      backendRefs to their mesh.internal hostnames
+    - excluding httpbin's autogen ServiceEntry (by its solo.io/parent-service
+      label) makes kgateway treat it as having no backend, while productpage's
+      route is unaffected
+    - Gateway API's ResolvedRefs condition does not reflect the exclusion (it
+      stays True either way) - the effect only shows up in the actual
+      ingress response, so these tests check response status codes, not
+      HTTPRoute status
+    - See https://docs.solo.io/kgateway/2.3.x/integrations/istio/ambient/additional-settings/#exclude-serviceentries
+spec:
+  diagram: |
+    flowchart LR
+      Client -->|"/productpage"| KGW[kgateway\nkgateway-system/east]
+      Client -->|"/get"| KGW
+      KGW -->|productpage-route| PPse[productpage.bookinfo.mesh.internal]
+      KGW -.->|httpbin-route\nexcluded via serviceEntriesExclusionLabelSelectors| HBse[httpbin.httpbin.mesh.internal]
+
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: east
+      - name: httpbin
+        namespace: httpbin
+        clusters:
+          - name: east
+
+  features:
+    - name: global-service
+      description: Make productpage globally accessible
+      config:
+        namespace: bookinfo
+        services:
+          - name: productpage
+            scope: global
+      clusters:
+        - name: east
+
+    - name: ingress-httproute
+      description: Route external traffic to productpage - never excluded, used as a control
+      config:
+        routeName: productpage-route
+        gatewayName: bookinfo-gateway
+        gatewayNamespace: kgateway-system
+        namespace: bookinfo
+        hostname: "{{env.domains.app}}"
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /productpage
+            backendRefs:
+              - name: productpage.bookinfo.mesh.internal
+                port: 9080
+                backendKind: Hostname
+      clusters:
+        - name: east
+
+    - name: ingress-httproute
+      description: Route external traffic to httpbin - the target of the exclusion demo
+      config:
+        routeName: httpbin-route
+        gatewayName: bookinfo-gateway
+        gatewayNamespace: kgateway-system
+        namespace: httpbin
+        hostname: "{{env.domains.app}}"
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /get
+            backendRefs:
+              - name: httpbin.httpbin.mesh.internal
+                port: 8000
+                backendKind: Hostname
+      clusters:
+        - name: east
+
+  tests:
+    - name: both-routes-reachable
+      description: Verify both productpage and httpbin are reachable before any exclusion is configured
+      clusters:
+        - name: east
+      steps:
+        - action: send-request
+          hostname: "{{env.domains.app}}"
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            statusCode: 200
+        - action: send-request
+          hostname: "{{env.domains.app}}"
+          autoDetectGwAddress: true
+          path: /get
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            statusCode: 200
+
+    - name: excluded-serviceentry-breaks-only-its-own-route
+      description: Verify excluding httpbin's ServiceEntry breaks only the httpbin route, leaving productpage unaffected
+      clusters:
+        - name: east
+      setup:
+        - action: exec
+          command: |
+            helm upgrade enterprise-kgateway oci://us-docker.pkg.dev/solo-public/enterprise-kgateway/charts/enterprise-kgateway \
+              -n kgateway-system --version 2.3.1 --reuse-values --wait --timeout 3m \
+              --set-json 'serviceEntriesExclusionLabelSelectors=[{"matchLabels":{"solo.io/parent-service":"httpbin"}}]'
+          timeout: 60s
+        - action: wait
+          duration: 10000
+      teardown:
+        - action: exec
+          command: |
+            helm upgrade enterprise-kgateway oci://us-docker.pkg.dev/solo-public/enterprise-kgateway/charts/enterprise-kgateway \
+              -n kgateway-system --version 2.3.1 --reuse-values --wait --timeout 3m \
+              --set-json 'serviceEntriesExclusionLabelSelectors=[]'
+          timeout: 60s
+      steps:
+        - action: send-request
+          hostname: "{{env.domains.app}}"
+          autoDetectGwAddress: true
+          path: /get
+          timeout: 20s
+          retries: 3
+          retryDelay: 4000
+        - action: verify
+          expect:
+            statusCode: 500
+        - action: send-request
+          hostname: "{{env.domains.app}}"
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 20s
+          retries: 3
+          retryDelay: 4000
+        - action: verify
+          expect:
+            statusCode: 200

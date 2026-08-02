@@ -1,0 +1,25 @@
+apiVersion: mesh.demo/v1
+kind: Environment
+metadata:
+  name: azure-dev
+  description: Azure AKS environment
+
+spec:
+  aks:
+    region: Australia East
+
+  acme:
+    email: kasun.talwatta@solo.io
+
+  tls:
+    issuer: selfsigned-issuer
+
+  keycloak:
+    scheme: https
+
+  domains:
+    keycloak: keycloak.ambient-demo-aks.kasunt.apac.fe.solo.io
+    grafana: grafana.ambient-demo-aks.kasunt.apac.fe.solo.io
+    soloUI: soloui.ambient-demo-aks.kasunt.apac.fe.solo.io
+    okta: integrator-1335842.okta.com
+    app: app.ambient-demo-aks.kasunt.apac.fe.solo.io

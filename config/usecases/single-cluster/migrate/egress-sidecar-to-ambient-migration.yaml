@@ -1,0 +1,110 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: egress-sidecar-to-ambient-migration
+  description: >
+    Egress-focused counterpart of sidecar-to-ambient-migration.yaml: migrates
+    outbound access control for an external host from a sidecar-mesh
+    mechanism to ambient's egress waypoint. Before cutover, egress to
+    httpbin.org is controlled purely via a ServiceEntry reachable through the
+    sidecar's own Envoy (REGISTRY_ONLY mesh-wide egress, no dedicated egress
+    gateway). After cutover, an ambient egress-waypoint plus an explicit
+    egress-authorization policy takes over enforcement - a real improvement,
+    trading implicit registry-only allow for explicit per-namespace authz. Run
+    on a cluster installed with the eks-single-cluster-mesh-sidecar profile.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: httpbin
+        namespace: httpbin
+        dataplaneMode: sidecar
+      - name: curl
+        namespace: httpbin
+        dataplaneMode: sidecar
+
+  features:
+    - name: gloo-migrate-check
+      description: Assess migration readiness before any changes (expect recommendations, not a clean pass)
+      config:
+        strict: false
+
+    - name: service-entry
+      description: Register external service in the mesh via sidecar-era REGISTRY_ONLY egress (before state, no dedicated egress namespace or waypoint yet)
+      config:
+        entryName: httpbin-org-presidecar
+        namespace: httpbin
+        hosts:
+          - httpbin.org
+        location: MESH_EXTERNAL
+        resolution: DNS
+        ports:
+          - number: 80
+            name: http
+            protocol: HTTP
+
+    - name: enable-ambient
+      description: Upgrade the control plane in place to ambient-capable (Phase 2) — existing sidecar workloads keep running via interop
+      config:
+        istioVersion: 1.30.3
+        istioRevision: stable # must match eks-single-cluster-mesh-sidecar's mesh.istioRevision
+
+    - name: egress-waypoint
+      description: Deploy egress waypoint ahead of cutover (Phase 3)
+      config:
+        waypointName: egress-waypoint
+        namespace: egress
+
+    - name: service-entry
+      description: Post-migration ServiceEntry for httpbin.org, now bound to the egress waypoint
+      config:
+        entryName: httpbin-org
+        namespace: egress
+        hosts:
+          - httpbin.org
+        location: MESH_EXTERNAL
+        resolution: DNS
+        ports:
+          - number: 80
+            name: http
+            protocol: HTTP
+        waypointName: egress-waypoint
+
+    - name: egress-authorization
+      description: Allow httpbin namespace to access httpbin.org through the egress waypoint
+      config:
+        policyName: allow-httpbin-egress
+        namespace: egress
+        waypointName: egress-waypoint
+        action: ALLOW
+        rules:
+          - from:
+              - source:
+                  namespaces:
+                    - httpbin
+            to:
+              - operation:
+                  hosts:
+                    - httpbin.org
+
+    - name: sidecar-cutover
+      description: Flip httpbin from sidecar to ambient (Phases 5 + 7)
+      config:
+        namespace: httpbin
+
+    - name: gloo-migrate-check
+      description: Verify the migration completed cleanly
+      config:
+        strict: true
+
+  tests:
+    - name: egress-allowed-post-migration
+      description: Verify egress traffic to httpbin.org is still allowed after cutting over to the ambient egress waypoint
+      steps:
+        - action: exec
+          command: kubectl exec deploy/curl -n httpbin -- curl -s -o /dev/null -w '%{http_code}' http://httpbin.org/get
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "200"

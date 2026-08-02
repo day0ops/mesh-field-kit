@@ -1,0 +1,22 @@
+# Reference schema only - this file is not loaded at runtime.
+# The GRPCRoute resource is built in-memory by GrpcRoutingFeature.deploy().
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: grpcroute
+  namespace: default
+spec:
+  parentRefs:
+    - name: gateway
+      namespace: default
+  hostnames:
+    - example.com
+  rules:
+    - matches:
+        - method:
+            type: Exact
+            service: grpcbin.GRPCBin
+            method: Empty
+      backendRefs:
+        - name: grpcbin
+          port: 9000

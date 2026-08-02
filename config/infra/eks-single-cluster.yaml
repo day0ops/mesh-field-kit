@@ -1,0 +1,18 @@
+apiVersion: mesh.demo/v1
+kind: InfraProfile
+metadata:
+  name: eks-single-cluster
+  description: EKS single cluster
+
+spec:
+  name: cedar
+  provider: eks
+  environment: aws-dev
+
+  settings:
+    nodes: 3
+    node_type: t3.xlarge
+
+  clusters:
+    - name: demo
+      role: management

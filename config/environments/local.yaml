@@ -1,0 +1,21 @@
+apiVersion: mesh.demo/v1
+kind: Environment
+metadata:
+  name: local
+  description: Local Kubernetes cluster (lok8s)
+
+spec:
+  # No infraProfile or dns - purely local cluster
+  tls:
+    issuer: selfsigned-issuer
+
+  keycloak:
+    scheme: http
+
+  # Domain mappings - auto-generated pattern: <service>.<childZone>.<parentDomain>
+  domains:
+    keycloak: keycloak.keycloak.svc.cluster.local
+    grafana: kube-prometheus-stack-grafana.telemetry.svc.cluster.local
+    soloUI: solo-enterprise-ui.solo-enterprise.svc.cluster.local
+    okta: dev-12345.okta.com
+    app: app.bookinfo.svc.cluster.local

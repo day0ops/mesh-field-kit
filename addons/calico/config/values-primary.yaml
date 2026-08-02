@@ -1,0 +1,8 @@
+# Calico primary CNI mode overlay
+# Replaces the cloud provider's CNI - Calico handles pod networking, IPAM,
+# and policy itself. Leaves kubernetesProvider/networking to the operator's
+# own defaults (see the standard Calico quickstart install).
+installation:
+  kubernetesProvider: ""
+  cni:
+    type: Calico

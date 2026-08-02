@@ -1,0 +1,83 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: distributed-tracing
+  description: |
+    Distributed tracing for Bookinfo's productpage -> reviews -> ratings call
+    chain, using the Telemetry API to register an OpenTelemetry provider and
+    activate 100% sampling.
+    - Requires the telemetry addon already installed (Tempo + Loki + Grafana +
+      OTel collectors) - this usecase only wires istiod to the existing
+      traces collector, it doesn't install one itself
+    - Explore traces in Grafana via the pre-wired Tempo datasource, or query
+      Tempo directly through its query-frontend service
+
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+
+  features:
+    - name: gateway
+      description: Create ingress gateway for Bookinfo
+      config:
+        gatewayName: bookinfo
+        namespace: bookinfo
+        gateway:
+          listeners:
+            - name: http
+              hostname: bookinfo.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: request-routing
+      description: Route traffic to productpage
+      config:
+        routeName: bookinfo
+        namespace: bookinfo
+        gatewayName: bookinfo
+        gatewayNamespace: bookinfo
+        hostname: bookinfo.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage
+                port: 9080
+
+    - name: tracing-provider
+      description: Register the telemetry addon's OTel traces collector as a tracing provider and activate 100% sampling
+      config:
+        istioVersion: 1.30.3
+        otlpService: opentelemetry-collector-traces.telemetry.svc.cluster.local
+
+  tests:
+    - name: bookinfo-accessible-with-tracing
+      description: Verify bookinfo is still accessible with tracing enabled
+      steps:
+        - action: send-request
+          hostname: bookinfo.example.com
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 200
+
+    - name: tracing-provider-registered
+      description: Verify the Telemetry resource activating the OTel provider was applied
+      steps:
+        - action: exec
+          command: kubectl get telemetry mesh-tracing -n istio-system -o jsonpath='{.spec.tracing[0].providers[0].name}'
+          timeout: 15s
+        - action: verify
+          expect:
+            contains: mesh-tracing

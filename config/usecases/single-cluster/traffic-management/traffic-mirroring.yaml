@@ -1,0 +1,89 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: traffic-mirroring
+  description: >
+    Mirror live reviews-v1 traffic to a reviews-v2 shadow service via a
+    waypoint, using a Gateway API RequestMirror filter.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+
+  features:
+    - name: gateway
+      description: Create ingress gateway for Bookinfo
+      config:
+        gatewayName: bookinfo
+        namespace: bookinfo
+        gateway:
+          listeners:
+            - name: http
+              hostname: bookinfo.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: request-routing
+      description: Route traffic to productpage
+      config:
+        routeName: bookinfo
+        namespace: bookinfo
+        gatewayName: bookinfo
+        gatewayNamespace: bookinfo
+        hostname: bookinfo.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage
+                port: 9080
+
+    - name: waypoint
+      description: Deploy waypoint proxy for reviews service
+      config:
+        waypointName: reviews-waypoint
+        namespace: bookinfo
+        labels:
+          target: service
+          serviceName: reviews
+
+    - name: traffic-mirroring
+      description: Mirror all reviews-v1 traffic to reviews-v2
+      config:
+        routeName: reviews-mirror
+        namespace: bookinfo
+        # Mesh (east/west) routes attach to the Service, not the waypoint Gateway -
+        # see https://docs.solo.io/istio/1.30.x/ambient/traffic-management/overview/
+        parentRefs:
+          - group: ""
+            kind: Service
+            name: reviews
+            port: 9080
+        rules:
+          - backendRefs:
+              - name: reviews-v1
+                port: 9080
+            mirrorBackendRef:
+              name: reviews-v2
+              port: 9080
+
+  tests:
+    - name: bookinfo-accessible
+      description: Verify bookinfo is accessible with traffic mirroring configured
+      steps:
+        - action: send-request
+          hostname: bookinfo.example.com
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 200

@@ -1,0 +1,90 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: segmented-canary
+  description: |
+    Combine cluster segments with waypoint-based traffic shifting for a
+    segment-scoped canary deployment.
+    - west is assigned to the canary-segment
+    - reviews traffic in west is canaried 80/20 between v1 and v2 via a waypoint
+spec:
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: west
+          - name: east
+
+  features:
+    - name: segment
+      description: Create canary-segment and assign west to it
+      config:
+        segmentName: canary-segment
+        domain: canary.global
+        assignCluster: west
+      clusters:
+        - name: west
+        - name: east
+
+    - name: global-service
+      description: Make bookinfo services globally accessible
+      config:
+        namespace: bookinfo
+        services:
+          - name: productpage
+            scope: global
+          - name: reviews
+            scope: global
+      clusters:
+        - name: west
+        - name: east
+
+    - name: waypoint
+      description: Deploy waypoint for reviews in west
+      config:
+        waypointName: reviews-waypoint
+        namespace: bookinfo
+        labels:
+          target: service
+          serviceName: reviews
+      clusters:
+        - name: west
+
+    - name: traffic-shifting
+      description: Canary reviews traffic in west
+      config:
+        routeName: reviews-segment-canary
+        namespace: bookinfo
+        # Mesh (east/west) routes attach to the Service, not the waypoint Gateway -
+        # see https://docs.solo.io/istio/1.30.x/ambient/traffic-management/overview/
+        parentRefs:
+          - group: ""
+            kind: Service
+            name: reviews
+            port: 9080
+        rules:
+          - backendRefs:
+              - name: reviews-v1
+                port: 9080
+                weight: 80
+              - name: reviews-v2
+                port: 9080
+                weight: 20
+      clusters:
+        - name: west
+
+  tests:
+    - name: segment-canary-active
+      description: Verify segmented canary HTTPRoute is active in west
+      clusters:
+        - name: west
+      steps:
+        - action: exec
+          command: kubectl get httproute reviews-segment-canary -n bookinfo -o name
+          timeout: 15s
+        - action: verify
+          expect:
+            contains: httproute

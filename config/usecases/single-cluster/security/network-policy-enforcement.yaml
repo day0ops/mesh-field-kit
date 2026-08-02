@@ -1,0 +1,224 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: network-policy-enforcement
+  description: |
+    Validates that plain Kubernetes NetworkPolicy is still enforced by the
+    CNI when workloads run in ambient mode:
+    - netpol-client can only egress to netpol-backend
+    - netpol-backend only accepts ingress from netpol-client
+    - netpol-public allows ingress from anyone, but netpol-client still can't reach it - proving the denial is netpol-client's egress restriction, not netpol-public's policy
+    - narrowing netpol-backend's ingress policy to the app port alone (no
+      HBONE 15008) blocks mesh traffic entirely, since NetworkPolicy is
+      enforced on the host on the actual wire-level port - for ambient pods
+      that's always 15008, never the app port. Adding 15008 back restores it.
+      See https://ambientmesh.io/docs/security/configure-networkpolicies/
+
+    Requires a CNI that actually enforces NetworkPolicy (e.g. this kit's
+    eks-single-cluster-mesh-with-cilium profile, or Calico/Cilium chaining) -
+    plain aws-vpc-cni does not, which surfaces as the "denied" test
+    unexpectedly passing.
+
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: curl
+        namespace: netpol-client
+        dataplaneMode: ambient
+      - name: httpbin
+        namespace: netpol-backend
+        dataplaneMode: ambient
+      - name: curl
+        namespace: netpol-backend
+        dataplaneMode: ambient
+      - name: httpbin
+        namespace: netpol-public
+        dataplaneMode: ambient
+
+  features:
+    - name: network-policy
+      description: netpol-backend only accepts ingress from netpol-client
+      config:
+        policyName: ingress-only-from-client
+        namespace: netpol-backend
+        podSelector: {}
+        policyTypes: [Ingress]
+        ingress:
+          - from:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: netpol-client
+
+    - name: network-policy
+      description: netpol-public is a control target - allows ingress from anyone
+      config:
+        policyName: ingress-from-any
+        namespace: netpol-public
+        podSelector: {}
+        policyTypes: [Ingress]
+        ingress:
+          - {}
+
+    - name: network-policy
+      description: netpol-client can only egress to netpol-backend
+      config:
+        policyName: egress-only-to-backend
+        namespace: netpol-client
+        podSelector: {}
+        policyTypes: [Egress]
+        egress:
+          - to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: netpol-backend
+
+  tests:
+    - name: client-to-backend-allowed
+      description: netpol-client -> netpol-backend should succeed (allowed by both policies)
+      steps:
+        - action: exec
+          command: kubectl exec deploy/curl -n netpol-client -- curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 5 http://$(kubectl get svc httpbin -n netpol-backend -o jsonpath='{.spec.clusterIP}'):8000/get
+          timeout: 30s
+          retries: 0
+        - action: verify
+          expect:
+            contains: "200"
+
+    - name: client-to-public-denied
+      description: netpol-client -> netpol-public should be blocked by netpol-client's egress policy, even though netpol-public itself allows ingress from anyone
+      steps:
+        - action: exec
+          command: kubectl exec deploy/curl -n netpol-client -- curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 5 http://$(kubectl get svc httpbin -n netpol-public -o jsonpath='{.spec.clusterIP}'):8000/get
+          timeout: 30s
+          retries: 0
+        - action: verify
+          expect:
+            notContains: "200"
+
+    - name: backend-to-public-allowed-control
+      description: netpol-backend -> netpol-public should succeed, proving netpol-public's own policy is permissive and the denial above is caused by netpol-client's egress restriction, not netpol-public's ingress rule
+      steps:
+        - action: exec
+          command: kubectl exec deploy/curl -n netpol-backend -- curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 5 http://$(kubectl get svc httpbin -n netpol-public -o jsonpath='{.spec.clusterIP}'):8000/get
+          timeout: 30s
+          retries: 0
+        - action: verify
+          expect:
+            contains: "200"
+
+    # These two tests temporarily narrow the already-declared
+    # ingress-only-from-client policy to add a ports restriction, then
+    # restore it to the feature-declared (no ports = all ports) baseline in
+    # teardown, so a later re-run of just the tests still finds the
+    # namespace in the state the features block deployed it in.
+    - name: port-only-restriction-blocks-hbone
+      description: Narrowing netpol-backend's ingress policy to the app port alone (missing HBONE 15008) blocks mesh traffic entirely, even from the already-allowed netpol-client namespace
+      setup:
+        - action: exec
+          command: |
+            kubectl apply -f - <<'EOF'
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: ingress-only-from-client
+              namespace: netpol-backend
+            spec:
+              podSelector: {}
+              policyTypes: [Ingress]
+              ingress:
+                - from:
+                    - namespaceSelector:
+                        matchLabels:
+                          kubernetes.io/metadata.name: netpol-client
+                  ports:
+                    - port: 8000
+                      protocol: TCP
+            EOF
+          timeout: 20s
+        - action: wait
+          duration: 5000
+      teardown:
+        - action: exec
+          command: |
+            kubectl apply -f - <<'EOF'
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: ingress-only-from-client
+              namespace: netpol-backend
+            spec:
+              podSelector: {}
+              policyTypes: [Ingress]
+              ingress:
+                - from:
+                    - namespaceSelector:
+                        matchLabels:
+                          kubernetes.io/metadata.name: netpol-client
+            EOF
+          timeout: 20s
+      steps:
+        - action: exec
+          command: kubectl exec deploy/curl -n netpol-client -- curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 5 http://$(kubectl get svc httpbin -n netpol-backend -o jsonpath='{.spec.clusterIP}'):8000/get
+          timeout: 30s
+          retries: 0
+        - action: verify
+          expect:
+            notContains: "200"
+
+    - name: adding-hbone-port-restores-traffic
+      description: Adding port 15008 alongside the app port fixes connectivity, without widening any other access
+      setup:
+        - action: exec
+          command: |
+            kubectl apply -f - <<'EOF'
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: ingress-only-from-client
+              namespace: netpol-backend
+            spec:
+              podSelector: {}
+              policyTypes: [Ingress]
+              ingress:
+                - from:
+                    - namespaceSelector:
+                        matchLabels:
+                          kubernetes.io/metadata.name: netpol-client
+                  ports:
+                    - port: 8000
+                      protocol: TCP
+                    - port: 15008
+                      protocol: TCP
+            EOF
+          timeout: 20s
+        - action: wait
+          duration: 5000
+      teardown:
+        - action: exec
+          command: |
+            kubectl apply -f - <<'EOF'
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: ingress-only-from-client
+              namespace: netpol-backend
+            spec:
+              podSelector: {}
+              policyTypes: [Ingress]
+              ingress:
+                - from:
+                    - namespaceSelector:
+                        matchLabels:
+                          kubernetes.io/metadata.name: netpol-client
+            EOF
+          timeout: 20s
+      steps:
+        - action: exec
+          command: kubectl exec deploy/curl -n netpol-client -- curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 5 http://$(kubectl get svc httpbin -n netpol-backend -o jsonpath='{.spec.clusterIP}'):8000/get
+          timeout: 30s
+          retries: 0
+        - action: verify
+          expect:
+            contains: "200"

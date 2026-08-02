@@ -1,0 +1,84 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: multicluster-egress
+  description: Combine global mesh connectivity with a shared egress gateway for centralized outbound traffic control
+spec:
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: httpbin
+        namespace: httpbin
+        clusters:
+          - name: west
+          - name: east
+
+  features:
+    - name: global-service
+      description: Make httpbin globally accessible
+      config:
+        namespace: httpbin
+        services:
+          - name: httpbin
+            scope: global
+      clusters:
+        - name: west
+        - name: east
+
+    - name: egress-waypoint
+      description: Deploy shared egress waypoint on west
+      config:
+        waypointName: egress-waypoint
+        namespace: egress
+      clusters:
+        - name: west
+
+    - name: service-entry
+      description: Register external service
+      config:
+        entryName: external-api
+        namespace: egress
+        hosts:
+          - httpbin.org
+        location: MESH_EXTERNAL
+        resolution: DNS
+        ports:
+          - number: 80
+            name: http
+            protocol: HTTP
+        waypointName: egress-waypoint
+      clusters:
+        - name: west
+
+    - name: egress-authorization
+      description: Allow httpbin to access external service
+      config:
+        policyName: allow-httpbin-egress
+        namespace: egress
+        waypointName: egress-waypoint
+        action: ALLOW
+        rules:
+          - from:
+              - source:
+                  namespaces:
+                    - httpbin
+            to:
+              - operation:
+                  hosts:
+                    - httpbin.org
+      clusters:
+        - name: west
+
+  tests:
+    - name: egress-from-west
+      description: Verify egress traffic from west cluster through shared egress gateway
+      clusters:
+        - name: west
+      steps:
+        - action: exec
+          command: kubectl exec deploy/httpbin -n httpbin -- curl -s -o /dev/null -w '%{http_code}' http://httpbin.org/get
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "200"

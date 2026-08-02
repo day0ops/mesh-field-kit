@@ -1,0 +1,65 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: grpc-routing
+  description: >
+    gRPC request routing to a gRPC backend via a GRPCRoute, matching on
+    service and method.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: grpcbin
+        namespace: grpc-demo
+      - name: grpcurl
+        namespace: grpc-demo
+
+  features:
+    - name: gateway
+      description: Create ingress gateway for grpcbin
+      config:
+        gatewayName: grpcbin-gw
+        namespace: grpc-demo
+        gateway:
+          listeners:
+            - name: http
+              hostname: grpcbin.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: grpc-routing
+      description: Route all GRPCBin service methods to grpcbin
+      config:
+        routeName: grpcbin-route
+        namespace: grpc-demo
+        gatewayName: grpcbin-gw
+        hostname: grpcbin.example.com
+        rules:
+          - matches:
+              - method:
+                  service: grpcbin.GRPCBin
+            backendRefs:
+              - name: grpcbin
+                port: 9000
+          - matches:
+              - method:
+                  service: grpc.reflection.v1alpha.ServerReflection
+            backendRefs:
+              - name: grpcbin
+                port: 9000
+
+  tests:
+    - name: grpcbin-accessible
+      description: Verify grpcbin GRPCBin service is reachable via GRPCRoute
+      steps:
+        - action: exec
+          command: ADDR=$(kubectl get gateway grpcbin-gw -n grpc-demo -o jsonpath='{.status.addresses[0].value}'); if [ -z "$ADDR" ]; then ADDR=$(kubectl get svc -n grpc-demo -l gateway.networking.k8s.io/gateway-name=grpcbin-gw -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}{.items[0].status.loadBalancer.ingress[0].hostname}'); fi; kubectl exec deploy/grpcurl -n grpc-demo -- grpcurl -plaintext -authority grpcbin.example.com -d '{}' "$ADDR:80" grpcbin.GRPCBin/Empty
+          retries: 10
+          retryDelay: 10000
+        - action: verify
+          expect:
+            exitCode: 0

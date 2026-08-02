@@ -1,0 +1,167 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: waypoint-l7-authorization
+  description: |
+    Enforce an L7 AuthorizationPolicy via a waypoint, and prove it governs
+    traffic regardless of whether the caller is local or arrives from the
+    peer cluster through the global-service hostname.
+    - reviews (east) is bound to a waypoint and globally scoped
+    - an L7 AuthorizationPolicy on the waypoint allows only GET requests
+    - both a local (east) caller and a cross-cluster (west) caller are
+      subject to the same policy
+spec:
+  diagram: |
+    flowchart LR
+      subgraph east
+        Pe[productpage] -->|GET ok, DELETE 403| Wp[reviews-waypoint]
+        Wp --> Re[reviews east]
+      end
+      subgraph west
+        Pw[productpage] -->|reviews.bookinfo.mesh.internal\nDELETE 403| EWG[east-west gw]
+      end
+      EWG --> Wp
+
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: west
+          - name: east
+
+  features:
+    - name: global-service
+      description: Make reviews globally accessible
+      config:
+        namespace: bookinfo
+        services:
+          - name: reviews
+            scope: global
+      # Only expose reviews globally from east. If west's local reviews were also
+      # marked global, locality-aware load balancing would keep cross-cluster
+      # calls on west's own (non-waypoint) reviews pods, bypassing the waypoint
+      # entirely and never proving the cross-cluster path this use case tests.
+      clusters:
+        - name: east
+
+    - name: waypoint
+      description: Deploy waypoint for reviews in east
+      config:
+        waypointName: reviews-waypoint
+        namespace: bookinfo
+        labels:
+          target: service
+          serviceName: reviews
+      clusters:
+        - name: east
+
+    - name: authorization-policy
+      description: Restrict reviews to GET requests only, enforced at the waypoint
+      config:
+        policyName: reviews-l7-get-only
+        namespace: bookinfo
+        # Target the waypoint Gateway itself, not the Service. The waypoint
+        # serves reviews on two separate virtual hosts (the cluster-local
+        # reviews.bookinfo.svc.cluster.local and the global
+        # reviews.bookinfo.mesh.internal) - a Service-scoped targetRef only
+        # covers the former, so cross-cluster global-service callers would
+        # bypass the policy entirely.
+        targetRefs:
+          - kind: Gateway
+            group: gateway.networking.k8s.io
+            name: reviews-waypoint
+        action: ALLOW
+        rules:
+          - to:
+              - operation:
+                  methods: ["GET"]
+      clusters:
+        - name: east
+
+  tests:
+    - name: local-get-allowed
+      description: Verify a local GET request to reviews succeeds
+      clusters:
+        - name: east
+      steps:
+        - action: exec
+          command: kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "import urllib.request; print(urllib.request.urlopen('http://reviews:9080/reviews/0', timeout=5).getcode())"
+          timeout: 20s
+        - action: verify
+          expect:
+            contains: "200"
+
+    - name: local-delete-denied
+      description: Verify a local DELETE request to reviews is rejected by the L7 policy
+      clusters:
+        - name: east
+      steps:
+        - action: exec
+          command: |
+            kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "
+            import urllib.request, urllib.error
+            req = urllib.request.Request('http://reviews:9080/reviews/0', method='DELETE')
+            try: print(urllib.request.urlopen(req, timeout=5).getcode())
+            except urllib.error.HTTPError as e: print(e.code)"
+          timeout: 20s
+        - action: verify
+          expect:
+            contains: "403"
+
+    # The global reviews ServiceEntry's workloadSelector auto-discovers any local
+    # "app: reviews" pods on every peered cluster, regardless of which cluster's
+    # Service was labeled scope: global. West's own reviews pods are therefore
+    # still a valid (and locality-preferred) endpoint for the global hostname, so
+    # these two tests scale them to zero first to force the call to actually
+    # cross to east's waypoint-fronted reviews.
+    - name: cross-cluster-delete-denied
+      description: Verify a DELETE request from west (via the global hostname) is also rejected by east's waypoint policy
+      clusters:
+        - name: west
+      setup:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=1
+          timeout: 30s
+      steps:
+        - action: exec
+          command: |
+            kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "
+            import urllib.request, urllib.error
+            req = urllib.request.Request('http://reviews.bookinfo.mesh.internal:9080/reviews/0', method='DELETE')
+            try: print(urllib.request.urlopen(req, timeout=5).getcode())
+            except urllib.error.HTTPError as e: print(e.code)"
+          timeout: 20s
+        - action: verify
+          expect:
+            contains: "403"
+
+    - name: cross-cluster-get-allowed
+      description: Verify a GET request from west (via the global hostname) still succeeds when routed to east
+      clusters:
+        - name: west
+      setup:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=1
+          timeout: 30s
+      steps:
+        - action: exec
+          command: kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "import urllib.request; print(urllib.request.urlopen('http://reviews.bookinfo.mesh.internal:9080/reviews/0', timeout=5).getcode())"
+          timeout: 20s
+        - action: verify
+          expect:
+            contains: "200"

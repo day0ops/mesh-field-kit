@@ -1,0 +1,88 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: sidecar-ambient-interop-xfcc
+  description: |
+    Validates X-Forwarded-Client-Cert (mTLS client identity) propagation across
+    sidecar/ambient interop boundaries: ambient -> sidecar, ambient -> ambient,
+    and sidecar -> ambient.
+    - ztunnel is L4-only and never stamps XFCC itself - only a full Envoy (a
+      sidecar, or a waypoint) terminates L7 and can add it
+    - a waypoint needs the ambient.istio.io/xfcc-include-client-identity
+      annotation to synthesize XFCC from ztunnel's filter-state identity -
+      it's off by default (confirmed via Solo Istio issue #6431)
+    - ambient -> sidecar (no waypoint) is a known, currently-open Solo Istio
+      bug (issue #6431, "Field Priority: Blocker"): ztunnel's HBONE inbound to
+      a sidecar never delivers XFCC even though the connection is genuinely
+      mTLS'd - there's no supported fix yet, only an EnvoyFilter workaround
+
+    Run on any ambient-capable cluster (e.g. after this kit's enable-ambient
+    feature, or a plain ambient profile).
+
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: httpbin
+        namespace: httpbin-sidecar
+        dataplaneMode: sidecar
+      - name: curl
+        namespace: httpbin-sidecar
+        dataplaneMode: sidecar
+      - name: httpbin
+        namespace: httpbin-ambient
+        dataplaneMode: ambient
+      - name: curl
+        namespace: httpbin-ambient
+        dataplaneMode: ambient
+
+  features:
+    - name: waypoint
+      description: Waypoint in front of the ambient httpbin, with XFCC identity synthesis enabled — without both, ztunnel alone never adds XFCC
+      config:
+        waypointName: httpbin-ambient-waypoint
+        namespace: httpbin-ambient
+        labels:
+          target: namespace
+        annotations:
+          ambient.istio.io/xfcc-include-client-identity: "true"
+
+  tests:
+    - name: ambient-to-sidecar-xfcc
+      description: >
+        Ambient client -> sidecar backend, no waypoint in the path. Known
+        negative case, tracked as a currently-open bug in Solo Istio issue
+        #6431: ztunnel's HBONE inbound to a sidecar-injected destination
+        never delivers XFCC, even though the connection is genuinely mTLS'd
+        and the caller's SPIFFE identity is verified at L4.
+      steps:
+        - action: exec
+          command: kubectl exec deploy/curl -n httpbin-ambient -- curl -s http://httpbin.httpbin-sidecar.svc.cluster.local:8000/headers
+          timeout: 30s
+        - action: verify
+          expect:
+            notContains: "x-forwarded-client-cert"
+
+    - name: ambient-to-ambient-xfcc
+      description: >
+        Ambient client -> ambient backend behind a waypoint with
+        xfcc-include-client-identity enabled; per Solo's own truth table this
+        should deliver the true caller's identity.
+      steps:
+        - action: exec
+          command: kubectl exec deploy/curl -n httpbin-ambient -- curl -s http://httpbin.httpbin-ambient.svc.cluster.local:8000/headers
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "x-forwarded-client-cert"
+
+    - name: sidecar-to-ambient-xfcc
+      description: Sidecar client -> ambient backend behind a waypoint with xfcc-include-client-identity enabled (Solo's sidecar-to-waypoint interop)
+      steps:
+        - action: exec
+          command: kubectl exec deploy/curl -n httpbin-sidecar -- curl -s http://httpbin.httpbin-ambient.svc.cluster.local:8000/headers
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "x-forwarded-client-cert"

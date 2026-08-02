@@ -1,0 +1,137 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: full-stack-security
+  description: |
+    End-to-end zero-trust posture, enforced at every layer:
+    - Ingress: deny-all baseline, explicit allow for the gateway
+    - Mesh: L7 authorization via a waypoint in front of productpage
+    - Egress: waypoint restricting which namespaces can reach the external API
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+
+  features:
+    - name: gateway
+      description: Create ingress gateway for Bookinfo
+      config:
+        gatewayName: bookinfo
+        namespace: bookinfo
+        gateway:
+          listeners:
+            - name: http
+              hostname: bookinfo.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: request-routing
+      description: Route traffic to productpage
+      config:
+        routeName: bookinfo
+        namespace: bookinfo
+        gatewayName: bookinfo
+        gatewayNamespace: bookinfo
+        hostname: bookinfo.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage
+                port: 9080
+
+    - name: deny-all-policy
+      description: Deny all traffic to bookinfo namespace
+      config:
+        policyName: deny-all
+        namespace: bookinfo
+
+    - name: waypoint
+      description: Deploy waypoint proxy for bookinfo namespace
+      config:
+        waypointName: bookinfo-waypoint
+        namespace: bookinfo
+        labels:
+          target: namespace
+
+    - name: authorization-policy
+      description: Allow ingress to productpage
+      config:
+        policyName: allow-ingress
+        namespace: bookinfo
+        action: ALLOW
+        targetRefs:
+          - kind: Gateway
+            group: gateway.networking.k8s.io
+            name: bookinfo-waypoint
+        rules:
+          - from:
+              - source:
+                  principals:
+                    - cluster.local/ns/bookinfo/sa/bookinfo-istio
+            to:
+              - operation:
+                  methods:
+                    - GET
+                  paths:
+                    - /productpage
+                    - /productpage/*
+
+    - name: egress-waypoint
+      description: Deploy egress waypoint
+      config:
+        waypointName: egress-waypoint
+        namespace: egress
+
+    - name: service-entry
+      description: Register external API
+      config:
+        entryName: external-api
+        namespace: egress
+        hosts:
+          - api.example.com
+        location: MESH_EXTERNAL
+        resolution: DNS
+        ports:
+          - number: 443
+            name: https
+            protocol: TLS
+        waypointName: egress-waypoint
+
+    - name: egress-authorization
+      description: Allow only bookinfo to access external API
+      config:
+        policyName: allow-bookinfo-egress
+        namespace: egress
+        waypointName: egress-waypoint
+        action: ALLOW
+        rules:
+          - from:
+              - source:
+                  namespaces:
+                    - bookinfo
+            to:
+              - operation:
+                  hosts:
+                    - api.example.com
+
+  tests:
+    - name: bookinfo-accessible
+      description: Verify bookinfo is accessible through full-stack security posture
+      steps:
+        - action: send-request
+          hostname: bookinfo.example.com
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 200

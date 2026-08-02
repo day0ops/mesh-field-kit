@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grpcurl
+  namespace: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grpcurl
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grpcurl
+  template:
+    metadata:
+      labels:
+        app: grpcurl
+        version: v1
+    spec:
+      serviceAccountName: grpcurl
+      containers:
+        - name: grpcurl
+          image: docker.io/fullstorydev/grpcurl:v1.9.3-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sleep", "infinity"]

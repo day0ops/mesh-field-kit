@@ -1,0 +1,68 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: auto-waypoint
+  description: >
+    Automatic waypoint deployment via the istio.io/use-waypoint=auto label -
+    istiod creates and owns the waypoint proxy for labeled namespaces itself.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+
+  features:
+    - name: gateway
+      description: Create ingress gateway for Bookinfo
+      config:
+        gatewayName: bookinfo
+        namespace: bookinfo
+        gateway:
+          listeners:
+            - name: http
+              hostname: bookinfo.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: request-routing
+      description: Route traffic to productpage
+      config:
+        routeName: bookinfo
+        namespace: bookinfo
+        gatewayName: bookinfo
+        gatewayNamespace: bookinfo
+        hostname: bookinfo.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage
+                port: 9080
+
+    - name: waypoint
+      description: Label namespace with auto waypoint (istiod creates waypoint automatically)
+      config:
+        waypointName: auto
+        namespace: bookinfo
+        labels:
+          target: namespace
+
+  tests:
+    - name: waypoint-auto-created
+      description: Verify auto-waypoint gateway was created by istiod
+      steps:
+        - action: exec
+          command: kubectl get gateway -n bookinfo -o jsonpath='{range .items[*]}{.metadata.name}={.metadata.annotations.solo\.io/auto-waypoint}{"\n"}{end}' | grep '=true'
+          timeout: 60s
+          retries: 12
+          retryDelay: 10000
+        - action: verify
+          expect:
+            contains: "=true"

@@ -1,0 +1,88 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: redirect-rewrite
+  description: >
+    HTTP redirects and URL rewrites for Bookinfo via an ingress Gateway.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+
+  features:
+    - name: gateway
+      description: Create ingress gateway for Bookinfo
+      config:
+        gatewayName: bookinfo
+        namespace: bookinfo
+        gateway:
+          listeners:
+            - name: http
+              hostname: bookinfo.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: redirect-rewrite
+      description: Redirect an old path and rewrite a legacy path to productpage
+      config:
+        routeName: bookinfo-redirect-rewrite
+        namespace: bookinfo
+        gatewayName: bookinfo
+        hostname: bookinfo.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /old-productpage
+            filters:
+              - type: RequestRedirect
+                requestRedirect:
+                  path:
+                    type: ReplaceFullPath
+                    replaceFullPath: /productpage
+                  statusCode: 302
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /legacy/productpage
+            filters:
+              - type: URLRewrite
+                urlRewrite:
+                  path:
+                    type: ReplacePrefixMatch
+                    replacePrefixMatch: /productpage
+            backendRefs:
+              - name: productpage
+                port: 9080
+
+  tests:
+    - name: old-productpage-redirect
+      description: Verify old path returns a 302 redirect to /productpage
+      steps:
+        - action: send-request
+          hostname: bookinfo.example.com
+          autoDetectGwAddress: true
+          path: /old-productpage
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 302
+
+    - name: legacy-productpage-rewrite
+      description: Verify legacy path is rewritten and served by productpage
+      steps:
+        - action: send-request
+          hostname: bookinfo.example.com
+          autoDetectGwAddress: true
+          path: /legacy/productpage
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 200
+            contains: Simple Bookstore App

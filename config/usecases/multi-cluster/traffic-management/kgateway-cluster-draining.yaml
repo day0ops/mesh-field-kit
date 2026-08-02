@@ -1,0 +1,159 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: kgateway-cluster-draining
+  description: |
+    Demonstrate Solo Enterprise for kgateway's solo.io/draining-weight
+    annotation, which controls how much ingress traffic kgateway sends to a
+    remote cluster through its remote peering gateway.
+    - kgateway routes ingress traffic directly to productpage.bookinfo.mesh.internal
+      (a global hostname aggregating both clusters), same as kgateway-global-ingress
+    - solo.io/draining-weight is applied to the istio-remote-peer-west Gateway
+      in istio-eastwest on east - this is the local Gateway API resource
+      representing west's east-west gateway, as seen from east
+    - weight 100 (full drain) fully excludes west from the ingress path's
+      Envoy endpoint set, so once east's own backend is gone there is
+      nowhere left to route and calls fail
+    - weight 40 (partial drain) only reduces west's share (60% of nominal),
+      it does not exclude it - so calls still succeed by failing over to
+      west once east's own backend is gone
+    - See https://docs.solo.io/kgateway/2.3.x/integrations/istio/ambient/additional-settings/#cluster-draining
+spec:
+  diagram: |
+    flowchart LR
+      Client -->|HTTP| KGW[kgateway\nkgateway-system/east]
+      KGW -->|HTTPRoute: Hostname backendRef| SE[productpage.bookinfo.mesh.internal]
+      SE --> PPe[productpage east]
+      SE -.->|weighted by solo.io/draining-weight\non istio-remote-peer-west| PPw[productpage west]
+
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: west
+          - name: east
+
+  features:
+    - name: global-service
+      description: Make productpage globally accessible across clusters
+      config:
+        namespace: bookinfo
+        services:
+          - name: productpage
+            scope: global
+      clusters:
+        - name: west
+        - name: east
+
+    - name: ingress-httproute
+      description: Route external traffic directly to the global productpage hostname
+      config:
+        gatewayName: bookinfo-gateway
+        gatewayNamespace: kgateway-system
+        namespace: bookinfo
+        hostname: "{{env.domains.app}}"
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage.bookinfo.mesh.internal
+                port: 9080
+                backendKind: Hostname
+      clusters:
+        - name: east
+
+  tests:
+    - name: ingress-reachable
+      description: Verify productpage is reachable through kgateway with no draining configured
+      clusters:
+        - name: east
+      steps:
+        - action: send-request
+          hostname: "{{env.domains.app}}"
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            statusCode: 200
+
+    # Full drain (weight 100) removes west from the ingress path's Envoy
+    # endpoint set entirely. With east's own backend also gone, there is no
+    # endpoint left at all, so the request must fail.
+    - name: full-drain-excludes-remote-cluster
+      description: Verify a fully-drained remote cluster is not used as a failover target
+      clusters:
+        - name: east
+      setup:
+        - action: exec
+          command: kubectl annotate gateway istio-remote-peer-west -n istio-eastwest solo.io/draining-weight=100 --overwrite
+          timeout: 20s
+        - action: exec
+          command: kubectl scale deploy/productpage-v1 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl annotate gateway istio-remote-peer-west -n istio-eastwest solo.io/draining-weight-
+          timeout: 20s
+        - action: exec
+          command: kubectl scale deploy/productpage-v1 -n bookinfo --replicas=1
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      steps:
+        - action: send-request
+          hostname: "{{env.domains.app}}"
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 20s
+          retries: 3
+          retryDelay: 4000
+        - action: verify
+          expect:
+            statusCode: 503
+
+    # Partial drain (weight 40) only reduces west's share, it does not
+    # exclude it. With east's own backend gone, west is still a valid
+    # endpoint, so the request must succeed.
+    - name: partial-drain-still-fails-over
+      description: Verify a partially-drained remote cluster still serves as a failover target
+      clusters:
+        - name: east
+      setup:
+        - action: exec
+          command: kubectl annotate gateway istio-remote-peer-west -n istio-eastwest solo.io/draining-weight=40 --overwrite
+          timeout: 20s
+        - action: exec
+          command: kubectl scale deploy/productpage-v1 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl annotate gateway istio-remote-peer-west -n istio-eastwest solo.io/draining-weight-
+          timeout: 20s
+        - action: exec
+          command: kubectl scale deploy/productpage-v1 -n bookinfo --replicas=1
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      steps:
+        - action: send-request
+          hostname: "{{env.domains.app}}"
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            statusCode: 200

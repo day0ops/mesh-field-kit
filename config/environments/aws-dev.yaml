@@ -1,0 +1,48 @@
+apiVersion: mesh.demo/v1
+kind: Environment
+metadata:
+  name: aws-dev
+  description: AWS environment
+
+spec:
+  # AWS configuration
+  aws:
+    region: ap-southeast-1
+
+  acme:
+    email: kasun.talwatta@solo.io
+
+  # DNS configuration for Route53
+  dns:
+    provider: route53
+    parentZone:
+      domain: kasunt.apac.fe.solo.io
+      hostedZoneId: Z08818701HDZ6PBD6LPXU
+    childZone: mesh-demo
+
+  tls:
+    issuer: letsencrypt-dns
+
+  keycloak:
+    scheme: https
+
+  images:
+    keycloak: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/keycloak
+
+  # Internal cluster/mesh FQDNs (not publicly routable)
+  internal:
+    telemetry:
+      otelTracesCollector: opentelemetry-collector-traces.telemetry.svc.cluster.local
+      otelGatewayEndpoint: opentelemetry-collector-gateway.telemetry.mesh.internal
+      lokiPushUrl: http://loki.telemetry.mesh.internal:3100/loki/api/v1/push
+    soloUI:
+      tunnelFqdn: solo-enterprise-ui.solo-enterprise.mesh.internal
+      telemetryFqdn: solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal
+
+  # Domain mappings - auto-generated pattern: <service>.<childZone>.<parentDomain>
+  domains:
+    keycloak: keycloak.mesh-demo.kasunt.apac.fe.solo.io
+    grafana: grafana.mesh-demo.kasunt.apac.fe.solo.io
+    soloUI: soloui.mesh-demo.kasunt.apac.fe.solo.io
+    okta: integrator-1335842.okta.com
+    app: app.mesh-demo.kasunt.apac.fe.solo.io

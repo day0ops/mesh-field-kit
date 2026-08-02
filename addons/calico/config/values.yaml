@@ -1,0 +1,12 @@
+# Calico base Helm values - policy-only mode on EKS (Tigera operator)
+# References:
+#   https://docs.tigera.io/calico/latest/getting-started/kubernetes/managed-public-cloud/eks
+#   https://docs.tigera.io/calico/latest/reference/installation/api
+#
+# cni.type: AmazonVPC tells the operator that pod networking/IPAM stays with
+# the AWS VPC CNI - Calico only runs Felix for NetworkPolicy enforcement, it
+# does not install its own CNI plugin or manage pod IPs.
+installation:
+  kubernetesProvider: EKS
+  cni:
+    type: AmazonVPC

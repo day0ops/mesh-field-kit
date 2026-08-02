@@ -1,0 +1,101 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: locality-failover
+  description: |
+    Traffic distribution with the networking.istio.io/traffic-distribution
+    annotation for locality-aware failover across a multicluster mesh.
+    - reviews is globally scoped and annotated traffic-distribution=PreferClose
+      so callers prefer same-locality endpoints before failing over to the
+      other cluster
+spec:
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: west
+          - name: east
+
+  features:
+    - name: global-service
+      description: Make services globally accessible with locality-preferred failover
+      config:
+        namespace: bookinfo
+        services:
+          - name: productpage
+            scope: global
+          - name: reviews
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: PreferClose
+          - name: ratings
+            scope: global
+      clusters:
+        - name: west
+        - name: east
+
+    - name: gateway
+      description: Create ingress gateway on west
+      config:
+        gatewayName: bookinfo
+        namespace: bookinfo
+        gateway:
+          listeners:
+            - name: http
+              hostname: bookinfo.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+      clusters:
+        - name: west
+
+    - name: request-routing
+      description: Route traffic to productpage
+      config:
+        routeName: bookinfo
+        namespace: bookinfo
+        gatewayName: bookinfo
+        gatewayNamespace: bookinfo
+        hostname: bookinfo.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage
+                port: 9080
+      clusters:
+        - name: west
+
+  tests:
+    - name: bookinfo-accessible
+      description: Verify bookinfo is accessible via the west ingress gateway
+      clusters:
+        - name: west
+      steps:
+        - action: send-request
+          hostname: bookinfo.example.com
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 200
+
+    - name: reviews-locality-annotation
+      description: Verify reviews is annotated to prefer close (same-locality) endpoints
+      clusters:
+        - name: west
+      steps:
+        - action: exec
+          command: kubectl get svc reviews -n bookinfo -o jsonpath='{.metadata.annotations.networking\.istio\.io/traffic-distribution}'
+          timeout: 15s
+        - action: verify
+          expect:
+            contains: PreferClose

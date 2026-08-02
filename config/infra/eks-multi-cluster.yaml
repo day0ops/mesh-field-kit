@@ -1,0 +1,20 @@
+apiVersion: mesh.demo/v1
+kind: InfraProfile
+metadata:
+  name: eks-multi-cluster
+  description: EKS multi-cluster setup (east, west)
+
+spec:
+  name: maple
+  provider: eks
+  environment: aws-dev
+
+  settings:
+    node_type: t3.xlarge
+    nodes: 3
+
+  clusters:
+    - name: east
+      role: workload
+    - name: west
+      role: workload

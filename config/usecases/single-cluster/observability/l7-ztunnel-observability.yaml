@@ -1,0 +1,94 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: l7-ztunnel-observability
+  description: |
+    L7 HTTP metrics and structured access logs from ztunnel without deploying
+    waypoints. Shows istio_requests_total with response_code, method, and
+    path labels.
+    - Also deploys a PodMonitor for persistent Prometheus Operator scraping,
+      alongside the ad-hoc curl-based metrics check
+    - Requires the telemetry addon already installed (kube-prometheus-stack) -
+      without it there's no Prometheus Operator to pick up the PodMonitor
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+
+  features:
+    - name: gateway
+      description: Create ingress gateway for Bookinfo
+      config:
+        gatewayName: bookinfo
+        namespace: bookinfo
+        gateway:
+          listeners:
+            - name: http
+              hostname: bookinfo.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: request-routing
+      description: Route traffic to productpage
+      config:
+        routeName: bookinfo
+        namespace: bookinfo
+        gatewayName: bookinfo
+        gatewayNamespace: bookinfo
+        hostname: bookinfo.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage
+                port: 9080
+
+    - name: ztunnel-metrics
+      description: Scrape L7 HTTP metrics from ztunnel (Enterprise feature) and deploy a PodMonitor for persistent scraping
+      config:
+        namespace: istio-system
+        metricsPort: 15020
+        installPodMonitor: true
+
+  tests:
+    - name: bookinfo-accessible
+      description: Verify bookinfo is accessible for L7 ztunnel metric collection
+      steps:
+        - action: send-request
+          hostname: bookinfo.example.com
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 200
+
+    - name: ztunnel-l7-metrics
+      description: Verify ztunnel pods are running for L7 metric collection
+      steps:
+        - action: exec
+          command: kubectl get pods -n istio-system -l app=ztunnel -o jsonpath='{.items[0].status.phase}'
+          timeout: 15s
+        - action: verify
+          expect:
+            contains: Running
+
+    - name: ztunnel-podmonitor-scraping
+      description: Verify the PodMonitor is deployed and Prometheus has picked it up as an active scrape target
+      steps:
+        - action: exec
+          command: kubectl get podmonitor ztunnel -n istio-system -o jsonpath='{.metadata.name}'
+          timeout: 15s
+          retries: 6
+          retryDelay: 10000
+        - action: verify
+          expect:
+            contains: ztunnel

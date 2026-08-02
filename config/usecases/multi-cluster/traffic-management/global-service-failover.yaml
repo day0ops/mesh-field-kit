@@ -1,0 +1,117 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: global-service-failover
+  description: |
+    Prove cross-cluster failover for a globally-scoped service: when a
+    caller's own local backend disappears, calls to the mesh.internal
+    hostname keep succeeding by failing over to the peer cluster, then
+    recover once the local backend returns.
+    - productpage is globally scoped on both clusters
+    - a waypoint fronts productpage on east - cross-cluster ambient HBONE
+      calls to a mesh.internal hostname currently only succeed when the
+      destination is waypoint-fronted (see project-kgateway-ingress-failover-tls-bug
+      memory: direct, non-waypoint cross-cluster calls hit an intermittent
+      TLS failure in this environment). West's own productpage stays
+      waypoint-less since same-cluster calls never leave via HBONE east-west.
+    - ratings-v1 (an unrelated caller, present on both clusters) calls
+      productpage.bookinfo.mesh.internal directly so the test isn't
+      routing through the app's own call graph.
+spec:
+  diagram: |
+    flowchart LR
+      subgraph west
+        Rw[ratings-v1] -->|productpage.bookinfo.mesh.internal| Pw[productpage west]
+      end
+      subgraph east
+        Wp[productpage-waypoint] --> Pe[productpage east]
+      end
+      Rw -.->|failover when Pw scaled to 0| EWG[east-west gw] --> Wp
+
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: west
+          - name: east
+
+  features:
+    - name: global-service
+      description: Make productpage globally accessible from both clusters
+      config:
+        namespace: bookinfo
+        services:
+          - name: productpage
+            scope: global
+      clusters:
+        - name: west
+        - name: east
+
+    - name: waypoint
+      description: Front productpage on east with a waypoint, required for the cross-cluster failover hop to succeed
+      config:
+        waypointName: productpage-waypoint
+        namespace: bookinfo
+        labels:
+          target: service
+          serviceName: productpage
+      clusters:
+        - name: east
+
+  tests:
+    - name: local-endpoint-reachable
+      description: Verify a west caller reaches productpage via the global hostname while its own local backend is up
+      clusters:
+        - name: west
+      steps:
+        - action: exec
+          command: kubectl exec deploy/ratings-v1 -n bookinfo -- curl -s -o /dev/null -w '%{http_code}' http://productpage.bookinfo.mesh.internal:9080/productpage
+          timeout: 20s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: "200"
+
+    - name: failover-to-peer-cluster
+      description: Verify calls keep succeeding when west's own productpage is scaled to zero, by failing over to east's waypoint-fronted productpage
+      clusters:
+        - name: west
+      setup:
+        - action: exec
+          command: kubectl scale deploy/productpage-v1 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/productpage-v1 -n bookinfo --replicas=1
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      steps:
+        - action: exec
+          command: kubectl exec deploy/ratings-v1 -n bookinfo -- curl -s -o /dev/null -w '%{http_code}' http://productpage.bookinfo.mesh.internal:9080/productpage
+          timeout: 20s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: "200"
+
+    - name: recovery-after-restore
+      description: Verify calls still succeed once west's own productpage is back
+      clusters:
+        - name: west
+      steps:
+        - action: exec
+          command: kubectl exec deploy/ratings-v1 -n bookinfo -- curl -s -o /dev/null -w '%{http_code}' http://productpage.bookinfo.mesh.internal:9080/productpage
+          timeout: 20s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: "200"

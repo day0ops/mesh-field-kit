@@ -1,0 +1,210 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: waypoint-resiliency
+  description: |
+    Fault injection and retries via a waypoint, proven consistent for both
+    local and cross-cluster callers.
+    - reviews (east) is globally scoped and bound to a waypoint
+    - a VirtualService injects a 50% abort fault on reviews
+    - a second VirtualService combines the same fault with a retry policy,
+      showing retries absorb most of the injected failures
+    - both a local (east) and cross-cluster (west) caller observe the same
+      behavior, since VirtualService targets the global hostname directly
+      rather than relying on HTTPRoute (see waypoint-traffic-shifting
+      investigation notes for why HTTPRoute doesn't work cross-cluster here)
+
+spec:
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: west
+          - name: east
+
+  features:
+    - name: global-service
+      description: Make reviews globally accessible from east
+      config:
+        namespace: bookinfo
+        services:
+          - name: reviews
+            scope: global
+      clusters:
+        - name: east
+
+    - name: waypoint
+      description: Deploy waypoint for reviews in east
+      config:
+        waypointName: reviews-waypoint
+        namespace: bookinfo
+        labels:
+          target: service
+          serviceName: reviews
+      clusters:
+        - name: east
+
+    - name: fault-injection
+      description: Inject a 50% HTTP abort fault on the global reviews hostname
+      config:
+        routeName: reviews-fault
+        namespace: bookinfo
+        host: reviews.bookinfo.mesh.internal
+        faultType: abort
+        abort:
+          httpStatus: 503
+          percentage: 50
+      clusters:
+        - name: east
+
+  tests:
+    - name: local-fault-injection
+      description: Verify a local (east) caller sees a roughly 50/50 mix of 200/503
+      clusters:
+        - name: east
+      steps:
+        - action: exec
+          command: |
+            kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "
+            import urllib.request, urllib.error
+            from collections import Counter
+            c = Counter()
+            for i in range(20):
+                try:
+                    urllib.request.urlopen('http://reviews.bookinfo.mesh.internal:9080/reviews/0', timeout=5)
+                    c[200] += 1
+                except urllib.error.HTTPError as e:
+                    c[e.code] += 1
+            print(dict(c))
+            "
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "503"
+
+    # west's own local reviews are scaled to zero so the call has no choice
+    # but to cross to east's waypoint-governed route.
+    - name: cross-cluster-fault-injection
+      description: Verify a cross-cluster (west) caller sees the same fault injection
+      clusters:
+        - name: west
+      setup:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=1
+          timeout: 30s
+      steps:
+        - action: exec
+          command: |
+            kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "
+            import urllib.request, urllib.error
+            from collections import Counter
+            c = Counter()
+            for i in range(20):
+                try:
+                    urllib.request.urlopen('http://reviews.bookinfo.mesh.internal:9080/reviews/0', timeout=5)
+                    c[200] += 1
+                except urllib.error.HTTPError as e:
+                    c[e.code] += 1
+            print(dict(c))
+            "
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "503"
+
+    # Replace the pure-fault VirtualService with one that also retries, for
+    # the duration of this test only, then restore the fault-only version.
+    - name: retries-absorb-faults
+      description: Verify retries absorb most of the same 50% fault for a cross-cluster caller
+      clusters:
+        - name: west
+      setup:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+        - action: exec
+          clusters:
+            - name: east
+          command: |
+            kubectl apply -f - <<'EOF'
+            apiVersion: networking.istio.io/v1
+            kind: VirtualService
+            metadata:
+              name: reviews-fault
+              namespace: bookinfo
+            spec:
+              hosts:
+                - reviews.bookinfo.mesh.internal
+              http:
+                - fault:
+                    abort:
+                      httpStatus: 503
+                      percentage:
+                        value: 50
+                  retries:
+                    attempts: 3
+                    perTryTimeout: 500ms
+                    retryOn: "5xx"
+                  route:
+                    - destination:
+                        host: reviews.bookinfo.mesh.internal
+            EOF
+          timeout: 20s
+      teardown:
+        - action: exec
+          clusters:
+            - name: east
+          command: |
+            kubectl apply -f - <<'EOF'
+            apiVersion: networking.istio.io/v1
+            kind: VirtualService
+            metadata:
+              name: reviews-fault
+              namespace: bookinfo
+            spec:
+              hosts:
+                - reviews.bookinfo.mesh.internal
+              http:
+                - fault:
+                    abort:
+                      httpStatus: 503
+                      percentage:
+                        value: 50
+                  route:
+                    - destination:
+                        host: reviews.bookinfo.mesh.internal
+            EOF
+          timeout: 20s
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=1
+          timeout: 30s
+      steps:
+        - action: exec
+          command: |
+            kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "
+            import urllib.request, urllib.error
+            from collections import Counter
+            c = Counter()
+            for i in range(20):
+                try:
+                    urllib.request.urlopen('http://reviews.bookinfo.mesh.internal:9080/reviews/0', timeout=5)
+                    c[200] += 1
+                except urllib.error.HTTPError as e:
+                    c[e.code] += 1
+            print(dict(c))
+            "
+          timeout: 30s
+        - action: verify
+          expect:
+            contains: "200"

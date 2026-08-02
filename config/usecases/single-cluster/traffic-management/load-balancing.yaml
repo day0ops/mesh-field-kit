@@ -1,0 +1,92 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: load-balancing
+  description: >
+    Explicit L7 load balancing via a DestinationRule, contrasted with the
+    automatic L4 round-robin ztunnel already does with no config. Session
+    affinity by request header is an L7-only capability that requires
+    routing through a waypoint.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+
+  features:
+    - name: gateway
+      description: Create ingress gateway for Bookinfo
+      config:
+        gatewayName: bookinfo
+        namespace: bookinfo
+        gateway:
+          listeners:
+            - name: http
+              hostname: bookinfo.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: request-routing
+      description: Route traffic to productpage
+      config:
+        routeName: bookinfo
+        namespace: bookinfo
+        gatewayName: bookinfo
+        gatewayNamespace: bookinfo
+        hostname: bookinfo.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage
+                port: 9080
+
+    - name: waypoint
+      description: Deploy waypoint proxy for reviews-v1, required for L7 policies to apply
+      config:
+        waypointName: reviews-v1-waypoint
+        namespace: bookinfo
+        labels:
+          target: service
+          serviceName: reviews-v1
+
+    - name: destination-rule
+      description: Pin requests to the same backend by x-user header via consistent hashing
+      config:
+        ruleName: reviews-v1-lb
+        namespace: bookinfo
+        host: reviews-v1.bookinfo.svc.cluster.local
+        trafficPolicy:
+          loadBalancer:
+            consistentHash:
+              httpHeaderName: x-user
+
+  tests:
+    - name: bookinfo-accessible
+      description: Verify bookinfo is accessible with the load-balancing policy active
+      steps:
+        - action: send-request
+          hostname: bookinfo.example.com
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 200
+
+    - name: consistent-hash-applied
+      description: Verify the DestinationRule's consistent-hash load balancer policy is set
+      steps:
+        - action: exec
+          command: kubectl get destinationrule reviews-v1-lb -n bookinfo -o jsonpath='{.spec.trafficPolicy.loadBalancer.consistentHash.httpHeaderName}'
+          timeout: 15s
+        - action: verify
+          expect:
+            contains: x-user

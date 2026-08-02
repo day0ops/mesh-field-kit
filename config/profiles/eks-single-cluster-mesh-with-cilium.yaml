@@ -1,0 +1,55 @@
+apiVersion: mesh.demo/v1
+kind: Profile
+metadata:
+  name: eks-single-cluster-mesh-with-cilium
+  description: Single-cluster ambient mesh with Cilium CNI chaining
+
+spec:
+  infra: eks-single-cluster
+  environment: aws-dev
+
+  mesh:
+    istioVersion: 1.30.3
+    gatewayApiVersion: v1.5.0
+    profile: ambient
+
+    image:
+      istioRepo: us-docker.pkg.dev/soloio-img/istio
+      helmIstioRepo: us-docker.pkg.dev/soloio-img/istio-helm
+      tag: 1.30.3-solo
+
+    components:
+      - base
+      - name: istiod
+        values:
+          global:
+            network: "{{cluster.name}}"
+          meshConfig:
+            accessLogFile: /dev/stdout
+            defaultConfig:
+              proxyMetadata:
+                ISTIO_META_DNS_CAPTURE: "true"
+          env:
+            PILOT_ENABLE_IP_AUTOALLOCATE: "true"
+          pilot:
+            cni:
+              namespace: istio-system
+              enabled: true
+      - cni
+      - name: ztunnel
+        values:
+          env:
+            ISTIO_META_DNS_CAPTURE: "true"
+          network: "{{cluster.name}}"
+
+  addons:
+    - name: cilium
+      description: eBPF-based CNI in chaining mode
+      version: 1.19.4
+      mode: chaining
+      enableHealthProbePolicy: true
+
+    - name: telemetry
+      description: Prometheus, Grafana, Tempo, and Loki stack for mesh observability
+      phase: post
+      namespace: telemetry

@@ -1,0 +1,25 @@
+apiVersion: mesh.demo/v1
+kind: Environment
+metadata:
+  name: google-dev
+  description: Google GKE environment
+
+spec:
+  gke:
+    region: australia-southeast1
+
+  acme:
+    email: kasun.talwatta@solo.io
+
+  tls:
+    issuer: selfsigned-issuer
+
+  keycloak:
+    scheme: https
+
+  domains:
+    keycloak: keycloak.ambient-demo-gke.kasunt.apac.fe.solo.io
+    grafana: grafana.ambient-demo-gke.kasunt.apac.fe.solo.io
+    soloUI: soloui.ambient-demo-gke.kasunt.apac.fe.solo.io
+    okta: integrator-1335842.okta.com
+    app: app.ambient-demo-gke.kasunt.apac.fe.solo.io

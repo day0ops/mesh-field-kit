@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grpcbin
+  namespace: default
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grpcbin
+  namespace: default
+  labels:
+    app: grpcbin
+    service: grpcbin
+spec:
+  ports:
+    - name: grpc
+      port: 9000
+      targetPort: grpc
+    - name: grpc-tls
+      port: 9001
+      targetPort: grpc-tls
+  selector:
+    app: grpcbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grpcbin
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grpcbin
+  template:
+    metadata:
+      labels:
+        app: grpcbin
+        version: v1
+    spec:
+      serviceAccountName: grpcbin
+      containers:
+        - name: grpcbin
+          image: moul/grpcbin:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc
+              containerPort: 9000
+              protocol: TCP
+            - name: grpc-tls
+              containerPort: 9001
+              protocol: TCP

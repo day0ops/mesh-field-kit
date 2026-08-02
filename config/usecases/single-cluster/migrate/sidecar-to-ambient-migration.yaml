@@ -1,0 +1,117 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: sidecar-to-ambient-migration
+  description: >
+    Guided migration of a namespace from classic Istio sidecar mode to ambient
+    mode: gloo ambient migrate for before/after assessment, enable-ambient to
+    upgrade the control plane in place, and this framework's own
+    sidecar-cutover for the actual switch. Run on a cluster installed with the
+    eks-single-cluster-mesh-sidecar profile.
+spec:
+  diagram: false
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        dataplaneMode: sidecar
+
+  features:
+    - name: gloo-migrate-check
+      description: Assess migration readiness before any changes (expect recommendations, not a clean pass)
+      config:
+        strict: false
+
+    - name: enable-ambient
+      description: Upgrade the control plane in place to ambient-capable (Phase 2) — existing sidecar workloads keep running via interop
+      config:
+        istioVersion: 1.30.3
+        istioRevision: stable # must match eks-single-cluster-mesh-sidecar's mesh.istioRevision
+
+    - name: gateway
+      description: Create ingress gateway for Bookinfo
+      config:
+        gatewayName: bookinfo
+        namespace: bookinfo
+        gateway:
+          listeners:
+            - name: http
+              hostname: bookinfo.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: request-routing
+      description: Route traffic to productpage
+      config:
+        routeName: bookinfo
+        namespace: bookinfo
+        gatewayName: bookinfo
+        gatewayNamespace: bookinfo
+        hostname: bookinfo.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage
+                port: 9080
+
+    - name: waypoint
+      description: Deploy waypoint ahead of cutover (Phase 3)
+      config:
+        waypointName: bookinfo-waypoint
+        namespace: bookinfo
+        labels:
+          target: namespace
+
+    - name: authorization-policy
+      description: Copy the sidecar-era policy onto the waypoint (Phase 4)
+      config:
+        policyName: allow-ingress-to-productpage
+        namespace: bookinfo
+        action: ALLOW
+        targetRefs:
+          - kind: Gateway
+            group: gateway.networking.k8s.io
+            name: bookinfo-waypoint
+        rules:
+          - from:
+              - source:
+                  principals:
+                    - cluster.local/ns/bookinfo/sa/bookinfo-istio
+            to:
+              - operation:
+                  methods:
+                    - GET
+                  paths:
+                    - /productpage
+                    - /productpage/*
+
+    - name: sidecar-cutover
+      description: Enable the waypoint and flip bookinfo from sidecar to ambient (Phases 5 + 7)
+      config:
+        namespace: bookinfo
+        waypointName: bookinfo-waypoint
+
+    - name: gloo-migrate-check
+      description: Verify the migration completed cleanly
+      config:
+        strict: true
+
+  tests:
+    - name: bookinfo-accessible-post-migration
+      description: Verify bookinfo is still accessible after cutting over to ambient
+      steps:
+        - action: send-request
+          hostname: bookinfo.example.com
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 200

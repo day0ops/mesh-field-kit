@@ -1,0 +1,169 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: kgateway-strict-mtls-bypass
+  description: |
+    Demonstrate the ambient.istio.io/bypass-inbound-capture annotation, which
+    lets a kgateway ingress gateway accept external (non-mesh) client traffic
+    even when a PeerAuthentication requires STRICT mTLS.
+    - Without the bypass, ztunnel captures inbound connections to the
+      gateway pod too, so once mTLS is STRICT it rejects external clients
+      that have no mesh identity ("explicitly denied by ... istio_converted_static_strict")
+    - The kgateway addon (ambientEnabled: true) now applies this bypass by
+      default for every Gateway it creates, via an EnterpriseKgatewayParameters
+      resource (spec.kube.podTemplate.extraAnnotations) referenced from the
+      Gateway's spec.infrastructure.parametersRef - the only mechanism that
+      actually reaches the gateway pod (spec.infrastructure.annotations looks
+      equivalent but is not propagated to the pod by kgateway at all; that was
+      the addon's original, silently broken approach - see the memory note on
+      this addon gap for how it was found and fixed).
+    - Since the bypass is on by default, the "without bypass" test below
+      temporarily removes the addon's own parametersRef to show what would
+      happen without it, then restores it - it does not delete or own that
+      resource, since it's the addon's persistent configuration, not a
+      per-usecase toggle.
+    - See https://docs.solo.io/kgateway/2.3.x/integrations/istio/ambient/additional-settings/#strict-mode
+spec:
+  diagram: |
+    flowchart LR
+      Client -->|external, no mesh identity| KGW[kgateway\nkgateway-system/east]
+      PA[PeerAuthentication STRICT] -.->|enforced by| ZT[ztunnel]
+      ZT -->|captures inbound too, by default| KGW
+      EKP[EnterpriseKgatewayParameters\nbypass-inbound-capture] -.->|parametersRef| GW[Gateway bookinfo-gateway]
+      GW --> KGW
+
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: east
+
+  features:
+    - name: ingress-httproute
+      description: Route external traffic to productpage through the shared kgateway ingress
+      config:
+        gatewayName: bookinfo-gateway
+        gatewayNamespace: kgateway-system
+        namespace: bookinfo
+        hostname: "{{env.domains.app}}"
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage
+                port: 9080
+      clusters:
+        - name: east
+
+  tests:
+    - name: ingress-reachable-before-strict-mtls
+      description: Verify productpage is reachable through kgateway before any PeerAuthentication is applied
+      clusters:
+        - name: east
+      steps:
+        - action: send-request
+          hostname: "{{env.domains.app}}"
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            statusCode: 200
+
+    # The addon-installed Gateway already references its own
+    # EnterpriseKgatewayParameters (bookinfo-gateway-params) with the bypass
+    # annotation by default. To show what happens WITHOUT it, temporarily
+    # remove that parametersRef (not the resource itself, which the addon
+    # owns) and force a fresh pod, then restore it in teardown.
+    - name: strict-mtls-without-bypass-rejects-external-client
+      description: Verify STRICT mTLS blocks external ingress traffic when the gateway pod has no bypass annotation
+      clusters:
+        - name: east
+      setup:
+        - action: exec
+          command: kubectl patch gateway bookinfo-gateway -n kgateway-system --type=json -p '[{"op":"remove","path":"/spec/infrastructure/parametersRef"}]'
+          timeout: 20s
+        - action: exec
+          command: kubectl rollout restart deployment bookinfo-gateway -n kgateway-system
+          timeout: 20s
+        - action: exec
+          command: |
+            kubectl apply -f - <<'EOF'
+            apiVersion: security.istio.io/v1
+            kind: PeerAuthentication
+            metadata:
+              name: kgateway-strict-mtls
+              namespace: kgateway-system
+            spec:
+              mtls:
+                mode: STRICT
+            EOF
+          timeout: 20s
+        - action: wait
+          duration: 20000
+      teardown:
+        - action: exec
+          command: kubectl delete peerauthentication kgateway-strict-mtls -n kgateway-system --ignore-not-found
+          timeout: 20s
+        - action: exec
+          command: kubectl patch gateway bookinfo-gateway -n kgateway-system --type=merge -p '{"spec":{"infrastructure":{"parametersRef":{"group":"enterprisekgateway.solo.io","kind":"EnterpriseKgatewayParameters","name":"bookinfo-gateway-params"}}}}'
+          timeout: 20s
+        - action: exec
+          command: kubectl rollout restart deployment bookinfo-gateway -n kgateway-system
+          timeout: 20s
+        - action: wait
+          duration: 20000
+      steps:
+        - action: exec
+          command: |
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H "Host: {{env.domains.app}}" http://$(kubectl get gateway.gateway.networking.k8s.io bookinfo-gateway -n kgateway-system -o jsonpath='{.status.addresses[0].value}')/productpage || echo "000"
+          timeout: 20s
+        - action: verify
+          expect:
+            contains: "000"
+
+    # With the addon's default parametersRef restored, the bypass annotation
+    # is back on the gateway pod, so the same STRICT mTLS policy no longer
+    # blocks the external client - no manual configuration needed.
+    - name: strict-mtls-with-bypass-allows-external-client
+      description: Verify the addon's built-in bypass lets external ingress traffic through under the same STRICT mTLS policy
+      clusters:
+        - name: east
+      setup:
+        - action: exec
+          command: |
+            kubectl apply -f - <<'EOF'
+            apiVersion: security.istio.io/v1
+            kind: PeerAuthentication
+            metadata:
+              name: kgateway-strict-mtls
+              namespace: kgateway-system
+            spec:
+              mtls:
+                mode: STRICT
+            EOF
+          timeout: 20s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl delete peerauthentication kgateway-strict-mtls -n kgateway-system --ignore-not-found
+          timeout: 20s
+      steps:
+        - action: send-request
+          hostname: "{{env.domains.app}}"
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 20s
+          retries: 3
+          retryDelay: 5000
+        - action: verify
+          expect:
+            statusCode: 200

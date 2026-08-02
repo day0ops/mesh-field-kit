@@ -1,0 +1,16 @@
+apiVersion: mesh.demo/v1
+kind: InfraProfile
+metadata:
+  name: gke-single-cluster
+  description: GKE single cluster
+
+spec:
+  provider: gke
+  region: australia-southeast1
+  settings:
+    nodes: 2
+    node_type: n1-standard-2
+
+  clusters:
+    - name: demo
+      role: workload
