@@ -711,9 +711,6 @@ export class InstallerManager {
         if (InfraSchema.isVmEnabled(infraProfile)) {
           const vm = InfraSchema.getAllVms(infraProfile)[0];
           vmClusterName = InfraSchema.getVmClusterName(infraProfile, vm);
-          Logger.info(
-            `VM integration enabled: istiod on '${vmClusterName}' will get REQUIRE_3P_TOKEN=false`
-          );
         }
       } catch {
         /* best effort */

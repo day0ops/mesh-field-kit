@@ -5,7 +5,6 @@ metadata:
   description: >
     HTTP redirects and URL rewrites for Bookinfo via an ingress Gateway.
 spec:
-  diagram: false
 
   requires:
     applications:

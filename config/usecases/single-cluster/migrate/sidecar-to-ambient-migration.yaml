@@ -9,7 +9,6 @@ metadata:
     sidecar-cutover for the actual switch. Run on a cluster installed with the
     eks-single-cluster-mesh-sidecar profile.
 spec:
-  diagram: false
 
   requires:
     applications:

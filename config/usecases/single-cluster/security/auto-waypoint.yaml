@@ -6,7 +6,6 @@ metadata:
     Automatic waypoint deployment via the istio.io/use-waypoint=auto label -
     istiod creates and owns the waypoint proxy for labeled namespaces itself.
 spec:
-  diagram: false
 
   requires:
     applications:

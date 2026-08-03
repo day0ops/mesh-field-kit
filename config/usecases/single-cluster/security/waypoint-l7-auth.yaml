@@ -5,7 +5,6 @@ metadata:
   description: >
     L7 authorization policy enforcement through a waypoint proxy.
 spec:
-  diagram: false
 
   requires:
     applications:

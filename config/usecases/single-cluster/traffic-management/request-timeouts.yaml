@@ -6,7 +6,6 @@ metadata:
     Cap how long a client waits for a response using an HTTPRoute request
     timeout enforced by a waypoint proxy.
 spec:
-  diagram: false
 
   requires:
     applications:

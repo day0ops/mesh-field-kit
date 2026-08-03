@@ -541,9 +541,10 @@ export class UseCaseManager {
         title: f.description || f.name,
         features: [{ name: f.name }],
       }));
-      // spec.diagram: false explicitly opts a use case out of the diagram/feature-box
-      // display (e.g. when it wouldn't add anything beyond the Steps list above it).
-      const diagramSetting = spec.diagram === false ? false : spec.diagram || null;
+      // Leaving spec.diagram unset behaves the same as spec.diagram: false — both
+      // suppress the diagram/feature-box display (e.g. when it wouldn't add anything
+      // beyond the Steps list above it).
+      const diagramSetting = spec.diagram || false;
       if (diagrams) await showUseCaseOverview(metadata, spec, steps, diagramSetting);
       if (interactive) {
         showWaitPrompt();

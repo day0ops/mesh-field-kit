@@ -17,6 +17,9 @@ spec:
     profile: ambient
     peering: helm
 
+    certificates:
+      mode: self-signed
+
     image:
       istioRepo: us-docker.pkg.dev/soloio-img/istio
       helmIstioRepo: us-docker.pkg.dev/soloio-img/istio-helm

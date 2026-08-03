@@ -6,7 +6,6 @@ metadata:
     Inject faults (delays and errors) into service traffic via a waypoint,
     for resilience testing.
 spec:
-  diagram: false
 
   requires:
     applications:

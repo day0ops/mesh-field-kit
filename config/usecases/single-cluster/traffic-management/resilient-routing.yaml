@@ -6,7 +6,6 @@ metadata:
     Combine fault injection with retry policies to demonstrate resilient
     routing.
 spec:
-  diagram: false
 
   requires:
     applications:

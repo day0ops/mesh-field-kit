@@ -6,7 +6,6 @@ metadata:
     Combine a deny-all policy, L7 waypoint authorization, and weighted
     traffic shifting for a secure canary deployment.
 spec:
-  diagram: false
 
   requires:
     applications:

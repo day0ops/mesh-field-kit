@@ -13,7 +13,6 @@ metadata:
       Tempo directly through its query-frontend service
 
 spec:
-  diagram: false
 
   requires:
     applications:

@@ -8,7 +8,6 @@ metadata:
     files directly. The metadata server is automatically available to any
     ambient-enrolled workload - no feature config or policy is required.
 spec:
-  diagram: false
 
   requires:
     applications:

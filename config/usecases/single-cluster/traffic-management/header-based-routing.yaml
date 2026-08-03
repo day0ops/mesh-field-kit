@@ -6,7 +6,6 @@ metadata:
     Route traffic to different service versions based on HTTP headers, via
     a waypoint.
 spec:
-  diagram: false
 
   requires:
     applications:

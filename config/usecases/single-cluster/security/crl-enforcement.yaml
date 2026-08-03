@@ -16,7 +16,6 @@ metadata:
     plumbing at the PKI layer. It does not exercise a live ztunnel mTLS
     handshake against a real workload.
 spec:
-  diagram: false
 
   features:
     - name: crl-enforcement

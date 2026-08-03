@@ -6,7 +6,6 @@ metadata:
     Control outbound traffic through an egress waypoint with authorization
     policies.
 spec:
-  diagram: false
 
   requires:
     applications:

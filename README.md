@@ -1,6 +1,13 @@
 # Mesh Field Kit
 
+[![CI](https://img.shields.io/github/actions/workflow/status/solo-io/mesh-field-kit/ci.yml?branch=main&label=CI)](https://github.com/solo-io/mesh-field-kit/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/solo-io/mesh-field-kit)](LICENSE)
+
 Provision, install, demo, and test Istio mesh (ambient and sidecar). Node.js/Bun CLI for cloud infrastructure provisioning and Solo Istio installation on Kubernetes clusters. Supports single-cluster and multi-cluster topologies, use cases, and addon management.
+
+It drives infrastructure across AWS, GCP, and Azure through the same set of commands, then layers Istio features, addons, and demo applications on top through a small YAML-based config system. Everything here (provisioning, installation, use case deployment) is scriptable, so a full environment can go from nothing to a working demo in one command.
+
+![install.gif](images/install.gif)
 
 ## Prerequisites
 
@@ -27,126 +34,21 @@ bun link
 
 ## Quick Start
 
+The fastest path from nothing to a running demo mesh: provision cloud infrastructure and install Istio, using one of the built-in infra/profile pairs.
+
 ```bash
 export ENTERPRISE_ISTIO_LICENSE=<your-license-key>
 export AWS_PROFILE=<your-aws-profile>
 
-# Provision infra + install Istio mesh in one shot
+# Provision infra + install Istio mesh
+mesh base infra cloud provision -p eks-single-cluster -y
+mesh base install --profile eks-single-cluster-mesh-with-cilium --infra eks-single-cluster
+
+# or, in one shot
 make all INFRA=eks-single-cluster MESH_PROFILE=eks-single-cluster-mesh-with-cilium
 ```
 
-## CLI Reference
-
-Invoke via `bun run src/cli.js` (or `mesh` if installed globally). Commands follow the `mesh <group> <subcommand>` pattern.
-
-### Utilities
-
-```bash
-mesh version [-s|--short]   # Display banner, version, and description
-mesh check-deps             # Check if required dependencies are installed
-```
-
-### Base — Manage base infrastructure
-
-```bash
-# Install Istio mesh (ambient or sidecar) on clusters
-mesh base install [--profile <name>] [--infra <name>] [--context <ctx...>]
-#   --profile  Installation profile (from config/profiles/)
-#   --infra    Infra profile name (resolves cluster contexts from provisioned state)
-#   --context  Explicit kube context(s) for pre-existing clusters
-
-# Verify Istio mesh installation
-mesh base verify [-c|--context <context>]
-
-# Uninstall Istio mesh from cluster(s)
-mesh base clean [--profile <name>] [--infra <name>] [--context <ctx...>] [-a|--addons]
-#   -a, --addons  Also clean up all profile-based addons
-
-# Clean up all profile-based addons (cert-manager, external-dns, keycloak, solo-ui, cilium, calico, kgateway, spire, telemetry)
-mesh base clean-addons
-```
-
-### Cloud infrastructure — Manage cloud infrastructure (EKS, GKE, AKS)
-
-```bash
-mesh base infra cloud list                              # List available infra profiles
-mesh base infra cloud provision [-p|--profile <name>] [-y|--yes]
-mesh base infra cloud destroy   [-p|--profile <name>] [-y|--yes]
-mesh base infra cloud status    [-p|--profile <name>]   # Show infrastructure provisioning status
-mesh base infra cloud env       [-p|--profile <name>] [--print]
-#   --print  Print env.sh contents to stdout instead of the path
-```
-
-### Use cases — Manage use cases
-
-```bash
-mesh usecase list
-mesh usecase deploy [-n|--name <name>]
-mesh usecase clean  [-n|--name <name>] [-c|--current]
-mesh usecase test   [-n|--name <name>]
-```
-
-`-c` / `--current` on `clean`: remove the use case tracked as currently deployed (ConfigMap `mesh-feature-catalog-current-usecase`). Omit `--name` when using this flag.
-
-### Applications — Manage applications
-
-```bash
-mesh app list
-mesh app deploy [-n|--name <name>] [--namespace <ns>]
-```
-
-### Installation profiles — Manage installation profiles
-
-```bash
-mesh profile list                 # List available installation profiles
-mesh profile show [-n|--name <name>]   # Show details of an installation profile
-```
-
-## Makefile Targets
-
-### Infrastructure
-
-| Target | Description |
-|--------|-------------|
-| `make infra-list` | List available infra profiles |
-| `make infra-provision [PROFILE=name]` | Provision infrastructure from an infra profile |
-| `make infra-destroy [PROFILE=name]` | Destroy provisioned infrastructure |
-| `make infra-status [PROFILE=name]` | Show infrastructure provisioning status |
-| `make infra-env [PROFILE=name]` | Print path to env.sh |
-
-### Mesh installation
-
-| Target | Description |
-|--------|-------------|
-| `make install-mesh [INFRA=name] [MESH_PROFILE=name]` | Install Istio mesh on clusters |
-| `make uninstall-mesh [INFRA=name]` | Uninstall Istio mesh from cluster(s) |
-| `make uninstall-mesh-with-addons [INFRA=name]` | Uninstall Istio mesh and all profile-based addons |
-| `make clean-addons` | Clean up all profile-based addons |
-| `make verify-mesh` | Verify Istio mesh installation |
-
-### Workflows
-
-| Target | Description |
-|--------|-------------|
-| `make all INFRA=name [MESH_PROFILE=name]` | Provision infrastructure + install Istio mesh |
-| `make clean PROFILE=name` | Destroy provisioned infrastructure |
-
-### Use cases
-
-| Target | Description |
-|--------|-------------|
-| `make list-usecases` | List available use cases |
-| `make deploy-usecase [USECASE=name]` | Deploy a use case |
-| `make test-usecase [USECASE=name]` | Test a deployed use case |
-
-### Utilities
-
-| Target | Description |
-|--------|-------------|
-| `make load-env [PROFILE=name]` | Show command to source env.sh |
-| `make kubeconfig [PROFILE=name]` | Print env.sh contents (kubeconfig paths) |
-| `make check-env` | Validate required tools and license env vars |
-| `mesh check-deps` | Check if required dependencies are installed |
+Every `mesh` command above has an equivalent `make` target, and `make all` wraps the provision + install sequence into a single call. For the full CLI command reference, Makefile targets, and troubleshooting tips, see [docs/reference.md](docs/reference.md).
 
 ## Configuration
 
@@ -166,14 +68,14 @@ Profiles reference an infra profile via `spec.infra` and an environment via `spe
 ### Available infra profiles
 
 | Profile | Provider | Clusters |
-|---------|----------|---------|
-| `eks-single-cluster` | EKS | 1 (demo) |
-| `eks-single-cluster-ipv6` | EKS IPv6 | 1 (demo) |
+|---------|----------|-----|
+| `eks-single-cluster` | EKS | 1 |
+| `eks-single-cluster-ipv6` | EKS IPv6 | 1 |
 | `eks-multi-cluster` | EKS | 2 (east, west) |
 | `eks-multi-cluster-ipv6` | EKS IPv6 | 2 (east, west) |
-| `gke-single-cluster` | GKE | 1 (demo) |
+| `gke-single-cluster` | GKE | 1 |
 | `gke-multi-cluster` | GKE | 2 (east, west) |
-| `aks-single-cluster` | AKS | 1 (demo) |
+| `aks-single-cluster` | AKS | 1 |
 | `aks-multi-cluster` | AKS | 2 (east, west) |
 | `hybrid-multi-cloud` | EKS + GKE + AKS | 3 (mgmt on EKS, workload on GKE + AKS) |
 
@@ -196,6 +98,8 @@ Profiles reference an infra profile via `spec.infra` and an environment via `spe
 
 ```bash
 export AWS_PROFILE=solo-io-fe-apac
+mesh base infra cloud provision -p eks-single-cluster -y
+# or
 make infra-provision PROFILE=eks-single-cluster
 ```
 
@@ -212,18 +116,24 @@ make load-env PROFILE=eks-single-cluster
 ```bash
 export ENTERPRISE_ISTIO_LICENSE=<key>
 
+mesh base install --profile eks-single-cluster-mesh-with-cilium --infra eks-single-cluster
+# or
 make install-mesh INFRA=eks-single-cluster MESH_PROFILE=eks-single-cluster-mesh-with-cilium
 ```
 
 ### 4. Verify Istio mesh installation
 
 ```bash
+mesh base verify
+# or
 make verify-mesh
 ```
 
 ### 5. Deploy a use case
 
 ```bash
+mesh usecase deploy --name single-cluster/traffic-management/canary-deployment
+# or
 make deploy-usecase USECASE=single-cluster/traffic-management/canary-deployment
 ```
 
@@ -231,9 +141,13 @@ make deploy-usecase USECASE=single-cluster/traffic-management/canary-deployment
 
 ```bash
 # Uninstall Istio mesh and profile-based addons
+mesh base clean --infra eks-single-cluster -a
+# or
 make uninstall-mesh-with-addons INFRA=eks-single-cluster
 
 # Destroy provisioned infrastructure
+mesh base infra cloud destroy -p eks-single-cluster -y
+# or
 make infra-destroy PROFILE=eks-single-cluster
 ```
 
@@ -287,21 +201,4 @@ make infra-destroy PROFILE=eks-single-cluster
 └── cloud-provisioner/          # Terraform provisioner (git submodule)
 ```
 
-## Troubleshooting
-
-**AWS credentials error during provision**
-```bash
-# Re-authenticate SSO
-aws sso login --profile <your-profile>
-export AWS_PROFILE=<your-profile>
-```
-
-**Check all dependencies**
-```bash
-mesh check-deps
-```
-
-**View infra state**
-```bash
-make infra-status PROFILE=<name>
-```
+See [docs/reference.md](docs/reference.md) for the full CLI reference, Makefile targets, and troubleshooting tips.

@@ -6,7 +6,6 @@ metadata:
     Canary deployment with weighted traffic splitting between service
     versions, via a waypoint.
 spec:
-  diagram: false
 
   requires:
     applications:

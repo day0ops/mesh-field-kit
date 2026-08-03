@@ -6,7 +6,6 @@ metadata:
     gRPC request routing to a gRPC backend via a GRPCRoute, matching on
     service and method.
 spec:
-  diagram: false
 
   requires:
     applications:

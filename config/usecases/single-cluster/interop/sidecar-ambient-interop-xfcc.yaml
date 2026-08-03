@@ -20,7 +20,6 @@ metadata:
     feature, or a plain ambient profile).
 
 spec:
-  diagram: false
 
   requires:
     applications:

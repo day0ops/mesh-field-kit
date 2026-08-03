@@ -20,7 +20,6 @@ metadata:
     unexpectedly passing.
 
 spec:
-  diagram: false
 
   requires:
     applications:

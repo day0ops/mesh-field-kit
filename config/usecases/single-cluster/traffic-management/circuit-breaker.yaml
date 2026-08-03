@@ -6,7 +6,6 @@ metadata:
     Protect httpbin from overload by capping concurrent connections and
     pending requests via a waypoint-enforced DestinationRule connection pool.
 spec:
-  diagram: false
 
   requires:
     applications:

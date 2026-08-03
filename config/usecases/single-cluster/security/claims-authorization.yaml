@@ -10,7 +10,6 @@ metadata:
     ENABLE_WORKLOAD_CLAIMS=true on ztunnel (already set on the
     eks-single-cluster-mesh-with-cilium profile).
 spec:
-  diagram: false
 
   requires:
     applications:

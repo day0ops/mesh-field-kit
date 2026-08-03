@@ -13,7 +13,6 @@ metadata:
     trading implicit registry-only allow for explicit per-namespace authz. Run
     on a cluster installed with the eks-single-cluster-mesh-sidecar profile.
 spec:
-  diagram: false
 
   requires:
     applications:

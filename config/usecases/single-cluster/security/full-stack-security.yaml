@@ -8,7 +8,6 @@ metadata:
     - Mesh: L7 authorization via a waypoint in front of productpage
     - Egress: waypoint restricting which namespaces can reach the external API
 spec:
-  diagram: false
 
   requires:
     applications:

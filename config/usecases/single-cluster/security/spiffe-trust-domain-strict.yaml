@@ -13,7 +13,6 @@ metadata:
     intermediate CA with the matching trust-domain SAN and sets this
     ztunnel env var.
 spec:
-  diagram: false
 
   requires:
     applications:

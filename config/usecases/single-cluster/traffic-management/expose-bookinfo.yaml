@@ -6,7 +6,6 @@ metadata:
     Expose the Bookinfo application via an Istio ingress gateway, routed
     with an HTTPRoute.
 spec:
-  diagram: false
 
   requires:
     applications:

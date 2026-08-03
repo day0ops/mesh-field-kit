@@ -6,7 +6,6 @@ metadata:
     Mirror live reviews-v1 traffic to a reviews-v2 shadow service via a
     waypoint, using a Gateway API RequestMirror filter.
 spec:
-  diagram: false
 
   requires:
     applications:

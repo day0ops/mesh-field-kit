@@ -57,8 +57,8 @@ async function renderMermaidToAscii(mermaidText) {
  * @param {Object} metadata - Use case metadata (name, description)
  * @param {Object} spec - Use case spec
  * @param {Array<{ title: string, features: Array }>} steps - Resolved steps
- * @param {string|null|false} mermaidText - Mermaid source (from spec.diagram or companion .md),
- *   or `false` to suppress the diagram/feature-box section entirely
+ * @param {string|null|false} mermaidText - Mermaid source (from spec.diagram or companion .md);
+ *   falsy (unset, null, or false) suppresses the diagram/feature-box section entirely
  */
 export async function showUseCaseOverview(metadata, spec, steps, mermaidText) {
   console.log('');
@@ -92,7 +92,7 @@ export async function showUseCaseOverview(metadata, spec, steps, mermaidText) {
     console.log(DIM('  Data flow:'));
     console.log(DIM(asciiDiagram));
     console.log('');
-  } else if (mermaidText !== false && steps.length > 0) {
+  } else if (mermaidText && steps.length > 0) {
     const featureList = [...new Set(steps.flatMap(s => s.features.map(f => f.name)))].join(', ');
     const box = new BoxedOutput();
     box.open();

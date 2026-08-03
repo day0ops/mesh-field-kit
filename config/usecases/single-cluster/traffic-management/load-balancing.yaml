@@ -8,7 +8,6 @@ metadata:
     affinity by request header is an L7-only capability that requires
     routing through a waypoint.
 spec:
-  diagram: false
 
   requires:
     applications:

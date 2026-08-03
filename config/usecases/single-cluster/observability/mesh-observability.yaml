@@ -6,7 +6,6 @@ metadata:
     Inspect ztunnel and istiod metrics for mesh-wide observability of L4
     traffic and control plane health.
 spec:
-  diagram: false
 
   requires:
     applications:

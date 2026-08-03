@@ -6,7 +6,6 @@ metadata:
     Enforce zero-trust L4 security with a deny-all policy and explicit allow
     rules.
 spec:
-  diagram: false
 
   requires:
     applications:

@@ -11,7 +11,6 @@ metadata:
     - Requires the telemetry addon already installed (kube-prometheus-stack) -
       without it there's no Prometheus Operator to pick up the PodMonitor
 spec:
-  diagram: false
 
   requires:
     applications:

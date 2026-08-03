@@ -6,7 +6,6 @@ metadata:
     Egress waypoint re-encrypts traffic to external HTTPS services via
     DestinationRule TLS origination, with port mapping (80 -> 443).
 spec:
-  diagram: false
 
   requires:
     applications:

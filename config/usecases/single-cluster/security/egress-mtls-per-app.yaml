@@ -7,7 +7,6 @@ metadata:
     each internal SPIFFE identity to its own external client certificate per
     service account.
 spec:
-  diagram: false
 
   requires:
     applications:
