@@ -1,10 +1,9 @@
-import { readdir, readFile, writeFile, unlink } from 'fs/promises';
+import { readdir, readFile } from 'fs/promises';
 import { existsSync, writeFileSync, unlinkSync } from 'fs';
 import { join, basename, relative, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { tmpdir } from 'os';
 import yaml from 'js-yaml';
-import chalk from 'chalk';
 import { Prompts, waitForKey } from './prompts.js';
 import { showUseCaseOverview, showStepHeader, showWaitPrompt } from './diagrams.js';
 import { Logger, SpinnerLogger, KubernetesHelper, CommandRunner } from './common.js';

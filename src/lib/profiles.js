@@ -3,7 +3,6 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import { Prompts } from './prompts.js';
-import { Logger } from './common.js';
 import { ProfileSchema } from './profile-schema.js';
 
 const __filename = fileURLToPath(import.meta.url);

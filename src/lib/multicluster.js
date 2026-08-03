@@ -663,7 +663,7 @@ export class ClusterLinker {
     throw new Error(`Timed out waiting for east-west gateway LB address on ${cluster.name}`);
   }
 
-  async #getNodePortAddress(cluster, ns, svc) {
+  async #getNodePortAddress(cluster, _ns, _svc) {
     const ctx = cluster.context ? `--context=${cluster.context}` : '';
 
     const nodeResult = await CommandRunner.exec(

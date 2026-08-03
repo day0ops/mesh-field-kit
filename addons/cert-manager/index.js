@@ -1,5 +1,5 @@
 import { AddonFeature } from '../../src/lib/feature.js';
-import { Logger, KubernetesHelper, CommandRunner, SpinnerLogger } from '../../src/lib/common.js';
+import { KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 

@@ -23,7 +23,6 @@ export class InfraAdapter {
 
   envExports(selection) {
     const { infraProfile, environment } = selection;
-    const clusters = infraProfile.spec.clusters || [];
     const provider = infraProfile.spec.provider || 'eks';
     const isAws = provider.startsWith('eks');
     const exports = [];

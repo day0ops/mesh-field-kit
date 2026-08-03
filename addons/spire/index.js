@@ -1,5 +1,5 @@
 import { AddonFeature } from '../../src/lib/feature.js';
-import { Logger, KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
+import { KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'fs';

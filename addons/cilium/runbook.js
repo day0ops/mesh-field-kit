@@ -10,12 +10,11 @@ export function envExportsFor(addonCfg, _profile, _env) {
   ];
 }
 
-export async function generate(_subIndex, addonCfg, clusterName, _profile, _env) {
+export async function generate(_subIndex, addonCfg, _clusterName, _profile, _env) {
   const addon =
     addonCfg?.config && typeof addonCfg.config === 'object'
       ? { ...addonCfg, ...addonCfg.config }
       : addonCfg;
-  const version = addon.version || '1.19.4';
   const mode = addon.mode || 'chaining';
   const chainingTarget = addon.chainingTarget || 'aws-cni';
   const healthProbe = addon.enableHealthProbePolicy ? '\n  --set healthChecking=true \\' : '';

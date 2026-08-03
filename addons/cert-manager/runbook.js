@@ -27,7 +27,6 @@ export function envExportsFor(addonCfg, _profile, env) {
 }
 
 export async function generate(_subIndex, addonCfg, _clusterName, _profile, env) {
-  const version = addonCfg.version || '1.20.2';
   const ns = addonCfg.namespace || 'cert-manager';
   const letsencrypt = addonCfg.config?.letsencrypt;
 

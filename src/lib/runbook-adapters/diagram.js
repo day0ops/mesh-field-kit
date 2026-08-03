@@ -60,7 +60,7 @@ ${descriptions}`;
     return lines.join('\n');
   }
 
-  _interactionDiagram(profile, infraProfile) {
+  _interactionDiagram(profile, _infraProfile) {
     const clusterAddonDefs = profile.spec.addons?.clusters || [];
     const lines = [`graph LR`];
 
@@ -95,7 +95,7 @@ ${descriptions}`;
     return lines.join('\n');
   }
 
-  _descriptions(profile, infraProfile) {
+  _descriptions(profile, _infraProfile) {
     const globalAddons = profile.spec.addons?.global || [];
     const clusterAddonDefs = profile.spec.addons?.clusters || [];
     const lines = [];

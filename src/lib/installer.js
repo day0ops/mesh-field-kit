@@ -1,5 +1,4 @@
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { writeFileSync, unlinkSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import yaml from 'js-yaml';
@@ -21,9 +20,6 @@ import { EnvironmentManager } from './environment.js';
 import { InfraStateManager } from './infra-state.js';
 import { InfraManager } from './infra-manager.js';
 import { InfraSchema } from './infra-schema.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const DEFAULTS = {
   NAMESPACE: 'istio-system',
@@ -464,7 +460,7 @@ export class InstallerManager {
       return;
     }
 
-    return this.#installClusterHelm({ profile, cluster, templateContext, allClusters, cfg });
+    return this.#installClusterHelm({ profile, cluster, templateContext, cfg });
   }
 
   static async #installAddons({ profile, cluster, phase = 'pre', templateContext = null }) {
@@ -540,7 +536,7 @@ export class InstallerManager {
     }
   }
 
-  static async #installClusterHelm({ profile, cluster, templateContext, allClusters, cfg }) {
+  static async #installClusterHelm({ profile, cluster, templateContext, cfg }) {
     const flags = contextFlags(cluster.context);
     const contextDisplay = cluster.context || 'current context';
     const spinner = new SpinnerLogger();

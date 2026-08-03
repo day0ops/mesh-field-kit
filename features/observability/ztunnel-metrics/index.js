@@ -54,7 +54,7 @@ export class ZtunnelMetricsFeature extends Feature {
           const podName = pods[0].replace('pod/', '');
           this.log(`Fetching metrics from ${podName}${contextInfo}...`, 'info');
           try {
-            const metrics = await CommandRunner.exec(
+            await CommandRunner.exec(
               `kubectl ${contextFlag} exec -n ${namespace} ${podName} -- curl -s localhost:${metricsPort}/metrics | head -50`
             );
             this.log(`  Metrics sample retrieved successfully`, 'success');

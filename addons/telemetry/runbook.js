@@ -436,7 +436,6 @@ async function _generateAgent(addonCfg, clusterName, _env) {
 
   const cfg = addonCfg.config || {};
   const ns = addonCfg.namespace || 'telemetry';
-  const { alloy: alloyVersion, otel: otelVersion } = chartVersionsFromAddon(addonCfg);
   const otelEndpoint =
     cfg.otelGatewayEndpoint || 'opentelemetry-collector-gateway.telemetry.mesh.internal:4317';
   const lokiPushUrl =

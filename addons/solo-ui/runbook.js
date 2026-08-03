@@ -45,7 +45,6 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, env) 
 function _generateManagement(addonCfg, clusterName, env) {
   const addon = addonSettings(addonCfg);
   const ns = addon.namespace || 'solo-enterprise';
-  const version = addon.version || '0.4.3';
   const hostname = tpl(addon.hostname, env.spec.domains?.soloUI) || 'soloui.example.com';
   const oidc = addon.oidc || {};
   const storageClass = addon.clickhouse?.persistentVolume?.storageClass || 'gp3';

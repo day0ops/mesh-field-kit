@@ -36,7 +36,7 @@ export class OperatorInstaller {
    * @param {object} [options.templateContext] - Template resolution context
    * @param {object} options.cfg - Resolved config from installer
    */
-  static async installCluster({ profile, cluster, templateContext, allClusters, cfg }) {
+  static async installCluster({ profile, cluster, templateContext, cfg }) {
     const operatorConfig = ProfileSchema.getOperatorConfig(profile);
     const flags = contextFlags(cluster.context);
     const contextDisplay = cluster.context || 'current context';

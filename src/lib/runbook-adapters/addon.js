@@ -24,7 +24,7 @@ export class AddonAdapter {
     const results = [];
     const seen = new Set();
     const { profile, environment } = selection;
-    for (const { addon, clusterName, sidecar } of await this._iterateAddons(selection)) {
+    for (const { addon, sidecar } of await this._iterateAddons(selection)) {
       if (!sidecar?.envExportsFor) continue;
       for (const e of sidecar.envExportsFor(addon, profile, environment) || []) {
         if (!seen.has(e.name)) {

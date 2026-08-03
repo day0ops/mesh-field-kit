@@ -5,35 +5,25 @@
   },
   "extends": [
     "eslint:recommended",
-    "plugin:storybook/recommended"
+    "prettier"
   ],
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
   "rules": {
-    "indent": [
-      "error",
-      2
-    ],
-    "linebreak-style": [
-      "error",
-      "unix"
-    ],
-    "quotes": [
-      "error",
-      "single"
-    ],
-    "semi": [
-      "error",
-      "always"
-    ],
     "no-unused-vars": [
       "warn",
       {
         "argsIgnorePattern": "^_"
       }
     ],
-    "no-console": "off"
+    "no-console": "off",
+    "no-constant-condition": [
+      "error",
+      {
+        "checkLoops": false
+      }
+    ]
   }
 }

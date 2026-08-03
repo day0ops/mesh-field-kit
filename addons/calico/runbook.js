@@ -14,12 +14,11 @@ export function envExportsFor(addonCfg, _profile, _env) {
   ];
 }
 
-export async function generate(_subIndex, addonCfg, clusterName, _profile, _env) {
+export async function generate(_subIndex, addonCfg, _clusterName, _profile, _env) {
   const addon =
     addonCfg?.config && typeof addonCfg.config === 'object'
       ? { ...addonCfg, ...addonCfg.config }
       : addonCfg;
-  const version = addon.version || '3.32.1';
   const mode = addon.mode || 'chaining';
   const chainingTarget = addon.chainingTarget || 'AmazonVPC';
   const kubernetesProvider = addon.kubernetesProvider || 'EKS';

@@ -90,7 +90,7 @@ function resolvePath(obj, path) {
   let current = obj;
   for (const part of parts) {
     if (current === undefined || current === null) return undefined;
-    const indexMatch = part.match(/^([^\[]+)\[(\d+)\]$/);
+    const indexMatch = part.match(/^([^[]+)\[(\d+)\]$/);
     if (indexMatch) {
       current = current[indexMatch[1]];
       if (current === undefined || current === null) return undefined;

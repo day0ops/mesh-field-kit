@@ -163,7 +163,7 @@ ${sections.join('\n\n')}`;
     if (certMode === 'self-signed') {
       const clusterBlocks = clusters
         .map(c => {
-          const ctx = `\$${c.name.toUpperCase()}_CONTEXT`;
+          const ctx = `$${c.name.toUpperCase()}_CONTEXT`;
           return `# ${c.name}
 kubectl --context=${ctx} create namespace ${ns} --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
 kubectl --context=${ctx} delete secret cacerts -n ${ns} --ignore-not-found=true
@@ -222,7 +222,7 @@ ${clusterBlocks}
     // cert-manager mode
     const clusterBlocks = clusters
       .map(c => {
-        const ctx = `\$${c.name.toUpperCase()}_CONTEXT`;
+        const ctx = `$${c.name.toUpperCase()}_CONTEXT`;
         return `# ${c.name}
 kubectl --context=${ctx} create namespace ${ns} --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
 kubectl --context=${ctx} create secret tls istio-root-ca-secret -n ${ns} \\
@@ -288,9 +288,9 @@ rm /tmp/ambient-root-ca-key.pem /tmp/ambient-root-ca-cert.pem
 
   // ── Per-cluster installation ───────────────────────────────────────────────
 
-  _clusterSection(cluster, rawComponents, cfg, isMultiCluster) {
+  _clusterSection(cluster, rawComponents, cfg, _isMultiCluster) {
     const { helmIstioRepo, istioTag, ns } = cfg;
-    const ctx = `\$${cluster.name.toUpperCase()}_CONTEXT`;
+    const ctx = `$${cluster.name.toUpperCase()}_CONTEXT`;
     const installable = rawComponents.filter(c => !DEFERRED.has(c.name) && CHART_MAP[c.name]);
 
     const helmBlocks = installable.map(comp => {
@@ -347,9 +347,8 @@ ${networkLabel}
   // ── Multicluster linking ───────────────────────────────────────────────────
 
   _multiclusterSection(clusters, rawComponents, cfg, peeringMethod) {
-    const { helmIstioRepo, istioTag, ns } = cfg;
+    const { helmIstioRepo, istioTag } = cfg;
     const peeringRemote = rawComponents.find(c => c.name === 'peering-remote');
-    const peeringEastwest = rawComponents.find(c => c.name === 'peering-eastwest');
 
     const sections = [];
 
@@ -357,7 +356,7 @@ ${networkLabel}
       // helm peering-remote chart installed on each cluster pointing to all others
       const helmBlocks = clusters
         .map(cluster => {
-          const ctx = `\$${cluster.name.toUpperCase()}_CONTEXT`;
+          const ctx = `$${cluster.name.toUpperCase()}_CONTEXT`;
           const profileVals = resolveTemplates(peeringRemote.values || {}, cluster.name);
           const valuesYaml = yamlDump(profileVals, { lineWidth: 120 })
             .trimEnd()
@@ -387,7 +386,7 @@ ${helmBlocks}
       // East-west gateway (istioctl method)
       const gwBlocks = clusters
         .map(c => {
-          const ctx = `\$${c.name.toUpperCase()}_CONTEXT`;
+          const ctx = `$${c.name.toUpperCase()}_CONTEXT`;
           return `# ${c.name}
 kubectl --context=${ctx} create namespace istio-eastwest --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
 istioctl --context=${ctx} install -y -f - <<'EOF'
@@ -442,8 +441,8 @@ ${clusters
       .filter(dst => dst.name !== src.name)
       .map(
         dst =>
-          `istioctl x create-remote-secret --context=\$${src.name.toUpperCase()}_CONTEXT \\
-  --name=${src.name} | kubectl --context=\$${dst.name.toUpperCase()}_CONTEXT apply -f -`
+          `istioctl x create-remote-secret --context=$${src.name.toUpperCase()}_CONTEXT \\
+  --name=${src.name} | kubectl --context=$${dst.name.toUpperCase()}_CONTEXT apply -f -`
       )
   )
   .join('\n')}

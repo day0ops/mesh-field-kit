@@ -1,6 +1,5 @@
 import { Feature } from '../../../src/lib/feature.js';
 import { CommandRunner } from '../../../src/lib/common.js';
-import yaml from 'js-yaml';
 
 /**
  * Global Alias Feature

@@ -183,6 +183,7 @@ export class SpinnerLogger {
  *   box.close();
  */
 export class BoxedOutput {
+  // eslint-disable-next-line no-control-regex -- intentionally matches ANSI escape sequences
   static ANSI_RE = /\x1b\[[0-9;]*m/g;
 
   constructor(title = '', { indent = 2, minWidth = 60 } = {}) {
@@ -542,12 +543,6 @@ export class KubernetesHelper {
 
   static async helm(args, options = {}) {
     return CommandRunner.run('helm', args, options);
-  }
-
-  static async isClusterAccessible(kubeContext = null) {
-    const ctxArgs = kubeContext ? [`--context=${kubeContext}`] : [];
-    const result = await this.kubectl([...ctxArgs, 'cluster-info'], { ignoreError: true });
-    return result?.exitCode === 0;
   }
 
   /**

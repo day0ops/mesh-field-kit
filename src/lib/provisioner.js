@@ -1,12 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { CommandRunner, Logger, SpinnerLogger, BoxedOutput } from './common.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const PROJECT_ROOT = join(__dirname, '../..');
+import { CommandRunner, Logger, BoxedOutput } from './common.js';
 
 /**
  * TerraformRunner - Manages Terraform operations

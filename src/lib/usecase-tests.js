@@ -128,7 +128,6 @@ export class UseCaseTestRunner {
     let lastResponse = null;
     let lastResponseBody = null;
     let lastResponseStatus = null;
-    let lastExecOutput = null;
 
     for (const step of test.steps) {
       const action = step.action;
@@ -136,7 +135,6 @@ export class UseCaseTestRunner {
       switch (action) {
         case 'send-request': {
           const context = await this.resolveClusterContext(step, test, spec);
-          const contextFlag = context ? `--context=${context}` : '';
 
           if (!cachedGwAddress && step.autoDetectGwAddress !== false) {
             const ingressHttpRoute = spec.features?.find(f => f.name === 'ingress-httproute');
@@ -283,7 +281,6 @@ export class UseCaseTestRunner {
                 timeout: timeout * 1000,
               });
               execOutput = (execResult.stdout || '').trim();
-              lastExecOutput = execOutput;
 
               // For exec, store as a "response" so verify can check it
               lastResponseBody = execOutput;
@@ -424,7 +421,7 @@ export class UseCaseTestRunner {
   /**
    * Verify response against expected values
    */
-  static async verifyResponse(response, body, status, step, spinner) {
+  static async verifyResponse(response, body, status, step, _spinner) {
     const { expect = {} } = step;
 
     if (expect.statusCode !== undefined) {
