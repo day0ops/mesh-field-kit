@@ -1,7 +1,7 @@
 # Mesh Field Kit
 
-[![CI](https://img.shields.io/github/actions/workflow/status/solo-io/mesh-field-kit/ci.yml?branch=main&label=CI)](https://github.com/solo-io/mesh-field-kit/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/solo-io/mesh-field-kit)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/day0ops/mesh-field-kit/ci.yml?branch=main&label=CI)](https://github.com/day0ops/mesh-field-kit/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/day0ops/mesh-field-kit)](LICENSE)
 
 Provision, install, demo, and test Istio mesh (ambient and sidecar). Node.js/Bun CLI for cloud infrastructure provisioning and Solo Istio installation on Kubernetes clusters. Supports single-cluster and multi-cluster topologies, use cases, and addon management.
 
