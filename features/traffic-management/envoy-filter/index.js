@@ -45,9 +45,10 @@ export class EnvoyFilterFeature extends Feature {
     const namespace = this.config.namespace;
     const filterName = this.config.filterName;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying EnvoyFilter feature: ${filterName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -83,9 +84,10 @@ export class EnvoyFilterFeature extends Feature {
     const filterName = this.config.filterName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up EnvoyFilter feature: ${filterName}`, 'info');
 

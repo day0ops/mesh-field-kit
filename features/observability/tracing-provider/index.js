@@ -30,7 +30,9 @@ const ISTIOD_HELM_REPO = 'oci://us-docker.pkg.dev/soloio-img/istio-helm/istiod';
 export class TracingProviderFeature extends Feature {
   validate() {
     if (!this.config.istioVersion) {
-      throw new Error('istioVersion is required for TracingProvider feature (must match the running install)');
+      throw new Error(
+        'istioVersion is required for TracingProvider feature (must match the running install)'
+      );
     }
     if (!this.config.otlpService) {
       throw new Error('otlpService is required for TracingProvider feature');
@@ -51,7 +53,10 @@ export class TracingProviderFeature extends Feature {
       : `${this.config.istioVersion}-solo`;
     const ctxArgs = this.#ctxArgs();
 
-    this.log(`Registering OTel tracing provider '${providerName}' -> ${this.config.otlpService}:${otlpPort}`, 'info');
+    this.log(
+      `Registering OTel tracing provider '${providerName}' -> ${this.config.otlpService}:${otlpPort}`,
+      'info'
+    );
 
     const extensionProviders = JSON.stringify([
       {
@@ -66,12 +71,18 @@ export class TracingProviderFeature extends Feature {
     await KubernetesHelper.helm(
       [
         ...ctxArgs,
-        'upgrade', 'istiod', ISTIOD_HELM_REPO,
-        '-n', istioNamespace,
-        '--version', istioImage,
+        'upgrade',
+        'istiod',
+        ISTIOD_HELM_REPO,
+        '-n',
+        istioNamespace,
+        '--version',
+        istioImage,
         '--reuse-values',
-        '--set', 'meshConfig.enableTracing=true',
-        '--set-json', `meshConfig.extensionProviders=${extensionProviders}`,
+        '--set',
+        'meshConfig.enableTracing=true',
+        '--set-json',
+        `meshConfig.extensionProviders=${extensionProviders}`,
         '--wait',
       ],
       { spinner: this.spinner }
@@ -81,7 +92,10 @@ export class TracingProviderFeature extends Feature {
     const telemetryNamespace = this.config.telemetryNamespace || istioNamespace;
     const samplingPercentage = this.config.samplingPercentage ?? 100;
 
-    this.log(`Applying Telemetry resource '${telemetryName}' (sampling: ${samplingPercentage}%)`, 'info');
+    this.log(
+      `Applying Telemetry resource '${telemetryName}' (sampling: ${samplingPercentage}%)`,
+      'info'
+    );
 
     await this.applyResource(
       {
@@ -108,16 +122,25 @@ export class TracingProviderFeature extends Feature {
 
   async cleanup() {
     const telemetryName = this.config.telemetryName || this.config.providerName || 'mesh-tracing';
-    const telemetryNamespace = this.config.telemetryNamespace || this.config.istioNamespace || 'istio-system';
+    const telemetryNamespace =
+      this.config.telemetryNamespace || this.config.istioNamespace || 'istio-system';
 
     this.log(`Cleaning up Telemetry resource '${telemetryName}'`, 'info');
-    await this.deleteResource('telemetry', telemetryName, telemetryNamespace, this.config.kubeContext);
+    await this.deleteResource(
+      'telemetry',
+      telemetryName,
+      telemetryNamespace,
+      this.config.kubeContext
+    );
 
     // istiod's meshConfig.enableTracing/extensionProviders are left in place —
     // a registered-but-unreferenced provider is harmless, and reverting it
     // cleanly would require a full reuse-values without those keys, which
     // Helm has no way to express (only additive --set/--set-json).
-    this.log('Left istiod meshConfig tracing provider registered (harmless when unreferenced)', 'info');
+    this.log(
+      'Left istiod meshConfig tracing provider registered (harmless when unreferenced)',
+      'info'
+    );
   }
 }
 

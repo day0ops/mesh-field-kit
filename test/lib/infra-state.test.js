@@ -36,7 +36,10 @@ test('setProvisioned stores network block per cluster', async () => {
 
   expect(state.status.clusters[0].network).toBeDefined();
   expect(state.status.clusters[0].network.vpcId).toBe('vpc-0abc123');
-  expect(state.status.clusters[0].network.privateSubnetIds).toEqual(['subnet-0def456', 'subnet-0ghi789']);
+  expect(state.status.clusters[0].network.privateSubnetIds).toEqual([
+    'subnet-0def456',
+    'subnet-0ghi789',
+  ]);
   expect(state.status.clusters[0].network.workerSgId).toBe('sg-0mno345');
 });
 
@@ -100,7 +103,13 @@ test('getClusterNetwork returns null for unknown cluster', async () => {
 
 test('setProvisioned stores vms array when provided', async () => {
   const clusters = [
-    { name: 'east', context: 'eks-east-abc', cluster: 'east-cluster', kubeconfig: '/tmp/east.yaml', provisioned: true },
+    {
+      name: 'east',
+      context: 'eks-east-abc',
+      cluster: 'east-cluster',
+      kubeconfig: '/tmp/east.yaml',
+      provisioned: true,
+    },
   ];
   const vms = [
     {
@@ -123,7 +132,13 @@ test('setProvisioned stores vms array when provided', async () => {
 
 test('setProvisioned defaults vms to empty array when not provided', async () => {
   const clusters = [
-    { name: 'east', context: 'eks-east-abc', cluster: 'east-cluster', kubeconfig: '/tmp/east.yaml', provisioned: true },
+    {
+      name: 'east',
+      context: 'eks-east-abc',
+      cluster: 'east-cluster',
+      kubeconfig: '/tmp/east.yaml',
+      provisioned: true,
+    },
   ];
 
   const state = await InfraStateManager.setProvisioned(TEST_INFRA_NAME, 'eks', clusters);
@@ -138,7 +153,12 @@ test('getVms returns empty array for state without vms', () => {
 });
 
 test('formatProjectPath returns relative path inside project root', () => {
-  const absPath = join(InfraStateManager.INFRA_OUTPUT_BASE, 'some-profile', 'kubeconfig', 'demo.yaml');
+  const absPath = join(
+    InfraStateManager.INFRA_OUTPUT_BASE,
+    'some-profile',
+    'kubeconfig',
+    'demo.yaml'
+  );
   const result = InfraStateManager.formatProjectPath(absPath);
   expect(result.startsWith('._output')).toBe(true);
   expect(result).not.toContain(InfraStateManager.PROJECT_ROOT);
@@ -157,9 +177,7 @@ test('formatProjectPath returns null/undefined unchanged', () => {
 test('profileMatchesKubeContext returns true when cluster context matches', () => {
   const state = {
     status: {
-      clusters: [
-        { name: 'demo', context: 'eks-demo-abc123' },
-      ],
+      clusters: [{ name: 'demo', context: 'eks-demo-abc123' }],
     },
   };
   expect(InfraStateManager.profileMatchesKubeContext(state, 'eks-demo-abc123')).toBe(true);

@@ -68,7 +68,10 @@ export class SegmentFeature extends Feature {
       await this.applyResource(segment, context);
 
       if (assignCluster && clusterName === assignCluster) {
-        this.log(`Assigning cluster '${clusterName}' to segment '${segmentName}'${contextInfo}...`, 'info');
+        this.log(
+          `Assigning cluster '${clusterName}' to segment '${segmentName}'${contextInfo}...`,
+          'info'
+        );
         const contextFlag = context ? `--context=${context}` : '';
         await CommandRunner.exec(
           `kubectl ${contextFlag} label namespace ${namespace} admin.solo.io/segment=${segmentName} --overwrite`

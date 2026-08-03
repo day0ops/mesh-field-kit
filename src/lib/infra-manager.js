@@ -63,14 +63,22 @@ export class InfraManager {
         const removed = provisionedNames.filter(n => !clusterNames.includes(n));
 
         if (added.length > 0 || removed.length > 0) {
-          const lines = [`Profile '${this.infraName}' is already provisioned with different cluster names.`];
+          const lines = [
+            `Profile '${this.infraName}' is already provisioned with different cluster names.`,
+          ];
           if (removed.length > 0) lines.push(`  Existing: ${removed.join(', ')}`);
           if (added.length > 0) lines.push(`  New:      ${added.join(', ')}`);
-          lines.push('', `Destroy the current deployment first:`, `  mesh base infra cloud destroy -p ${this.infraName}`);
+          lines.push(
+            '',
+            `Destroy the current deployment first:`,
+            `  mesh base infra cloud destroy -p ${this.infraName}`
+          );
           throw new Error(lines.join('\n'));
         }
 
-        Logger.warn(`Profile '${this.infraName}' is already provisioned. Re-provisioning will update existing resources.`);
+        Logger.warn(
+          `Profile '${this.infraName}' is already provisioned. Re-provisioning will update existing resources.`
+        );
         continue;
       }
 
@@ -79,8 +87,8 @@ export class InfraManager {
       if (conflicts.length > 0) {
         const clusterList = conflicts.map(n => `  - ${n}`).join('\n');
         throw new Error(
-          `Cluster name conflict with already-provisioned profile '${existing.name}':\n${clusterList}\n\n`
-          + `Destroy '${existing.name}' first, or use different cluster names.`
+          `Cluster name conflict with already-provisioned profile '${existing.name}':\n${clusterList}\n\n` +
+            `Destroy '${existing.name}' first, or use different cluster names.`
         );
       }
     }
@@ -137,7 +145,9 @@ export class InfraManager {
     }
 
     if (InfraSchema.isVmEnabled(infraProfile)) {
-      Logger.info(`VM integration enabled: ${vms.map(vm => `${vm.name} (cluster: ${vm.cluster})`).join(', ')}`);
+      Logger.info(
+        `VM integration enabled: ${vms.map(vm => `${vm.name} (cluster: ${vm.cluster})`).join(', ')}`
+      );
     }
 
     await this.checkConflicts(clusters.map(c => c.name));
@@ -175,9 +185,19 @@ export class InfraManager {
         vms,
       });
 
-      const { clusters: clusterResults, dns: dnsOutputs, vms: vmOutputs } = await runner.provision();
+      const {
+        clusters: clusterResults,
+        dns: dnsOutputs,
+        vms: vmOutputs,
+      } = await runner.provision();
 
-      await InfraStateManager.setProvisioned(this.infraName, provider, clusterResults, dnsOutputs, vmOutputs);
+      await InfraStateManager.setProvisioned(
+        this.infraName,
+        provider,
+        clusterResults,
+        dnsOutputs,
+        vmOutputs
+      );
 
       Logger.success(`Provisioned ${clusters.length} ${provider} ${clusterWord}`);
 
@@ -238,7 +258,9 @@ export class InfraManager {
         Logger.debug(`Previous error: ${state.status.error}`);
       }
     } else {
-      Logger.info(`Destroying infra profile: ${this.infraName} (${provider}, ${clusters.length} ${clusterWord})`);
+      Logger.info(
+        `Destroying infra profile: ${this.infraName} (${provider}, ${clusters.length} ${clusterWord})`
+      );
     }
 
     const infraName = InfraSchema.getName(infraProfile);

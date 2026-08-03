@@ -43,7 +43,9 @@ test('SpireFeature validate passes for cert-manager', () => {
 
 test('SpireFeature validate throws for manual without cert paths', () => {
   const f = new SpireFeature('spire', { clusterName: 'c1', certMode: 'manual' });
-  expect(() => f.validate()).toThrow('manual certMode requires certs.caCert, certs.caKey, and certs.caChain');
+  expect(() => f.validate()).toThrow(
+    'manual certMode requires certs.caCert, certs.caKey, and certs.caChain'
+  );
 });
 
 test('SpireFeature validate passes for manual with all cert paths', () => {
@@ -57,7 +59,9 @@ test('SpireFeature validate passes for manual with all cert paths', () => {
 
 test('SpireFeature validate throws for unknown certMode', () => {
   const f = new SpireFeature('spire', { clusterName: 'c1', certMode: 'bogus' });
-  expect(() => f.validate()).toThrow("Invalid certMode 'bogus'. Must be: self-signed, cert-manager, manual");
+  expect(() => f.validate()).toThrow(
+    "Invalid certMode 'bogus'. Must be: self-signed, cert-manager, manual"
+  );
 });
 
 test('SpireFeature certsWorkDir returns path under tmpdir', () => {
@@ -115,7 +119,10 @@ test('spire addon is registered in FeatureManager', () => {
   expect(FeatureManager.has('spire')).toBe(true);
 });
 
-import { generate as spireRunbookGenerate, cleanup as spireRunbookCleanup } from '../../addons/spire/runbook.js';
+import {
+  generate as spireRunbookGenerate,
+  cleanup as spireRunbookCleanup,
+} from '../../addons/spire/runbook.js';
 
 test('spire runbook generate returns markdown with helm commands', async () => {
   const addonCfg = { certMode: 'self-signed' };

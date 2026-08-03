@@ -42,25 +42,45 @@ export class SidecarCutoverFeature extends Feature {
       `kubectl ${ctxFlag} get deployments -n ${this.namespace} -o name`,
       { ignoreError: true }
     );
-    const deployments = (result.stdout || '').split('\n').map(s => s.trim()).filter(Boolean);
+    const deployments = (result.stdout || '')
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean);
     for (const dep of deployments) {
       this.log(`Restarting ${dep} to pick up the new dataplane mode...`, 'info');
       await CommandRunner.exec(`kubectl ${ctxFlag} -n ${this.namespace} rollout restart ${dep}`);
-      await CommandRunner.exec(`kubectl ${ctxFlag} -n ${this.namespace} rollout status ${dep} --timeout=120s`);
+      await CommandRunner.exec(
+        `kubectl ${ctxFlag} -n ${this.namespace} rollout status ${dep} --timeout=120s`
+      );
     }
   }
 
   async deploy() {
     if (this.waypointName) {
-      this.log(`Enabling waypoint '${this.waypointName}' for namespace '${this.namespace}'...`, 'info');
+      this.log(
+        `Enabling waypoint '${this.waypointName}' for namespace '${this.namespace}'...`,
+        'info'
+      );
       await KubernetesHelper.kubectl(
-        [...this.#ctxArgs(), 'label', 'namespace', this.namespace, `istio.io/use-waypoint=${this.waypointName}`, '--overwrite'],
+        [
+          ...this.#ctxArgs(),
+          'label',
+          'namespace',
+          this.namespace,
+          `istio.io/use-waypoint=${this.waypointName}`,
+          '--overwrite',
+        ],
         { spinner: this.spinner }
       );
     }
 
     this.log(`Cutting over namespace '${this.namespace}' from sidecar to ambient...`, 'info');
-    await KubernetesHelper.labelNamespaceForDataplaneMode(this.namespace, 'ambient', this.kubeContext, { spinner: this.spinner });
+    await KubernetesHelper.labelNamespaceForDataplaneMode(
+      this.namespace,
+      'ambient',
+      this.kubeContext,
+      { spinner: this.spinner }
+    );
 
     await this.#restartWorkloads();
     this.log(`Namespace '${this.namespace}' is now running ambient-only`, 'success');
@@ -68,11 +88,23 @@ export class SidecarCutoverFeature extends Feature {
 
   async cleanup() {
     this.log(`Reverting namespace '${this.namespace}' to sidecar mode...`, 'info');
-    await KubernetesHelper.labelNamespaceForDataplaneMode(this.namespace, 'sidecar', this.kubeContext, { spinner: this.spinner });
+    await KubernetesHelper.labelNamespaceForDataplaneMode(
+      this.namespace,
+      'sidecar',
+      this.kubeContext,
+      { spinner: this.spinner }
+    );
 
     if (this.waypointName) {
       await KubernetesHelper.kubectl(
-        [...this.#ctxArgs(), 'label', 'namespace', this.namespace, 'istio.io/use-waypoint-', '--overwrite'],
+        [
+          ...this.#ctxArgs(),
+          'label',
+          'namespace',
+          this.namespace,
+          'istio.io/use-waypoint-',
+          '--overwrite',
+        ],
         { spinner: this.spinner, ignoreError: true }
       );
     }

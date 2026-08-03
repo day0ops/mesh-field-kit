@@ -53,7 +53,7 @@ test('validate rejects an invalid vm role', () => {
   const profile = baseProfile({ vms: [{ name: 'vm1', role: 'management' }] });
   const result = InfraSchema.validate(profile);
   expect(result.valid).toBe(false);
-  expect(result.errors).toContain("spec.vms[0]: Invalid role: management. Valid values: workload");
+  expect(result.errors).toContain('spec.vms[0]: Invalid role: management. Valid values: workload');
 });
 
 test('validate rejects spec.vms on a non-eks provider', () => {
@@ -94,7 +94,10 @@ test('getValidVmRoles returns the vm role list', () => {
 
 function multiClusterProfile(overrides = {}) {
   return baseProfile({
-    clusters: [{ name: 'east', role: 'workload' }, { name: 'west', role: 'workload' }],
+    clusters: [
+      { name: 'east', role: 'workload' },
+      { name: 'west', role: 'workload' },
+    ],
     ...overrides,
   });
 }
@@ -109,7 +112,9 @@ test('validate rejects vm.cluster referencing an unknown cluster', () => {
   const profile = multiClusterProfile({ vms: [{ name: 'vm1', cluster: 'north' }] });
   const result = InfraSchema.validate(profile);
   expect(result.valid).toBe(false);
-  expect(result.errors).toContain('spec.vms[0]: Unknown cluster: north. Must be one of: east, west');
+  expect(result.errors).toContain(
+    'spec.vms[0]: Unknown cluster: north. Must be one of: east, west'
+  );
 });
 
 test('getVmClusterName returns the explicit cluster field', () => {

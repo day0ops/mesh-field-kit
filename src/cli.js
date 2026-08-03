@@ -314,7 +314,9 @@ cloud
       const { existsSync } = await import('fs');
 
       if (!existsSync(envShPath)) {
-        Logger.error(`No env.sh found for '${infraName}'. Run 'mesh base infra cloud provision -p ${infraName}' first.`);
+        Logger.error(
+          `No env.sh found for '${infraName}'. Run 'mesh base infra cloud provision -p ${infraName}' first.`
+        );
         process.exit(1);
       }
 
@@ -374,7 +376,9 @@ base
 
       // Still nothing — fall back to auto-detecting from provisioned state
       if (!resolvedInfra && !options.context) {
-        const provisioned = (await InfraStateManager.listInfraProfiles()).filter(p => p.provisioned);
+        const provisioned = (await InfraStateManager.listInfraProfiles()).filter(
+          p => p.provisioned
+        );
 
         if (provisioned.length === 1) {
           resolvedInfra = provisioned[0].name;
@@ -384,13 +388,16 @@ base
             name: `${p.name} (${p.infraName ? `name: ${p.infraName}, ` : ''}cloud: ${p.provider}, clusters: ${p.clusterCount})`,
             value: p.name,
           }));
-          resolvedInfra = await Prompts.select('Multiple provisioned infra profiles found. Select one:', choices);
+          resolvedInfra = await Prompts.select(
+            'Multiple provisioned infra profiles found. Select one:',
+            choices
+          );
         } else {
           Logger.error(
-            'No provisioned infrastructure found.\n'
-            + '  Either provision first:  make infra-provision PROFILE=<name>\n'
-            + '  Or directly:             mesh base infra cloud provision -p <name>\n'
-            + '  Or specify explicitly:   make install-mesh INFRA=<name>  or  KUBE_CONTEXT=<ctx>'
+            'No provisioned infrastructure found.\n' +
+              '  Either provision first:  make infra-provision PROFILE=<name>\n' +
+              '  Or directly:             mesh base infra cloud provision -p <name>\n' +
+              '  Or specify explicitly:   make install-mesh INFRA=<name>  or  KUBE_CONTEXT=<ctx>'
           );
           process.exit(1);
         }
@@ -399,7 +406,9 @@ base
       if (resolvedInfra) {
         const infraState = await InfraStateManager.load(resolvedInfra);
         if (!infraState?.status?.provisioned) {
-          Logger.error(`Infra '${resolvedInfra}' is not provisioned. Run 'mesh base infra cloud provision -p ${resolvedInfra}' first.`);
+          Logger.error(
+            `Infra '${resolvedInfra}' is not provisioned. Run 'mesh base infra cloud provision -p ${resolvedInfra}' first.`
+          );
           process.exit(1);
         }
 
@@ -427,7 +436,9 @@ base
 
         if (extraKubeconfigs.length > 0) {
           const existing = process.env.KUBECONFIG || '';
-          const merged = [...new Set([...existing.split(':').filter(Boolean), ...extraKubeconfigs])].join(':');
+          const merged = [
+            ...new Set([...existing.split(':').filter(Boolean), ...extraKubeconfigs]),
+          ].join(':');
           process.env.KUBECONFIG = merged;
         }
       } else if (options.context) {
@@ -461,7 +472,9 @@ base
 
 base
   .command('clean-addons')
-  .description('Clean up all profile-based addons (cert-manager, external-dns, keycloak, solo-ui, cilium, calico)')
+  .description(
+    'Clean up all profile-based addons (cert-manager, external-dns, keycloak, solo-ui, cilium, calico)'
+  )
   .action(async () => {
     try {
       const confirmed = await Prompts.confirm(
@@ -473,7 +486,14 @@ base
         return;
       }
 
-      const addonNames = ['cilium', 'calico', 'solo-ui', 'keycloak', 'external-dns', 'cert-manager'];
+      const addonNames = [
+        'cilium',
+        'calico',
+        'solo-ui',
+        'keycloak',
+        'external-dns',
+        'cert-manager',
+      ];
       Logger.info('Cleaning up all addons...');
       for (const name of addonNames) {
         if (FeatureManager.has(name)) {
@@ -516,7 +536,9 @@ base
       }
 
       if (!resolvedInfra && !options.context) {
-        const provisioned = (await InfraStateManager.listInfraProfiles()).filter(p => p.provisioned);
+        const provisioned = (await InfraStateManager.listInfraProfiles()).filter(
+          p => p.provisioned
+        );
 
         if (provisioned.length === 1) {
           resolvedInfra = provisioned[0].name;
@@ -564,7 +586,9 @@ base
 
         if (extraKubeconfigs.length > 0) {
           const existing = process.env.KUBECONFIG || '';
-          const merged = [...new Set([...existing.split(':').filter(Boolean), ...extraKubeconfigs])].join(':');
+          const merged = [
+            ...new Set([...existing.split(':').filter(Boolean), ...extraKubeconfigs]),
+          ].join(':');
           process.env.KUBECONFIG = merged;
         }
 
@@ -583,7 +607,10 @@ base
               Logger.info(`Auto-detected profile: ${profileName}`);
             } else if (matches.length > 1) {
               const choices = matches.map(p => ({ name: p.name, value: p.name }));
-              profileName = await Prompts.select(`Multiple profiles found for infra '${resolvedInfra}'. Select one:`, choices);
+              profileName = await Prompts.select(
+                `Multiple profiles found for infra '${resolvedInfra}'. Select one:`,
+                choices
+              );
             }
           }
         }
@@ -598,7 +625,11 @@ base
         process.exit(1);
       }
 
-      await InstallerManager.uninstallAll({ profileName, clusters, uninstallAddons: !!options.addons });
+      await InstallerManager.uninstallAll({
+        profileName,
+        clusters,
+        uninstallAddons: !!options.addons,
+      });
 
       if (options.addons) {
         await UseCaseManager.clearCurrentUseCase();
@@ -766,7 +797,11 @@ usecase
         Logger.info(`Selected use case: ${usecaseName}`);
       }
 
-      await UseCaseManager.deploy(usecaseName, { interactive: !options.yes, skipTests: options.skipTests, diagrams: options.diagrams });
+      await UseCaseManager.deploy(usecaseName, {
+        interactive: !options.yes,
+        skipTests: options.skipTests,
+        diagrams: options.diagrams,
+      });
     } catch (error) {
       Logger.error(`Failed to deploy use case: ${error.message}`);
       process.exit(1);
@@ -784,7 +819,9 @@ usecase
   .action(async options => {
     try {
       if (!(await KubernetesHelper.isClusterAccessible())) {
-        Logger.error('Cluster not accessible. Check your kubeconfig and credentials (e.g. aws sso login).');
+        Logger.error(
+          'Cluster not accessible. Check your kubeconfig and credentials (e.g. aws sso login).'
+        );
         process.exit(1);
       }
 
@@ -863,7 +900,11 @@ profile
           `  ${chalk.cyan(p.name.padEnd(nameWidth))} ${roles} ${chalk.dim(version)} ${chalk.yellow(infraTag)}${chalk.red(validity)}`
         );
         if (p.description) {
-          const oneLineDescription = p.description.split('\n').map(line => line.trim()).filter(Boolean).join(' ');
+          const oneLineDescription = p.description
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean)
+            .join(' ');
           console.log(`  ${' '.repeat(nameWidth)} ${chalk.dim(oneLineDescription)}`);
         }
       }
@@ -894,16 +935,22 @@ profile
 
       const summary = await ProfileManager.getProfileSummary(profileName);
 
-      const oneLineDescription = summary.description.split('\n').map(line => line.trim()).filter(Boolean).join(' ');
+      const oneLineDescription = summary.description
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean)
+        .join(' ');
       console.log(`\n${chalk.bold('Profile:')} ${chalk.cyan(summary.name)}`);
       console.log(`${chalk.bold('Description:')} ${oneLineDescription}`);
-      console.log(`${chalk.bold('Infra:')} ${summary.infra ? chalk.cyan(summary.infra) : chalk.dim('not set (auto-detect)')}`);
+      console.log(
+        `${chalk.bold('Infra:')} ${summary.infra ? chalk.cyan(summary.infra) : chalk.dim('not set (auto-detect)')}`
+      );
       console.log(`${chalk.bold('Istio Version:')} ${summary.istioVersion}`);
       console.log(`${chalk.bold('Mesh Profile:')} ${summary.meshProfile}`);
       console.log(`${chalk.bold('Components:')} ${summary.components.join(', ')}`);
 
       if (summary.addons.length > 0) {
-        const addonNames = summary.addons.map(a => typeof a === 'string' ? a : a.name);
+        const addonNames = summary.addons.map(a => (typeof a === 'string' ? a : a.name));
         console.log(`${chalk.bold('Addons:')} ${addonNames.join(', ')}`);
       }
 
@@ -938,7 +985,7 @@ runbookCmd.addCommand(
     .description('Interactively generate a setup runbook from a profile')
     .option('--output <dir>', 'Output directory', 'docs/runbooks')
     .option('--filename <name>', 'Output filename (without .md extension)')
-    .action(async (options) => {
+    .action(async options => {
       const { RunbookPicker, RunbookBuilder } = await import('./lib/runbook.js');
       const picker = new RunbookPicker();
       const selection = await picker.pick(options);

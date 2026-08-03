@@ -38,12 +38,8 @@ export const TemplateResolver = {
     }
     if (infraState?.status?.clusters || infraState?.status?.vms) {
       ctx.infra = {
-        clusters: Object.fromEntries(
-          (infraState.status.clusters || []).map(c => [c.name, c])
-        ),
-        vms: Object.fromEntries(
-          (infraState.status.vms || []).map(v => [v.name, v])
-        ),
+        clusters: Object.fromEntries((infraState.status.clusters || []).map(c => [c.name, c])),
+        vms: Object.fromEntries((infraState.status.vms || []).map(v => [v.name, v])),
       };
     }
     return ctx;

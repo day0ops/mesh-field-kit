@@ -21,7 +21,9 @@ export class BaseProvisionerRunner {
     this.vms = options.vms || [];
 
     if (new.target === BaseProvisionerRunner) {
-      throw new Error('BaseProvisionerRunner is an abstract class and cannot be instantiated directly');
+      throw new Error(
+        'BaseProvisionerRunner is an abstract class and cannot be instantiated directly'
+      );
     }
   }
 

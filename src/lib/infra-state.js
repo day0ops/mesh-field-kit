@@ -340,7 +340,9 @@ export class InfraStateManager {
     if (!state?.status?.clusters) {
       return null;
     }
-    const cluster = state.status.clusters.find(c => c.name.toLowerCase() === clusterName.toLowerCase());
+    const cluster = state.status.clusters.find(
+      c => c.name.toLowerCase() === clusterName.toLowerCase()
+    );
     return cluster?.context || null;
   }
 

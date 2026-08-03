@@ -29,9 +29,10 @@ export class EgressWaypointFeature extends Feature {
     const namespace = this.config.namespace || 'egress';
     const waypointName = this.config.waypointName || 'egress-waypoint';
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying EgressWaypoint feature: ${waypointName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -49,9 +50,7 @@ export class EgressWaypointFeature extends Feature {
       },
       spec: {
         gatewayClassName: 'istio-waypoint',
-        listeners: [
-          { name: 'mesh', port: 15008, protocol: 'HBONE' },
-        ],
+        listeners: [{ name: 'mesh', port: 15008, protocol: 'HBONE' }],
       },
     };
 
@@ -67,9 +66,10 @@ export class EgressWaypointFeature extends Feature {
     const namespace = this.config.namespace || 'egress';
     const waypointName = this.config.waypointName || 'egress-waypoint';
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up EgressWaypoint feature: ${waypointName}`, 'info');
 

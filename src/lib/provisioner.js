@@ -11,7 +11,8 @@ const PROJECT_ROOT = join(__dirname, '../..');
 /**
  * TerraformRunner - Manages Terraform operations
  */
-const TF_PROGRESS_RE = /^(Still |Waiting |\S+: (Still |Creation |Destruction |Modifications |Read ))/;
+const TF_PROGRESS_RE =
+  /^(Still |Waiting |\S+: (Still |Creation |Destruction |Modifications |Read ))/;
 
 export class TerraformRunner {
   constructor(terraformDir) {
@@ -19,7 +20,7 @@ export class TerraformRunner {
   }
 
   static capturingBoxHandler(box, captured) {
-    return (line) => {
+    return line => {
       captured.push(line);
       if (TF_PROGRESS_RE.test(BoxedOutput.stripAnsi(line))) {
         box.writeProgress(line);
@@ -38,7 +39,11 @@ export class TerraformRunner {
       const box = new BoxedOutput('terraform init');
       box.open();
       try {
-        await CommandRunner.execStream(command, TerraformRunner.capturingBoxHandler(box, captured), rest);
+        await CommandRunner.execStream(
+          command,
+          TerraformRunner.capturingBoxHandler(box, captured),
+          rest
+        );
       } catch (err) {
         box.close();
         throw TerraformRunner.enhanceError(err, captured);
@@ -53,8 +58,8 @@ export class TerraformRunner {
   async apply(varFile, stateFile, options = {}) {
     const { autoApprove = true, stream = false, ...rest } = options;
 
-    let command = `terraform -chdir=${this.terraformDir} apply`
-      + ` -var-file ${varFile} -state ${stateFile}`;
+    let command =
+      `terraform -chdir=${this.terraformDir} apply` + ` -var-file ${varFile} -state ${stateFile}`;
     if (autoApprove) command += ' -auto-approve';
 
     if (stream) {
@@ -62,7 +67,11 @@ export class TerraformRunner {
       const box = new BoxedOutput('terraform apply');
       box.open();
       try {
-        await CommandRunner.execStream(command, TerraformRunner.capturingBoxHandler(box, captured), rest);
+        await CommandRunner.execStream(
+          command,
+          TerraformRunner.capturingBoxHandler(box, captured),
+          rest
+        );
       } catch (err) {
         box.close();
         throw TerraformRunner.enhanceError(err, captured);
@@ -77,8 +86,8 @@ export class TerraformRunner {
   async destroy(varFile, stateFile, options = {}) {
     const { autoApprove = true, stream = false, ...rest } = options;
 
-    let command = `terraform -chdir=${this.terraformDir} destroy`
-      + ` -var-file ${varFile} -state ${stateFile}`;
+    let command =
+      `terraform -chdir=${this.terraformDir} destroy` + ` -var-file ${varFile} -state ${stateFile}`;
     if (autoApprove) command += ' -auto-approve';
 
     if (stream) {
@@ -86,7 +95,11 @@ export class TerraformRunner {
       const box = new BoxedOutput('terraform destroy');
       box.open();
       try {
-        await CommandRunner.execStream(command, TerraformRunner.capturingBoxHandler(box, captured), rest);
+        await CommandRunner.execStream(
+          command,
+          TerraformRunner.capturingBoxHandler(box, captured),
+          rest
+        );
       } catch (err) {
         box.close();
         throw TerraformRunner.enhanceError(err, captured);
@@ -118,9 +131,21 @@ export class TerraformRunner {
 
       if (provider === 'aws') {
         if (/refresh cached SSO token/.test(output) || /InvalidGrantException/.test(output)) {
-          lines.push('', 'Your AWS SSO session has expired. Re-authenticate:', '', '  aws sso login --profile <your-profile>');
+          lines.push(
+            '',
+            'Your AWS SSO session has expired. Re-authenticate:',
+            '',
+            '  aws sso login --profile <your-profile>'
+          );
         } else {
-          lines.push('', 'Configure AWS credentials using one of:', '', '  aws configure', '  aws sso login --profile <your-profile>', '  export AWS_ACCESS_KEY_ID=... && export AWS_SECRET_ACCESS_KEY=...');
+          lines.push(
+            '',
+            'Configure AWS credentials using one of:',
+            '',
+            '  aws configure',
+            '  aws sso login --profile <your-profile>',
+            '  export AWS_ACCESS_KEY_ID=... && export AWS_SECRET_ACCESS_KEY=...'
+          );
         }
       } else if (provider === 'google') {
         lines.push('', 'Authenticate with:', '', '  gcloud auth application-default login');
@@ -131,7 +156,10 @@ export class TerraformRunner {
       return lines.join('\n');
     }
 
-    if (/failed to refresh cached credentials/.test(output) || /refresh cached SSO token/.test(output)) {
+    if (
+      /failed to refresh cached credentials/.test(output) ||
+      /refresh cached SSO token/.test(output)
+    ) {
       return [
         'AWS SSO session has expired. Re-authenticate:',
         '',
@@ -139,7 +167,10 @@ export class TerraformRunner {
       ].join('\n');
     }
 
-    if (/GOOGLE_APPLICATION_CREDENTIALS/.test(output) || /could not find default credentials/.test(output)) {
+    if (
+      /GOOGLE_APPLICATION_CREDENTIALS/.test(output) ||
+      /could not find default credentials/.test(output)
+    ) {
       return [
         'GCP credentials not found.',
         '',
@@ -151,13 +182,9 @@ export class TerraformRunner {
     }
 
     if (/AuthorizationFailed|AADSTS/.test(output)) {
-      return [
-        'Azure authentication failed.',
-        '',
-        'Authenticate with:',
-        '',
-        '  az login',
-      ].join('\n');
+      return ['Azure authentication failed.', '', 'Authenticate with:', '', '  az login'].join(
+        '\n'
+      );
     }
 
     return null;

@@ -61,7 +61,9 @@ export class CrlEnforcementFeature extends Feature {
     const goodCert = await this.#issueTestCert(dbDir, opensslCnf, 'crl-test-control');
 
     this.log(`Revoking test cert '${revokedCert.name}'...`, 'info');
-    await CommandRunner.exec(`openssl ca -config "${opensslCnf}" -revoke "${revokedCert.certPath}" -batch`);
+    await CommandRunner.exec(
+      `openssl ca -config "${opensslCnf}" -revoke "${revokedCert.certPath}" -batch`
+    );
 
     this.log('Generating CRL...', 'info');
     const crlPath = join(this.workDir, 'ca-crl.pem');
@@ -71,7 +73,7 @@ export class CrlEnforcementFeature extends Feature {
     const crlB64 = readFileSync(crlPath).toString('base64').replace(/\n/g, '');
     await CommandRunner.exec(
       `kubectl ${this.contextFlag} patch secret cacerts -n ${this.certsNamespace} --type merge ` +
-      `-p "{\\"data\\":{\\"ca-crl.pem\\":\\"${crlB64}\\"}}"`
+        `-p "{\\"data\\":{\\"ca-crl.pem\\":\\"${crlB64}\\"}}"`
     );
 
     this.log('Verifying CRL enforcement at the PKI layer...', 'info');
@@ -84,7 +86,9 @@ export class CrlEnforcementFeature extends Feature {
     );
     const revokedOutput = `${revokedResult.stdout || ''}${revokedResult.stderr || ''}`;
     if (!/revoked/i.test(revokedOutput)) {
-      throw new Error(`Expected revoked test cert to fail CRL verification, got: ${revokedOutput.trim()}`);
+      throw new Error(
+        `Expected revoked test cert to fail CRL verification, got: ${revokedOutput.trim()}`
+      );
     }
     this.log(`Revoked cert correctly rejected: ${revokedOutput.trim()}`, 'success');
 
@@ -92,13 +96,15 @@ export class CrlEnforcementFeature extends Feature {
       `openssl verify -crl_check -CAfile "${chainPath}" -CRLfile "${crlPath}" "${goodCert.certPath}"`
     );
     if (!/OK/.test(goodResult.stdout || '')) {
-      throw new Error(`Expected non-revoked control cert to pass CRL verification, got: ${goodResult.stdout}`);
+      throw new Error(
+        `Expected non-revoked control cert to pass CRL verification, got: ${goodResult.stdout}`
+      );
     }
     this.log(`Control cert correctly still valid: ${goodResult.stdout.trim()}`, 'success');
 
     this.log(
       'CRL installed on cacerts. istiod propagates ca-crl.pem to a ConfigMap in every ' +
-      'namespace within ~60-90s; ztunnel (peerCaCrl.enabled) enforces it on new connections mesh-wide.',
+        'namespace within ~60-90s; ztunnel (peerCaCrl.enabled) enforces it on new connections mesh-wide.',
       'success'
     );
   }
@@ -108,7 +114,7 @@ export class CrlEnforcementFeature extends Feature {
     try {
       await CommandRunner.exec(
         `kubectl ${this.contextFlag} patch secret cacerts -n ${this.certsNamespace} --type=json ` +
-        `-p '[{"op":"remove","path":"/data/ca-crl.pem"}]'`,
+          `-p '[{"op":"remove","path":"/data/ca-crl.pem"}]'`,
         { ignoreError: true }
       );
     } catch {
@@ -130,7 +136,7 @@ export class CrlEnforcementFeature extends Feature {
     if (!value) {
       throw new Error(
         `cacerts secret in '${this.certsNamespace}' is missing key '${key}' - ` +
-        'is mesh.certificates.mode: self-signed configured on this profile?'
+          'is mesh.certificates.mode: self-signed configured on this profile?'
       );
     }
     writeFileSync(outPath, Buffer.from(value, 'base64'));
@@ -143,21 +149,22 @@ export class CrlEnforcementFeature extends Feature {
     writeFileSync(join(dbDir, 'crlnumber'), '1000\n');
 
     const opensslCnf = join(dbDir, 'openssl.cnf');
-    writeFileSync(opensslCnf,
+    writeFileSync(
+      opensslCnf,
       '[ca]\ndefault_ca = CA_default\n\n' +
-      '[CA_default]\n' +
-      `dir = ${dbDir}\n` +
-      `database = ${join(dbDir, 'index.txt')}\n` +
-      `serial = ${join(dbDir, 'serial')}\n` +
-      `new_certs_dir = ${join(dbDir, 'newcerts')}\n` +
-      `certificate = ${caCertPath}\n` +
-      `private_key = ${caKeyPath}\n` +
-      `crlnumber = ${join(dbDir, 'crlnumber')}\n` +
-      'default_md = sha256\n' +
-      'default_days = 30\n' +
-      'default_crl_days = 30\n' +
-      'policy = policy_anything\n\n' +
-      '[policy_anything]\ncommonName = supplied\n'
+        '[CA_default]\n' +
+        `dir = ${dbDir}\n` +
+        `database = ${join(dbDir, 'index.txt')}\n` +
+        `serial = ${join(dbDir, 'serial')}\n` +
+        `new_certs_dir = ${join(dbDir, 'newcerts')}\n` +
+        `certificate = ${caCertPath}\n` +
+        `private_key = ${caKeyPath}\n` +
+        `crlnumber = ${join(dbDir, 'crlnumber')}\n` +
+        'default_md = sha256\n' +
+        'default_days = 30\n' +
+        'default_crl_days = 30\n' +
+        'policy = policy_anything\n\n' +
+        '[policy_anything]\ncommonName = supplied\n'
     );
     return opensslCnf;
   }
@@ -167,8 +174,12 @@ export class CrlEnforcementFeature extends Feature {
     const csrPath = join(dbDir, `${name}-csr.pem`);
     const certPath = join(dbDir, `${name}-cert.pem`);
     await CommandRunner.exec(`openssl genrsa -out "${keyPath}" 2048`);
-    await CommandRunner.exec(`openssl req -new -key "${keyPath}" -out "${csrPath}" -subj "/CN=${name}"`);
-    await CommandRunner.exec(`openssl ca -config "${opensslCnf}" -in "${csrPath}" -out "${certPath}" -batch -notext`);
+    await CommandRunner.exec(
+      `openssl req -new -key "${keyPath}" -out "${csrPath}" -subj "/CN=${name}"`
+    );
+    await CommandRunner.exec(
+      `openssl ca -config "${opensslCnf}" -in "${csrPath}" -out "${certPath}" -batch -notext`
+    );
     return { name, keyPath, csrPath, certPath };
   }
 }

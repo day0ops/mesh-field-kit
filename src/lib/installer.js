@@ -11,7 +11,12 @@ import { ConfigResolver } from './config-resolver.js';
 import { TemplateResolver } from './template-resolver.js';
 import { OperatorInstaller } from './operator-installer.js';
 import { FeatureManager } from './feature.js';
-import { CertificateManager, EastWestGateway, ClusterLinker, PeeringInstaller } from './multicluster.js';
+import {
+  CertificateManager,
+  EastWestGateway,
+  ClusterLinker,
+  PeeringInstaller,
+} from './multicluster.js';
 import { EnvironmentManager } from './environment.js';
 import { InfraStateManager } from './infra-state.js';
 import { InfraManager } from './infra-manager.js';
@@ -28,18 +33,18 @@ const DEFAULTS = {
 };
 
 const CHART_MAP = {
-  'base': 'base',
-  'istiod': 'istiod',
-  'cni': 'cni',
-  'ztunnel': 'ztunnel',
+  base: 'base',
+  istiod: 'istiod',
+  cni: 'cni',
+  ztunnel: 'ztunnel',
   'peering-eastwest': 'peering',
 };
 
 const RELEASE_NAME_MAP = {
-  'base': 'istio-base',
-  'istiod': 'istiod',
-  'cni': 'istio-cni',
-  'ztunnel': 'ztunnel',
+  base: 'istio-base',
+  istiod: 'istiod',
+  cni: 'istio-cni',
+  ztunnel: 'ztunnel',
   'peering-eastwest': 'peering-eastwest',
 };
 
@@ -56,28 +61,41 @@ function sleep(ms) {
 }
 
 function resolveConfig(profile, options = {}) {
-  const istioVersion = ProfileSchema.getIstioVersion(profile)
-    || options.istioVersion
-    || process.env.ISTIO_VERSION;
+  const istioVersion =
+    ProfileSchema.getIstioVersion(profile) || options.istioVersion || process.env.ISTIO_VERSION;
 
   if (!istioVersion) {
-    throw new Error('istioVersion is required (set in profile spec.mesh.istioVersion or ISTIO_VERSION env)');
+    throw new Error(
+      'istioVersion is required (set in profile spec.mesh.istioVersion or ISTIO_VERSION env)'
+    );
   }
 
   const imageConfig = ProfileSchema.getImageConfig(profile);
-  const istioImage = imageConfig.tag || options.istioImage || process.env.ISTIO_IMAGE
-    || (istioVersion.endsWith('-solo') ? istioVersion : `${istioVersion}-solo`);
+  const istioImage =
+    imageConfig.tag ||
+    options.istioImage ||
+    process.env.ISTIO_IMAGE ||
+    (istioVersion.endsWith('-solo') ? istioVersion : `${istioVersion}-solo`);
 
   return {
     licenseKey: options.licenseKey || process.env.ENTERPRISE_ISTIO_LICENSE,
     istioVersion,
     istioImage,
-    istioRepo: imageConfig.istioRepo || options.istioRepo || process.env.ISTIO_REPO || 'us-docker.pkg.dev/soloio-img/istio',
-    helmIstioRepo: imageConfig.helmIstioRepo || options.helmIstioRepo || process.env.HELM_ISTIO_REPO || 'us-docker.pkg.dev/soloio-img/istio-helm',
-    gatewayApiVersion: ProfileSchema.getGatewayApiVersion(profile)
-      || options.gatewayApiVersion
-      || process.env.GATEWAY_API_VERSION
-      || 'v1.5.0',
+    istioRepo:
+      imageConfig.istioRepo ||
+      options.istioRepo ||
+      process.env.ISTIO_REPO ||
+      'us-docker.pkg.dev/soloio-img/istio',
+    helmIstioRepo:
+      imageConfig.helmIstioRepo ||
+      options.helmIstioRepo ||
+      process.env.HELM_ISTIO_REPO ||
+      'us-docker.pkg.dev/soloio-img/istio-helm',
+    gatewayApiVersion:
+      ProfileSchema.getGatewayApiVersion(profile) ||
+      options.gatewayApiVersion ||
+      process.env.GATEWAY_API_VERSION ||
+      'v1.5.0',
     meshProfile: ProfileSchema.getMeshProfile(profile),
     istioRevision: ProfileSchema.getIstioRevision(profile),
     installMethod: ProfileSchema.getInstallMethod(profile),
@@ -103,10 +121,13 @@ function writeTempValues(name, content) {
 
 function cleanupTempFile(file) {
   if (file && existsSync(file)) {
-    try { unlinkSync(file); } catch { /* best effort */ }
+    try {
+      unlinkSync(file);
+    } catch {
+      /* best effort */
+    }
   }
 }
-
 
 async function validateDeployment(namespace, name, kubectlCtxFlag, spinner = null) {
   const log = spinner || Logger;
@@ -192,9 +213,15 @@ async function validateDaemonset(namespace, name, kubectlCtxFlag, spinner = null
 
 async function fetchNamespaceStatus(namespace, kubectlCtxFlag) {
   const [pods, deployments, daemonsets] = await Promise.all([
-    CommandRunner.exec(`kubectl ${kubectlCtxFlag} get pods -n ${namespace} --no-headers`, { ignoreError: true }),
-    CommandRunner.exec(`kubectl ${kubectlCtxFlag} get deployments -n ${namespace} --no-headers`, { ignoreError: true }),
-    CommandRunner.exec(`kubectl ${kubectlCtxFlag} get daemonsets -n ${namespace} --no-headers`, { ignoreError: true }),
+    CommandRunner.exec(`kubectl ${kubectlCtxFlag} get pods -n ${namespace} --no-headers`, {
+      ignoreError: true,
+    }),
+    CommandRunner.exec(`kubectl ${kubectlCtxFlag} get deployments -n ${namespace} --no-headers`, {
+      ignoreError: true,
+    }),
+    CommandRunner.exec(`kubectl ${kubectlCtxFlag} get daemonsets -n ${namespace} --no-headers`, {
+      ignoreError: true,
+    }),
   ]);
   return {
     deploymentLines: deployments.stdout?.trim().split('\n').filter(Boolean) || [],
@@ -227,7 +254,13 @@ function writeNamespaceSection(box, label, status, isFirst) {
   }
 }
 
-async function showStatus(namespace, kubectlCtxFlag, clusterName = '', extraNamespaces = [], label = 'Istio') {
+async function showStatus(
+  namespace,
+  kubectlCtxFlag,
+  clusterName = '',
+  extraNamespaces = [],
+  label = 'Istio'
+) {
   const allNamespaces = [namespace, ...extraNamespaces];
   const results = await Promise.all(
     allNamespaces.map(ns => fetchNamespaceStatus(ns, kubectlCtxFlag))
@@ -261,7 +294,10 @@ async function showStatus(namespace, kubectlCtxFlag, clusterName = '', extraName
         for (const line of podLines) box.writeLine(`  ${line}`);
       }
     }
-    const hasContent = results[i].deploymentLines.length > 0 || results[i].daemonsetLines.length > 0 || results[i].podLines.length > 0;
+    const hasContent =
+      results[i].deploymentLines.length > 0 ||
+      results[i].daemonsetLines.length > 0 ||
+      results[i].podLines.length > 0;
     if (hasContent) first = false;
   }
 
@@ -273,7 +309,8 @@ function getPostValidator(componentName, namespace, flags, spinner = null, istio
     case 'istiod': {
       // The istiod chart suffixes its Deployment name with the revision
       // (istiod-stable, etc.) unless the revision is 'default' — see chartRevision().
-      const istiodName = istioRevision && istioRevision !== 'default' ? `istiod-${istioRevision}` : 'istiod';
+      const istiodName =
+        istioRevision && istioRevision !== 'default' ? `istiod-${istioRevision}` : 'istiod';
       return () => validateDeployment(namespace, istiodName, flags.kubectl, spinner);
     }
     case 'cni':
@@ -390,7 +427,13 @@ export class InstallerManager {
    * @param {string} [options.licenseKey]
    */
   static async installCluster(options = {}) {
-    const { profile, cluster, templateContext, allClusters, licenseKey = process.env.ENTERPRISE_ISTIO_LICENSE } = options;
+    const {
+      profile,
+      cluster,
+      templateContext,
+      allClusters,
+      licenseKey = process.env.ENTERPRISE_ISTIO_LICENSE,
+    } = options;
 
     if (!profile) throw new Error('profile is required');
     if (!cluster) throw new Error('cluster is required');
@@ -400,11 +443,23 @@ export class InstallerManager {
 
     if (cfg.installMethod === 'operator') {
       await this.#installAddons({ profile, cluster, phase: 'pre', templateContext });
-      await OperatorInstaller.installCluster({ profile, cluster, templateContext, allClusters, cfg });
+      await OperatorInstaller.installCluster({
+        profile,
+        cluster,
+        templateContext,
+        allClusters,
+        cfg,
+      });
       const flags = contextFlags(cluster.context);
       const resolved = ConfigResolver.resolveForCluster(profile, cluster);
       const extraNs = resolved.components.includes('peering-eastwest') ? ['istio-eastwest'] : [];
-      await showStatus(cfg.namespace, flags.kubectl, cluster.name, extraNs, ConfigResolver.meshModeLabel(resolved.components));
+      await showStatus(
+        cfg.namespace,
+        flags.kubectl,
+        cluster.name,
+        extraNs,
+        ConfigResolver.meshModeLabel(resolved.components)
+      );
       await this.#installAddons({ profile, cluster, phase: 'post', templateContext });
       return;
     }
@@ -563,13 +618,26 @@ export class InstallerManager {
 
         const isVmCluster = !!cfg.vmClusterName && cfg.vmClusterName === cluster.name;
         const componentBase = buildComponentBaseValues(component, cfg, cluster.name, isVmCluster);
-        const mergedValues = ConfigResolver.deepMerge(componentBase, resolved.componentValues[component] || {});
-        const valuesYaml = yaml.dump(mergedValues, { lineWidth: -1, quotingType: '"', forceQuotes: false });
+        const mergedValues = ConfigResolver.deepMerge(
+          componentBase,
+          resolved.componentValues[component] || {}
+        );
+        const valuesYaml = yaml.dump(mergedValues, {
+          lineWidth: -1,
+          quotingType: '"',
+          forceQuotes: false,
+        });
         const componentNamespace = COMPONENT_NAMESPACE_MAP[component] || cfg.namespace;
 
         await this.#installHelmChart(releaseName, chartName, cfg, flags, {
           values: valuesYaml,
-          postValidate: getPostValidator(component, componentNamespace, flags, spinner, cfg.istioRevision),
+          postValidate: getPostValidator(
+            component,
+            componentNamespace,
+            flags,
+            spinner,
+            cfg.istioRevision
+          ),
           spinner,
           namespace: componentNamespace,
         });
@@ -605,11 +673,7 @@ export class InstallerManager {
    * @param {string} [options.licenseKey]
    */
   static async installAll(options = {}) {
-    const {
-      profileName,
-      clusters,
-      licenseKey = process.env.ENTERPRISE_ISTIO_LICENSE,
-    } = options;
+    const { profileName, clusters, licenseKey = process.env.ENTERPRISE_ISTIO_LICENSE } = options;
 
     if (!profileName) throw new Error('profileName is required');
     if (!clusters || clusters.length === 0) throw new Error('At least one cluster is required');
@@ -618,7 +682,9 @@ export class InstallerManager {
     for (const cluster of clusters) {
       const flag = contextFlags(cluster.context).kubectl;
       if (!(await KubernetesHelper.isClusterAccessible(flag))) {
-        throw new Error(`Cluster '${cluster.name}' (context: ${cluster.context}) is not accessible. Check your kubeconfig.`);
+        throw new Error(
+          `Cluster '${cluster.name}' (context: ${cluster.context}) is not accessible. Check your kubeconfig.`
+        );
       }
     }
     Logger.info('All clusters verified accessible');
@@ -641,15 +707,21 @@ export class InstallerManager {
     if (infraProfileName) {
       try {
         infraState = await InfraStateManager.load(infraProfileName);
-      } catch { /* best effort */ }
+      } catch {
+        /* best effort */
+      }
       try {
         const infraProfile = await new InfraManager(infraProfileName).loadInfraProfile();
         if (InfraSchema.isVmEnabled(infraProfile)) {
           const vm = InfraSchema.getAllVms(infraProfile)[0];
           vmClusterName = InfraSchema.getVmClusterName(infraProfile, vm);
-          Logger.info(`VM integration enabled: istiod on '${vmClusterName}' will get REQUIRE_3P_TOKEN=false`);
+          Logger.info(
+            `VM integration enabled: istiod on '${vmClusterName}' will get REQUIRE_3P_TOKEN=false`
+          );
         }
-      } catch { /* best effort */ }
+      } catch {
+        /* best effort */
+      }
     }
 
     Logger.info(`Profile: ${profileName}`);
@@ -729,7 +801,9 @@ export class InstallerManager {
     const duration = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
     const summaryResolved = ConfigResolver.resolveForCluster(profile, orderedClusters[0]);
     console.log();
-    Logger.success(`${ConfigResolver.meshModeLabel(summaryResolved.components)} installed on all clusters in ${duration}`);
+    Logger.success(
+      `${ConfigResolver.meshModeLabel(summaryResolved.components)} installed on all clusters in ${duration}`
+    );
   }
 
   /**
@@ -750,7 +824,8 @@ export class InstallerManager {
     if (crds.length === 0) return;
 
     const msg = `Removing ${crds.length} orphaned Istio/Solo CRD(s)...`;
-    if (spinner) spinner.log(msg); else Logger.info(msg);
+    if (spinner) spinner.log(msg);
+    else Logger.info(msg);
     await CommandRunner.exec(
       `kubectl ${flags.kubectl} delete crd ${crds.join(' ')} --ignore-not-found=true`
     );
@@ -787,7 +862,8 @@ export class InstallerManager {
 
     if (crds.length > 0) {
       const msg = `Removing ${crds.length} orphaned addon CRD(s)...`;
-      if (spinner) spinner.log(msg); else Logger.info(msg);
+      if (spinner) spinner.log(msg);
+      else Logger.info(msg);
       await CommandRunner.exec(
         `kubectl ${flags.kubectl} delete crd ${crds.join(' ')} --ignore-not-found=true`
       );
@@ -823,15 +899,17 @@ export class InstallerManager {
     const contextDisplay = context || 'current context';
     const spinner = new SpinnerLogger();
 
-    const installMethod = profile
-      ? ProfileSchema.getInstallMethod(profile)
-      : 'helm';
+    const installMethod = profile ? ProfileSchema.getInstallMethod(profile) : 'helm';
 
     let label = 'Istio';
     if (profile && cluster) {
       try {
-        label = ConfigResolver.meshModeLabel(ConfigResolver.resolveForCluster(profile, cluster).components);
-      } catch { /* best effort — fall back to generic label */ }
+        label = ConfigResolver.meshModeLabel(
+          ConfigResolver.resolveForCluster(profile, cluster).components
+        );
+      } catch {
+        /* best effort — fall back to generic label */
+      }
     }
 
     spinner.start(`Uninstalling ${label} from ${cluster?.name || contextDisplay}...`);
@@ -867,7 +945,9 @@ export class InstallerManager {
               { ignoreError: true }
             );
           }
-        } catch { /* best effort */ }
+        } catch {
+          /* best effort */
+        }
       }
 
       await InstallerManager.cleanupIstioCRDs(context, spinner);
@@ -891,17 +971,27 @@ export class InstallerManager {
             const infraName = ProfileSchema.getInfra(profile);
             const [cleanupEnv, cleanupInfraState] = await Promise.all([
               envName ? EnvironmentManager.load(envName).catch(() => null) : Promise.resolve(null),
-              infraName ? InfraStateManager.load(infraName).catch(() => null) : Promise.resolve(null),
+              infraName
+                ? InfraStateManager.load(infraName).catch(() => null)
+                : Promise.resolve(null),
             ]);
             if (cleanupEnv || cleanupInfraState) {
-              cleanupTemplateContext = TemplateResolver.buildContext(cluster, cleanupEnv, cleanupInfraState);
+              cleanupTemplateContext = TemplateResolver.buildContext(
+                cluster,
+                cleanupEnv,
+                cleanupInfraState
+              );
             }
-          } catch { /* best effort — proceed without template resolution if env unavailable */ }
+          } catch {
+            /* best effort — proceed without template resolution if env unavailable */
+          }
 
           // Reverse install order; always remove CNI addons last (CNI must stay up longest)
           const CNI_ADDON_NAMES = ['cilium', 'calico'];
           const reversedAddons = [...resolved.addons].reverse();
-          const cniIdx = reversedAddons.findIndex(a => CNI_ADDON_NAMES.includes(typeof a === 'string' ? a : a.name));
+          const cniIdx = reversedAddons.findIndex(a =>
+            CNI_ADDON_NAMES.includes(typeof a === 'string' ? a : a.name)
+          );
           if (cniIdx > -1) reversedAddons.push(reversedAddons.splice(cniIdx, 1)[0]);
           for (const addon of reversedAddons) {
             const addonName = typeof addon === 'string' ? addon : addon.name;
@@ -948,7 +1038,9 @@ export class InstallerManager {
     for (const cluster of clusters) {
       const flag = contextFlags(cluster.context).kubectl;
       if (!(await KubernetesHelper.isClusterAccessible(flag))) {
-        throw new Error(`Cluster '${cluster.name}' (context: ${cluster.context}) is not accessible. Check your kubeconfig.`);
+        throw new Error(
+          `Cluster '${cluster.name}' (context: ${cluster.context}) is not accessible. Check your kubeconfig.`
+        );
       }
     }
     Logger.info('All clusters verified accessible');
@@ -959,8 +1051,12 @@ export class InstallerManager {
     let label = 'Istio';
     if (profile) {
       try {
-        label = ConfigResolver.meshModeLabel(ConfigResolver.resolveForCluster(profile, clusters[0]).components);
-      } catch { /* best effort — fall back to generic label */ }
+        label = ConfigResolver.meshModeLabel(
+          ConfigResolver.resolveForCluster(profile, clusters[0]).components
+        );
+      } catch {
+        /* best effort — fall back to generic label */
+      }
     }
 
     Logger.info(`Uninstalling ${label} from ${clusters.length} cluster(s):`);
@@ -979,7 +1075,11 @@ export class InstallerManager {
       const peeringMethod = profile ? ProfileSchema.getPeeringMethod(profile) : 'helm';
 
       try {
-        await new ClusterLinker({ clusters: clusterList, namespace: 'istio-eastwest', method: peeringMethod }).cleanup();
+        await new ClusterLinker({
+          clusters: clusterList,
+          namespace: 'istio-eastwest',
+          method: peeringMethod,
+        }).cleanup();
       } catch {
         Logger.warn('Could not clean up cluster links');
       }
@@ -1031,14 +1131,26 @@ export class InstallerManager {
     const namespace = process.env.NAMESPACE || DEFAULTS.NAMESPACE;
     const flags = contextFlags(context);
     const checks = [
-      { name: 'Gateway API CRDs', cmd: `kubectl ${flags.kubectl} get crd gateways.gateway.networking.k8s.io` },
+      {
+        name: 'Gateway API CRDs',
+        cmd: `kubectl ${flags.kubectl} get crd gateways.gateway.networking.k8s.io`,
+      },
       // istiod's Deployment name is revision-suffixed (istiod-stable, etc.) unless
       // unrevisioned, so match on its stable 'app=istiod' label instead of the name.
       // `get -l` always exits 0 even with zero matches, so pipe through `grep -q .`
       // to make "nothing found" actually fail this check.
-      { name: 'istiod deployment', cmd: `kubectl ${flags.kubectl} get deployment -n ${namespace} -l app=istiod --no-headers | grep -q .` },
-      { name: 'ztunnel daemonset', cmd: `kubectl ${flags.kubectl} get daemonset -n ${namespace} ztunnel` },
-      { name: 'istio-cni', cmd: `kubectl ${flags.kubectl} get daemonset -n ${namespace} istio-cni-node` },
+      {
+        name: 'istiod deployment',
+        cmd: `kubectl ${flags.kubectl} get deployment -n ${namespace} -l app=istiod --no-headers | grep -q .`,
+      },
+      {
+        name: 'ztunnel daemonset',
+        cmd: `kubectl ${flags.kubectl} get daemonset -n ${namespace} ztunnel`,
+      },
+      {
+        name: 'istio-cni',
+        cmd: `kubectl ${flags.kubectl} get daemonset -n ${namespace} istio-cni-node`,
+      },
     ];
 
     Logger.info('Verifying Istio installation...');
@@ -1118,19 +1230,25 @@ export class InstallerManager {
     }
   }
 
-  static async #installHelmChart(releaseName, chartName, cfg, flags, { values, postValidate, spinner, namespace }) {
+  static async #installHelmChart(
+    releaseName,
+    chartName,
+    cfg,
+    flags,
+    { values, postValidate, spinner, namespace }
+  ) {
     const targetNamespace = namespace || cfg.namespace;
     const valuesFile = writeTempValues(releaseName, values);
 
     try {
       await CommandRunner.exec(
         `helm ${flags.helm} upgrade --install ${releaseName} oci://${cfg.helmIstioRepo}/${chartName} ` +
-        `--namespace ${targetNamespace} ` +
-        `--create-namespace ` +
-        `--version ${cfg.istioImage} ` +
-        `--wait ` +
-        `--timeout ${cfg.waitTimeout} ` +
-        `-f ${valuesFile}`
+          `--namespace ${targetNamespace} ` +
+          `--create-namespace ` +
+          `--version ${cfg.istioImage} ` +
+          `--wait ` +
+          `--timeout ${cfg.waitTimeout} ` +
+          `-f ${valuesFile}`
       );
 
       const context = flags.helm ? flags.helm.replace('--kube-context=', '') : null;

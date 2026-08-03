@@ -162,7 +162,7 @@ export class UseCaseManager {
       node._items.push(uc);
     }
 
-    const toTree = (obj) => {
+    const toTree = obj => {
       const branches = [];
       const leaves = [];
 
@@ -322,7 +322,13 @@ export class UseCaseManager {
   /**
    * Deploy an application
    */
-  static async deployApplication(appName, namespace = null, clusterContexts = null, templateContext = null, dataplaneMode = 'ambient') {
+  static async deployApplication(
+    appName,
+    namespace = null,
+    clusterContexts = null,
+    templateContext = null,
+    dataplaneMode = 'ambient'
+  ) {
     const appPath = join(PROJECT_ROOT, 'extras', 'applications', appName, `${appName}.yaml`);
 
     if (!existsSync(appPath)) {
@@ -360,7 +366,11 @@ export class UseCaseManager {
       await CommandRunner.exec(
         `kubectl ${contextFlag} create namespace ${targetNamespace} --dry-run=client -o yaml | kubectl ${contextFlag} apply -f -`
       );
-      await KubernetesHelper.labelNamespaceForDataplaneMode(targetNamespace, dataplaneMode, context);
+      await KubernetesHelper.labelNamespaceForDataplaneMode(
+        targetNamespace,
+        dataplaneMode,
+        context
+      );
 
       // Apply each resource
       for (const resource of resources) {
@@ -474,7 +484,11 @@ export class UseCaseManager {
       if (!envName) return null;
       const environment = await EnvironmentManager.load(envName);
       const infraState = await InfraStateManager.load(specInfra);
-      return TemplateResolver.buildContext({ name: '', context: '', role: '' }, environment, infraState);
+      return TemplateResolver.buildContext(
+        { name: '', context: '', role: '' },
+        environment,
+        infraState
+      );
     } catch {
       return null;
     }
@@ -530,7 +544,7 @@ export class UseCaseManager {
       }));
       // spec.diagram: false explicitly opts a use case out of the diagram/feature-box
       // display (e.g. when it wouldn't add anything beyond the Steps list above it).
-      const diagramSetting = spec.diagram === false ? false : (spec.diagram || null);
+      const diagramSetting = spec.diagram === false ? false : spec.diagram || null;
       if (diagrams) await showUseCaseOverview(metadata, spec, steps, diagramSetting);
       if (interactive) {
         showWaitPrompt();
@@ -557,8 +571,12 @@ export class UseCaseManager {
       let stepIndex = 1;
 
       if (hasApps) {
-        const appNames = requiredApps.map(a => (typeof a === 'string' ? a : a?.name)).filter(Boolean).join(', ');
-        if (diagrams) showStepHeader(stepIndex++, totalSteps, `Deploy required applications: ${appNames}`);
+        const appNames = requiredApps
+          .map(a => (typeof a === 'string' ? a : a?.name))
+          .filter(Boolean)
+          .join(', ');
+        if (diagrams)
+          showStepHeader(stepIndex++, totalSteps, `Deploy required applications: ${appNames}`);
         if (interactive) {
           showWaitPrompt();
           await waitForKey();
@@ -570,11 +588,16 @@ export class UseCaseManager {
         for (const app of requiredApps) {
           const appNameToDeploy = typeof app === 'string' ? app : app?.name || app;
           const appNamespace = typeof app === 'object' && app.namespace ? app.namespace : null;
-          const appDataplaneMode = typeof app === 'object' && app.dataplaneMode ? app.dataplaneMode : 'ambient';
+          const appDataplaneMode =
+            typeof app === 'object' && app.dataplaneMode ? app.dataplaneMode : 'ambient';
 
           let appClusterContexts = null;
           if (typeof app === 'object' && app.clusters) {
-            appClusterContexts = await this.validateAndGetClusterContexts(app, specLevelClusters, specLevelInfra);
+            appClusterContexts = await this.validateAndGetClusterContexts(
+              app,
+              specLevelClusters,
+              specLevelInfra
+            );
           } else if (specLevelClusters) {
             appClusterContexts = await this.validateAndGetClusterContexts(
               { clusters: specLevelClusters },
@@ -583,7 +606,13 @@ export class UseCaseManager {
             );
           }
 
-          await this.deployApplication(appNameToDeploy, appNamespace, appClusterContexts, templateContext, appDataplaneMode);
+          await this.deployApplication(
+            appNameToDeploy,
+            appNamespace,
+            appClusterContexts,
+            templateContext,
+            appDataplaneMode
+          );
         }
         Logger.success('All required applications deployed');
       }
@@ -727,7 +756,11 @@ export class UseCaseManager {
 
           let appClusterContexts = null;
           if (typeof app === 'object' && app.clusters) {
-            appClusterContexts = await this.validateAndGetClusterContexts(app, specLevelClusters, specLevelInfra);
+            appClusterContexts = await this.validateAndGetClusterContexts(
+              app,
+              specLevelClusters,
+              specLevelInfra
+            );
           } else if (specLevelClusters) {
             appClusterContexts = await this.validateAndGetClusterContexts(
               { clusters: specLevelClusters },
@@ -754,10 +787,15 @@ export class UseCaseManager {
                 }
               }
               const tempFile = join(tmpdir(), `mesh-cleanup-${Date.now()}.yaml`);
-              writeFileSync(tempFile, resources.map(r => yaml.dump(r, { lineWidth: -1 })).join('---\n'));
+              writeFileSync(
+                tempFile,
+                resources.map(r => yaml.dump(r, { lineWidth: -1 })).join('---\n')
+              );
               try {
                 for (const clusterInfo of contexts) {
-                  const contextFlag = clusterInfo?.context ? `--context=${clusterInfo.context}` : '';
+                  const contextFlag = clusterInfo?.context
+                    ? `--context=${clusterInfo.context}`
+                    : '';
                   await CommandRunner.exec(
                     `kubectl ${contextFlag} delete -f ${tempFile} --ignore-not-found=true`
                   );

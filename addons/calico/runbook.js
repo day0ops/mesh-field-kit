@@ -6,7 +6,11 @@ export function envVarsFor(_addonCfg, _clusterName) {
 
 export function envExportsFor(addonCfg, _profile, _env) {
   return [
-    { name: 'CALICO_VERSION', value: addonCfg.version || '3.32.1', comment: 'Calico (Tigera operator) chart version' },
+    {
+      name: 'CALICO_VERSION',
+      value: addonCfg.version || '3.32.1',
+      comment: 'Calico (Tigera operator) chart version',
+    },
   ];
 }
 

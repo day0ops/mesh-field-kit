@@ -27,9 +27,10 @@ export class ZtunnelMetricsFeature extends Feature {
     const namespace = this.config.namespace || 'istio-system';
     const metricsPort = this.config.metricsPort || 15020;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying ZtunnelMetrics feature (inspection)`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -98,9 +99,10 @@ export class ZtunnelMetricsFeature extends Feature {
   async cleanup() {
     if (this.config.installPodMonitor) {
       const namespace = this.config.namespace || 'istio-system';
-      const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-        ? this.clusterContexts.map(c => c.context)
-        : [null];
+      const contextsToDeploy =
+        this.clusterContexts && this.clusterContexts.length > 0
+          ? this.clusterContexts.map(c => c.context)
+          : [null];
 
       for (const context of contextsToDeploy) {
         this.log('Deleting ztunnel PodMonitor...', 'info');

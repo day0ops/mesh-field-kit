@@ -80,9 +80,10 @@ export class KeycloakFeature extends AddonFeature {
     this.tlsOrganization = config.tls?.organization || 'solo.io';
     // Public CAs (e.g. Let's Encrypt) cannot validate internal cluster DNS names
     const isPublicIssuer = this.tlsClusterIssuerName.startsWith('letsencrypt');
-    this.tlsIncludeInternalDns = config.tls?.includeInternalDnsNames !== undefined
-      ? config.tls.includeInternalDnsNames
-      : !isPublicIssuer;
+    this.tlsIncludeInternalDns =
+      config.tls?.includeInternalDnsNames !== undefined
+        ? config.tls.includeInternalDnsNames
+        : !isPublicIssuer;
     this.kubeContext = config.kubeContext || null;
     this.postgres = config.postgres || null;
     this.workloadClients = config.workloadClients || [];
@@ -114,8 +115,11 @@ export class KeycloakFeature extends AddonFeature {
     if (this.externalDns) {
       await KubernetesHelper.kubectl([
         ...(this.kubeContext ? [`--context=${this.kubeContext}`] : []),
-        'annotate', 'service', 'keycloak',
-        '-n', this.keycloakNamespace,
+        'annotate',
+        'service',
+        'keycloak',
+        '-n',
+        this.keycloakNamespace,
         `external-dns.alpha.kubernetes.io/hostname=${this.hostname}`,
         '--overwrite',
       ]);
@@ -140,7 +144,10 @@ export class KeycloakFeature extends AddonFeature {
       });
     }
 
-    this.log(`Keycloak installed successfully. Access at ${this.protocol}://${this.hostname}/`, 'success');
+    this.log(
+      `Keycloak installed successfully. Access at ${this.protocol}://${this.hostname}/`,
+      'success'
+    );
     this.log(`Keycloak admin login: admin / ${this.adminPassword}`, 'info');
     if (this.soloUIClients?.enabled) {
       const soloPassword = this.soloUIClients.defaultPassword || 'Passwd00';
@@ -616,10 +623,20 @@ export class KeycloakFeature extends AddonFeature {
     // Create groups and collect their IDs for user assignment
     const groupIds = {};
     for (const groupName of realm.groups || []) {
-      await this.kcApi('POST', `${baseUrl}/admin/realms/${realm.realm}/groups`, token, { name: groupName });
-      const listResult = await this.kcApi('GET', `${baseUrl}/admin/realms/${realm.realm}/groups`, token);
+      await this.kcApi('POST', `${baseUrl}/admin/realms/${realm.realm}/groups`, token, {
+        name: groupName,
+      });
+      const listResult = await this.kcApi(
+        'GET',
+        `${baseUrl}/admin/realms/${realm.realm}/groups`,
+        token
+      );
       let allGroups = [];
-      try { allGroups = JSON.parse(listResult.stdout || '[]'); } catch { /* ignore */ }
+      try {
+        allGroups = JSON.parse(listResult.stdout || '[]');
+      } catch {
+        /* ignore */
+      }
       const created = allGroups.find(g => g.name === groupName);
       if (created) {
         groupIds[groupName] = created.id;
@@ -666,7 +683,10 @@ export class KeycloakFeature extends AddonFeature {
       if (!client.serviceAccountGroup) continue;
       const groupId = groupIds[client.serviceAccountGroup];
       if (!groupId) {
-        this.log(`serviceAccountGroup '${client.serviceAccountGroup}' not found for client '${client.clientId}' — skipping`, 'warn');
+        this.log(
+          `serviceAccountGroup '${client.serviceAccountGroup}' not found for client '${client.clientId}' — skipping`,
+          'warn'
+        );
         continue;
       }
       const saUsername = `service-account-${client.clientId}`;
@@ -679,7 +699,10 @@ export class KeycloakFeature extends AddonFeature {
         );
         this.log(`Added '${saUsername}' to group '${client.serviceAccountGroup}'`, 'info');
       } else {
-        this.log(`Service account user '${saUsername}' not found — skipping group assignment`, 'warn');
+        this.log(
+          `Service account user '${saUsername}' not found — skipping group assignment`,
+          'warn'
+        );
       }
     }
 
@@ -907,17 +930,20 @@ export class KeycloakFeature extends AddonFeature {
 
     await KubernetesHelper.ensureNamespace(secretNamespace, this.spinner, this.kubeContext);
 
-    await this.applyResource({
-      apiVersion: 'v1',
-      kind: 'Secret',
-      metadata: {
-        name: client.k8sSecretName,
-        namespace: secretNamespace,
-        labels: { 'app.kubernetes.io/managed-by': 'mesh-demo' },
+    await this.applyResource(
+      {
+        apiVersion: 'v1',
+        kind: 'Secret',
+        metadata: {
+          name: client.k8sSecretName,
+          namespace: secretNamespace,
+          labels: { 'app.kubernetes.io/managed-by': 'mesh-demo' },
+        },
+        type: 'Opaque',
+        stringData: { client_secret: client.clientSecret },
       },
-      type: 'Opaque',
-      stringData: { client_secret: client.clientSecret },
-    }, this.kubeContext);
+      this.kubeContext
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -940,7 +966,13 @@ export class KeycloakFeature extends AddonFeature {
   }
 
   async createSoloUIClients(baseUrl, token) {
-    const { hostname, backendClientId, backendClientSecret, frontendClientId, additionalHostnames = [] } = this.soloUIClients;
+    const {
+      hostname,
+      backendClientId,
+      backendClientSecret,
+      frontendClientId,
+      additionalHostnames = [],
+    } = this.soloUIClients;
     const realm = this.soloUIRealm;
     const allHostnames = [hostname, ...additionalHostnames];
     const redirectUris = allHostnames.map(h => `${h}/callback`);
@@ -1267,7 +1299,6 @@ export class KeycloakFeature extends AddonFeature {
       { ignoreError: true }
     );
   }
-
 
   async addGroupMapper(baseUrl, token, clientInternalId) {
     this.log('Adding group attribute mapper...', 'info');
@@ -1656,7 +1687,10 @@ export class KeycloakFeature extends AddonFeature {
 
     await KubernetesHelper.kubectl([
       ...(this.kubeContext ? [`--context=${this.kubeContext}`] : []),
-      'delete', 'namespace', ns, '--ignore-not-found=true',
+      'delete',
+      'namespace',
+      ns,
+      '--ignore-not-found=true',
     ]);
 
     this.log('Keycloak cleaned up', 'success');

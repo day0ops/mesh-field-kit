@@ -36,14 +36,18 @@ export class EnableAmbientFeature extends AddonFeature {
     this.istioRepo = config.istioRepo || 'us-docker.pkg.dev/soloio-img/istio';
     this.helmIstioRepo = config.helmIstioRepo || 'us-docker.pkg.dev/soloio-img/istio-helm';
     this.istioImage = this.istioVersion
-      ? (this.istioVersion.endsWith('-solo') ? this.istioVersion : `${this.istioVersion}-solo`)
+      ? this.istioVersion.endsWith('-solo')
+        ? this.istioVersion
+        : `${this.istioVersion}-solo`
       : null;
     this.kubeContext = config.kubeContext || null;
   }
 
   validate() {
     if (!this.istioVersion) {
-      throw new Error('enable-ambient requires istioVersion (must match the running sidecar install)');
+      throw new Error(
+        'enable-ambient requires istioVersion (must match the running sidecar install)'
+      );
     }
     return true;
   }
@@ -57,17 +61,39 @@ export class EnableAmbientFeature extends AddonFeature {
 
     this.log('Upgrading istio-base to the ambient profile...', 'info');
     await KubernetesHelper.helm(
-      [...ctxArgs, 'upgrade', 'istio-base', `oci://${this.helmIstioRepo}/base`,
-        '-n', this.namespace, '--version', this.istioImage,
-        '--reuse-values', '--set', 'profile=ambient', '--wait'],
+      [
+        ...ctxArgs,
+        'upgrade',
+        'istio-base',
+        `oci://${this.helmIstioRepo}/base`,
+        '-n',
+        this.namespace,
+        '--version',
+        this.istioImage,
+        '--reuse-values',
+        '--set',
+        'profile=ambient',
+        '--wait',
+      ],
       { spinner: this.spinner }
     );
 
     this.log('Upgrading istiod to the ambient profile...', 'info');
     await KubernetesHelper.helm(
-      [...ctxArgs, 'upgrade', 'istiod', `oci://${this.helmIstioRepo}/istiod`,
-        '-n', this.namespace, '--version', this.istioImage,
-        '--reuse-values', '--set', 'profile=ambient', '--wait'],
+      [
+        ...ctxArgs,
+        'upgrade',
+        'istiod',
+        `oci://${this.helmIstioRepo}/istiod`,
+        '-n',
+        this.namespace,
+        '--version',
+        this.istioImage,
+        '--reuse-values',
+        '--set',
+        'profile=ambient',
+        '--wait',
+      ],
       { spinner: this.spinner }
     );
 
@@ -75,40 +101,79 @@ export class EnableAmbientFeature extends AddonFeature {
 
     this.log('Installing istio-cni (ambient)...', 'info');
     await KubernetesHelper.helm(
-      [...ctxArgs, 'upgrade', '--install', 'istio-cni', `oci://${this.helmIstioRepo}/cni`,
-        '-n', this.namespace, '--version', this.istioImage,
-        '--set', `revision=${revision}`,
-        '--set', 'profile=ambient',
-        '--set', 'ambient.dnsCapture=true',
-        '--set', `global.hub=${this.istioRepo}`,
-        '--set', `global.tag=${this.istioImage}`,
-        '--set', `excludeNamespaces[0]=${this.namespace}`,
-        '--set', 'excludeNamespaces[1]=kube-system',
-        '--wait'],
+      [
+        ...ctxArgs,
+        'upgrade',
+        '--install',
+        'istio-cni',
+        `oci://${this.helmIstioRepo}/cni`,
+        '-n',
+        this.namespace,
+        '--version',
+        this.istioImage,
+        '--set',
+        `revision=${revision}`,
+        '--set',
+        'profile=ambient',
+        '--set',
+        'ambient.dnsCapture=true',
+        '--set',
+        `global.hub=${this.istioRepo}`,
+        '--set',
+        `global.tag=${this.istioImage}`,
+        '--set',
+        `excludeNamespaces[0]=${this.namespace}`,
+        '--set',
+        'excludeNamespaces[1]=kube-system',
+        '--wait',
+      ],
       { spinner: this.spinner }
     );
 
     this.log('Installing ztunnel...', 'info');
     await KubernetesHelper.helm(
-      [...ctxArgs, 'install', 'ztunnel', `oci://${this.helmIstioRepo}/ztunnel`,
-        '-n', this.namespace, '--version', this.istioImage,
-        '--set', `revision=${revision}`,
-        '--set', `hub=${this.istioRepo}`,
-        '--set', `tag=${this.istioImage}`,
-        '--set', 'profile=ambient',
-        '--set', `istioNamespace=${this.namespace}`,
-        '--set', `namespace=${this.namespace}`,
-        '--set', 'enabled=true',
-        '--set', 'configValidation=true',
-        '--set', 'env.L7_ENABLED=true',
-        '--set', 'proxy.clusterDomain=cluster.local',
-        '--set', 'terminationGracePeriodSeconds=29',
-        '--set', 'variant=distroless',
-        '--wait'],
+      [
+        ...ctxArgs,
+        'install',
+        'ztunnel',
+        `oci://${this.helmIstioRepo}/ztunnel`,
+        '-n',
+        this.namespace,
+        '--version',
+        this.istioImage,
+        '--set',
+        `revision=${revision}`,
+        '--set',
+        `hub=${this.istioRepo}`,
+        '--set',
+        `tag=${this.istioImage}`,
+        '--set',
+        'profile=ambient',
+        '--set',
+        `istioNamespace=${this.namespace}`,
+        '--set',
+        `namespace=${this.namespace}`,
+        '--set',
+        'enabled=true',
+        '--set',
+        'configValidation=true',
+        '--set',
+        'env.L7_ENABLED=true',
+        '--set',
+        'proxy.clusterDomain=cluster.local',
+        '--set',
+        'terminationGracePeriodSeconds=29',
+        '--set',
+        'variant=distroless',
+        '--wait',
+      ],
       { spinner: this.spinner }
     );
 
-    this.log('Cluster is now ambient-capable — existing sidecar workloads keep running via interop', 'success');
+    this.log(
+      'Cluster is now ambient-capable — existing sidecar workloads keep running via interop',
+      'success'
+    );
   }
 
   async cleanup() {
@@ -116,18 +181,25 @@ export class EnableAmbientFeature extends AddonFeature {
 
     this.log('Removing ztunnel...', 'info');
     try {
-      await KubernetesHelper.helm([...ctxArgs, 'uninstall', 'ztunnel', '-n', this.namespace], { spinner: this.spinner });
+      await KubernetesHelper.helm([...ctxArgs, 'uninstall', 'ztunnel', '-n', this.namespace], {
+        spinner: this.spinner,
+      });
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) throw error;
     }
 
     this.log('Removing istio-cni...', 'info');
     try {
-      await KubernetesHelper.helm([...ctxArgs, 'uninstall', 'istio-cni', '-n', this.namespace], { spinner: this.spinner });
+      await KubernetesHelper.helm([...ctxArgs, 'uninstall', 'istio-cni', '-n', this.namespace], {
+        spinner: this.spinner,
+      });
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) throw error;
     }
 
-    this.log('ztunnel and istio-cni removed — istiod/base left ambient-capable (sidecar workloads unaffected)', 'success');
+    this.log(
+      'ztunnel and istio-cni removed — istiod/base left ambient-capable (sidecar workloads unaffected)',
+      'success'
+    );
   }
 }

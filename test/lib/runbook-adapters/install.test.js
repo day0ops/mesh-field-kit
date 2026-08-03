@@ -24,7 +24,10 @@ const singleClusterSelection = {
         },
         components: [
           { name: 'base', values: { defaultRevision: '' } },
-          { name: 'istiod', values: { global: { multiCluster: { clusterName: '{{cluster.name}}' } } } },
+          {
+            name: 'istiod',
+            values: { global: { multiCluster: { clusterName: '{{cluster.name}}' } } },
+          },
           { name: 'cni', values: { ambient: { dnsCapture: true } } },
           { name: 'ztunnel', values: { multiCluster: { clusterName: '{{cluster.name}}' } } },
         ],
@@ -57,7 +60,10 @@ const multiClusterSelection = {
         },
         components: [
           { name: 'base', values: {} },
-          { name: 'istiod', values: { global: { multiCluster: { clusterName: '{{cluster.name}}' } } } },
+          {
+            name: 'istiod',
+            values: { global: { multiCluster: { clusterName: '{{cluster.name}}' } } },
+          },
           { name: 'cni', values: {} },
           { name: 'ztunnel', values: { multiCluster: { clusterName: '{{cluster.name}}' } } },
           { name: 'peering-eastwest', values: { eastwest: { cluster: '{{cluster.name}}' } } },
@@ -70,21 +76,21 @@ const multiClusterSelection = {
 
 test('InstallAdapter.generate produces Lab 3 heading', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4,singleClusterSelection);
+  const md = adapter.generate(4, singleClusterSelection);
   expect(md).toContain('## Lab 4');
   expect(md).toContain('Istio Ambient');
 });
 
 test('InstallAdapter.generate includes Gateway API CRDs install', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4,singleClusterSelection);
+  const md = adapter.generate(4, singleClusterSelection);
   expect(md).toContain('gateway-api/releases/download/v1.4.0/standard-install.yaml');
   expect(md).toContain('Gateway API CRDs');
 });
 
 test('InstallAdapter.generate includes helm install commands for all non-deferred components', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4,singleClusterSelection);
+  const md = adapter.generate(4, singleClusterSelection);
   expect(md).toContain('istio-base');
   expect(md).toContain('istiod');
   expect(md).toContain('istio-cni');
@@ -95,20 +101,20 @@ test('InstallAdapter.generate includes helm install commands for all non-deferre
 
 test('InstallAdapter.generate uses OCI helm repo from profile', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4,singleClusterSelection);
+  const md = adapter.generate(4, singleClusterSelection);
   expect(md).toContain('oci://us-docker.pkg.dev/soloio-img/istio-helm');
   expect(md).toContain('1.30.0-solo');
 });
 
 test('InstallAdapter.generate includes ENTERPRISE_ISTIO_LICENSE in istiod values', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4,singleClusterSelection);
+  const md = adapter.generate(4, singleClusterSelection);
   expect(md).toContain('ENTERPRISE_ISTIO_LICENSE');
 });
 
 test('InstallAdapter.generate resolves {{cluster.name}} templates', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4,singleClusterSelection);
+  const md = adapter.generate(4, singleClusterSelection);
   // Template variable should be resolved to actual cluster name
   expect(md).not.toContain('{{cluster.name}}');
   expect(md).toContain('east');
@@ -116,13 +122,13 @@ test('InstallAdapter.generate resolves {{cluster.name}} templates', () => {
 
 test('InstallAdapter.generate labels namespace with network topology', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4,singleClusterSelection);
+  const md = adapter.generate(4, singleClusterSelection);
   expect(md).toContain('topology.istio.io/network=east');
 });
 
 test('InstallAdapter.generate includes cert setup for multicluster', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4,multiClusterSelection);
+  const md = adapter.generate(4, multiClusterSelection);
   expect(md).toContain('Root CA');
   expect(md).toContain('cacerts');
   expect(md).toContain('Intermediate CA');
@@ -130,14 +136,14 @@ test('InstallAdapter.generate includes cert setup for multicluster', () => {
 
 test('InstallAdapter.generate installs on both clusters in multicluster', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4,multiClusterSelection);
+  const md = adapter.generate(4, multiClusterSelection);
   expect(md).toContain('### Install on `east`');
   expect(md).toContain('### Install on `west`');
 });
 
 test('InstallAdapter.generate includes cluster linking for multicluster', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4,multiClusterSelection);
+  const md = adapter.generate(4, multiClusterSelection);
   // helm peering method — should show peering-remote install
   expect(md).toContain('Link Clusters');
   expect(md).toContain('peering-remote');

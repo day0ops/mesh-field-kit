@@ -49,9 +49,10 @@ export class DestinationRuleFeature extends Feature {
     const namespace = this.config.namespace;
     const ruleName = this.config.ruleName;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying DestinationRule feature: ${ruleName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -94,9 +95,10 @@ export class DestinationRuleFeature extends Feature {
     const ruleName = this.config.ruleName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up DestinationRule feature: ${ruleName}`, 'info');
 

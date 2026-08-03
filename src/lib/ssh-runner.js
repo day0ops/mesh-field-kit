@@ -25,7 +25,8 @@ export class SshRunner {
   async exec(host, command, options = {}) {
     const sshCommand = [
       'ssh',
-      '-i', shellQuote(this.keyPath),
+      '-i',
+      shellQuote(this.keyPath),
       ...DEFAULT_SSH_OPTS,
       `${this.user}@${host}`,
       shellQuote(command),
@@ -37,7 +38,8 @@ export class SshRunner {
   async copyFile(localPath, host, remotePath, options = {}) {
     const scpCommand = [
       'scp',
-      '-i', shellQuote(this.keyPath),
+      '-i',
+      shellQuote(this.keyPath),
       ...DEFAULT_SSH_OPTS,
       shellQuote(localPath),
       shellQuote(`${this.user}@${host}:${remotePath}`),

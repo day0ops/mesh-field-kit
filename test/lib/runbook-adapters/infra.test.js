@@ -3,7 +3,10 @@ import { test, expect } from 'bun:test';
 import { InfraAdapter } from '../../../src/lib/runbook-adapters/infra.js';
 
 const mockSelection = {
-  profile: { metadata: { name: 'eks-multi-cluster-peering-with-agw-hub-spoke' }, spec: { mesh: { gatewayApiVersion: 'v1.4.0' } } },
+  profile: {
+    metadata: { name: 'eks-multi-cluster-peering-with-agw-hub-spoke' },
+    spec: { mesh: { gatewayApiVersion: 'v1.4.0' } },
+  },
   infraProfile: {
     metadata: { name: 'eks-multi-cluster' },
     spec: { name: 'maple', provider: 'eks', clusters: [{ name: 'east' }, { name: 'west' }] },

@@ -22,9 +22,10 @@ export class IstiodMetricsFeature extends Feature {
     const namespace = this.config.namespace || 'istio-system';
     const metricsPort = this.config.metricsPort || 15014;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying IstiodMetrics feature (inspection)`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');

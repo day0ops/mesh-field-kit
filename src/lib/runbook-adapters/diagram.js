@@ -1,8 +1,12 @@
 // src/lib/runbook-adapters/diagram.js
 
 export class DiagramAdapter {
-  envVars(_selection) { return []; }
-  envExports(_selection) { return []; }
+  envVars(_selection) {
+    return [];
+  }
+  envExports(_selection) {
+    return [];
+  }
 
   generate(labNum, selection) {
     const { profile, infraProfile } = selection;
@@ -34,7 +38,7 @@ ${descriptions}`;
     }
 
     // Cluster subgraphs
-    for (const cluster of (infraProfile.spec.clusters || [])) {
+    for (const cluster of infraProfile.spec.clusters || []) {
       const clusterDef = clusterAddonDefs.find(c => c.name === cluster.name);
       const addons = clusterDef?.addons || [];
       lines.push(`  subgraph ${cluster.name.toUpperCase()}["${cluster.name} cluster"]`);
@@ -48,7 +52,7 @@ ${descriptions}`;
 
     // Global → each cluster
     if (globalAddons.length > 0) {
-      for (const cluster of (infraProfile.spec.clusters || [])) {
+      for (const cluster of infraProfile.spec.clusters || []) {
         lines.push(`  GLOBAL --> ${cluster.name.toUpperCase()}`);
       }
     }
@@ -102,7 +106,7 @@ ${descriptions}`;
       }
     }
     for (const clusterDef of clusterAddonDefs) {
-      for (const addon of (clusterDef.addons || [])) {
+      for (const addon of clusterDef.addons || []) {
         if (addon.description) {
           lines.push(`**${addon.name}** (${clusterDef.name}): ${addon.description}`);
         }
@@ -112,5 +116,7 @@ ${descriptions}`;
     return lines.join('\n\n');
   }
 
-  cleanup(_selection) { return ''; }
+  cleanup(_selection) {
+    return '';
+  }
 }

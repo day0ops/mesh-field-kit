@@ -30,9 +30,7 @@ export function getProvisionerRunner(type) {
 
   if (!RunnerClass) {
     const available = Array.from(RUNNER_REGISTRY.keys()).join(', ');
-    throw new Error(
-      `Unknown provisioner type: '${type}'. Available types: ${available}`
-    );
+    throw new Error(`Unknown provisioner type: '${type}'. Available types: ${available}`);
   }
 
   return RunnerClass;

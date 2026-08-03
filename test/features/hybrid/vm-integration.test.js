@@ -40,25 +40,38 @@ test('validate throws when sshKeyPath is missing', () => {
 
 test('validate throws when workloads is empty', () => {
   const f = new VmIntegrationFeature('vm-integration', baseConfig({ workloads: [] }));
-  expect(() => f.validate()).toThrow('workloads is required for VM Integration feature (at least one workload)');
+  expect(() => f.validate()).toThrow(
+    'workloads is required for VM Integration feature (at least one workload)'
+  );
 });
 
 test('validate throws when a workload is missing a name', () => {
-  const f = new VmIntegrationFeature('vm-integration', baseConfig({ workloads: [{ ports: ['http:80:8080'] }] }));
+  const f = new VmIntegrationFeature(
+    'vm-integration',
+    baseConfig({ workloads: [{ ports: ['http:80:8080'] }] })
+  );
   expect(() => f.validate()).toThrow('Each VM workload requires a name');
 });
 
 test('validate throws when a workload is missing ports', () => {
-  const f = new VmIntegrationFeature('vm-integration', baseConfig({ workloads: [{ name: 'app1' }] }));
-  expect(() => f.validate()).toThrow("VM workload 'app1' requires at least one port (e.g. 'http:80:8080')");
+  const f = new VmIntegrationFeature(
+    'vm-integration',
+    baseConfig({ workloads: [{ name: 'app1' }] })
+  );
+  expect(() => f.validate()).toThrow(
+    "VM workload 'app1' requires at least one port (e.g. 'http:80:8080')"
+  );
 });
 
 test('validate passes with multiple workloads', () => {
-  const f = new VmIntegrationFeature('vm-integration', baseConfig({
-    workloads: [
-      { name: 'app1', ports: ['http:80:8080'] },
-      { name: 'app2', ports: ['http:80:9090'] },
-    ],
-  }));
+  const f = new VmIntegrationFeature(
+    'vm-integration',
+    baseConfig({
+      workloads: [
+        { name: 'app1', ports: ['http:80:8080'] },
+        { name: 'app2', ports: ['http:80:9090'] },
+      ],
+    })
+  );
   expect(f.validate()).toBe(true);
 });

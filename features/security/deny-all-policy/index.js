@@ -40,9 +40,10 @@ export class DenyAllPolicyFeature extends Feature {
     const namespace = this.config.namespace;
     const policyName = this.config.policyName || 'deny-all';
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying DenyAllPolicy feature: ${policyName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -83,9 +84,10 @@ export class DenyAllPolicyFeature extends Feature {
     const policyName = this.config.policyName || 'deny-all';
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up DenyAllPolicy feature: ${policyName}`, 'info');
 

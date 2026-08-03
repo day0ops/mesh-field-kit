@@ -23,11 +23,9 @@ const CRDS_RELEASE_NAME = 'solo-ui-crds';
 const RELAY_RELEASE_NAME = 'solo-relay';
 
 // Default tunnel FQDNs — Solo UI uses mesh.internal for east-west routing
-const DEFAULT_TUNNEL_FQDN =
-  'solo-enterprise-ui.solo-enterprise.mesh.internal';
+const DEFAULT_TUNNEL_FQDN = 'solo-enterprise-ui.solo-enterprise.mesh.internal';
 const DEFAULT_TUNNEL_PORT = 9000;
-const DEFAULT_TELEMETRY_FQDN =
-  'solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal';
+const DEFAULT_TELEMETRY_FQDN = 'solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal';
 
 /**
  * Solo UI Feature (Gloo UI / Solo Enterprise UI)
@@ -96,7 +94,8 @@ export class SoloUIFeature extends AddonFeature {
     this.mode = config.mode || 'management';
     this.clusterName = config.clusterName || null;
     this.namespace = config.namespace || 'solo-enterprise';
-    this.chartVersion = config.managementChartVersion || config.version || DEFAULT_SOLO_UI_MANAGEMENT_CHART_VERSION;
+    this.chartVersion =
+      config.managementChartVersion || config.version || DEFAULT_SOLO_UI_MANAGEMENT_CHART_VERSION;
     this.chartOci = config.managementChartOci || DEFAULT_SOLO_UI_MANAGEMENT_CHART_OCI;
     this.serviceType = config.serviceType || null;
     this.nodeSelector = config.nodeSelector || {};
@@ -178,7 +177,14 @@ export class SoloUIFeature extends AddonFeature {
     await KubernetesHelper.ensureNamespace(this.namespace, this.spinner, this.kubeContext);
     // Label namespace for ambient mesh participation
     await KubernetesHelper.kubectl(
-      [...ctxArgs, 'label', 'namespace', this.namespace, 'istio.io/dataplane-mode=ambient', '--overwrite'],
+      [
+        ...ctxArgs,
+        'label',
+        'namespace',
+        this.namespace,
+        'istio.io/dataplane-mode=ambient',
+        '--overwrite',
+      ],
       { spinner: this.spinner }
     );
     this.log(`Namespace '${this.namespace}' ready`, 'info');
@@ -223,12 +229,22 @@ export class SoloUIFeature extends AddonFeature {
   }
 
   async deployRelay() {
-    this.log(`Installing Solo UI relay agent (cluster: ${this.clusterName || 'unknown'})...`, 'info');
+    this.log(
+      `Installing Solo UI relay agent (cluster: ${this.clusterName || 'unknown'})...`,
+      'info'
+    );
 
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
     await KubernetesHelper.ensureNamespace(this.namespace, this.spinner, this.kubeContext);
     await KubernetesHelper.kubectl(
-      [...ctxArgs, 'label', 'namespace', this.namespace, 'istio.io/dataplane-mode=ambient', '--overwrite'],
+      [
+        ...ctxArgs,
+        'label',
+        'namespace',
+        this.namespace,
+        'istio.io/dataplane-mode=ambient',
+        '--overwrite',
+      ],
       { spinner: this.spinner }
     );
     this.log(`Namespace '${this.namespace}' ready`, 'info');
@@ -317,8 +333,15 @@ export class SoloUIFeature extends AddonFeature {
             '--set',
             `ui.frontend.oidc.clientId=${this.oidc.frontendClientId}`,
             ...(() => {
-              const mappings = this.rbacRoleMappings || { admins: 'global.Admin', readers: 'global.Reader', writers: 'global.Writer' };
-              return Object.entries(mappings).flatMap(([group, role]) => ['--set', `rbac.roleMapping.roleMappings.${group}=${role}`]);
+              const mappings = this.rbacRoleMappings || {
+                admins: 'global.Admin',
+                readers: 'global.Reader',
+                writers: 'global.Writer',
+              };
+              return Object.entries(mappings).flatMap(([group, role]) => [
+                '--set',
+                `rbac.roleMapping.roleMappings.${group}=${role}`,
+              ]);
             })(),
           ]
         : []),
@@ -454,7 +477,10 @@ export class SoloUIFeature extends AddonFeature {
     // Fan-out pipeline exporters alongside existing ClickHouse exporters
     const pipelines = otelConfig.service?.pipelines || {};
     const addExporter = (pipelineName, exporter) => {
-      if (pipelines[pipelineName]?.exporters && !pipelines[pipelineName].exporters.includes(exporter)) {
+      if (
+        pipelines[pipelineName]?.exporters &&
+        !pipelines[pipelineName].exporters.includes(exporter)
+      ) {
         pipelines[pipelineName].exporters.push(exporter);
       }
     };
@@ -495,25 +521,33 @@ export class SoloUIFeature extends AddonFeature {
         { spinner: this.spinner }
       );
     } finally {
-      try { await unlink(tempFile); } catch { /* ignore */ }
+      try {
+        await unlink(tempFile);
+      } catch {
+        /* ignore */
+      }
     }
 
     // Restart collector — may be StatefulSet (metrics enabled) or Deployment
     await KubernetesHelper.kubectl(
       [
         ...ctxArgs,
-        'rollout', 'restart',
+        'rollout',
+        'restart',
         'statefulset/solo-enterprise-telemetry-collector',
-        '-n', this.namespace,
+        '-n',
+        this.namespace,
       ],
       { ignoreError: true, spinner: this.spinner }
     );
     await KubernetesHelper.kubectl(
       [
         ...ctxArgs,
-        'rollout', 'restart',
+        'rollout',
+        'restart',
         'deployment/solo-enterprise-telemetry-collector',
-        '-n', this.namespace,
+        '-n',
+        this.namespace,
       ],
       { ignoreError: true, spinner: this.spinner }
     );
@@ -521,9 +555,11 @@ export class SoloUIFeature extends AddonFeature {
     await KubernetesHelper.kubectl(
       [
         ...ctxArgs,
-        'rollout', 'status',
+        'rollout',
+        'status',
         'statefulset/solo-enterprise-telemetry-collector',
-        '-n', this.namespace,
+        '-n',
+        this.namespace,
         '--timeout=120s',
       ],
       { ignoreError: true, spinner: this.spinner }
@@ -531,9 +567,11 @@ export class SoloUIFeature extends AddonFeature {
     await KubernetesHelper.kubectl(
       [
         ...ctxArgs,
-        'rollout', 'status',
+        'rollout',
+        'status',
         'deployment/solo-enterprise-telemetry-collector',
-        '-n', this.namespace,
+        '-n',
+        this.namespace,
         '--timeout=120s',
       ],
       { ignoreError: true, spinner: this.spinner }
@@ -613,17 +651,20 @@ export class SoloUIFeature extends AddonFeature {
 
   async createOidcSecret() {
     this.log('Creating OIDC backend client secret...', 'info');
-    await this.applyResource({
-      apiVersion: 'v1',
-      kind: 'Secret',
-      metadata: {
-        name: 'ui-backend-oidc-secret',
-        namespace: this.namespace,
-        labels: { 'app.kubernetes.io/managed-by': 'mesh-demo' },
+    await this.applyResource(
+      {
+        apiVersion: 'v1',
+        kind: 'Secret',
+        metadata: {
+          name: 'ui-backend-oidc-secret',
+          namespace: this.namespace,
+          labels: { 'app.kubernetes.io/managed-by': 'mesh-demo' },
+        },
+        type: 'Opaque',
+        stringData: { clientSecret: this.oidc.backendClientSecret },
       },
-      type: 'Opaque',
-      stringData: { clientSecret: this.oidc.backendClientSecret },
-    }, this.kubeContext);
+      this.kubeContext
+    );
     this.log('OIDC secret created', 'info');
   }
 
@@ -633,54 +674,66 @@ export class SoloUIFeature extends AddonFeature {
     const secretName = this.tls.secretName || 'solo-ui-tls';
     const issuerName = this.tls.issuer || 'letsencrypt-dns';
 
-    await this.applyYamlFile('certificate.yaml', {
-      spec: {
-        secretName,
-        issuerRef: { name: issuerName },
-        dnsNames: [this.hostname],
+    await this.applyYamlFile(
+      'certificate.yaml',
+      {
+        spec: {
+          secretName,
+          issuerRef: { name: issuerName },
+          dnsNames: [this.hostname],
+        },
       },
-    }, this.kubeContext);
+      this.kubeContext
+    );
 
     // Pass complete listener object — deepMerge replaces arrays wholesale
-    await this.applyYamlFile('https-gateway.yaml', {
-      spec: {
-        listeners: [
-          {
-            name: 'https',
-            port: 443,
-            protocol: 'HTTPS',
-            hostname: this.hostname,
-            tls: {
-              mode: 'Terminate',
-              certificateRefs: [{ name: secretName, kind: 'Secret' }],
+    await this.applyYamlFile(
+      'https-gateway.yaml',
+      {
+        spec: {
+          listeners: [
+            {
+              name: 'https',
+              port: 443,
+              protocol: 'HTTPS',
+              hostname: this.hostname,
+              tls: {
+                mode: 'Terminate',
+                certificateRefs: [{ name: secretName, kind: 'Secret' }],
+              },
+              allowedRoutes: {
+                namespaces: { from: 'All' },
+              },
             },
-            allowedRoutes: {
-              namespaces: { from: 'All' },
-            },
-          },
-        ],
+          ],
+        },
       },
-    }, this.kubeContext);
+      this.kubeContext
+    );
 
-    await this.applyYamlFile('https-route.yaml', {
-      spec: {
-        parentRefs: [
-          {
-            group: 'gateway.networking.k8s.io',
-            kind: 'Gateway',
-            name: 'solo-enterprise-ui-https',
-            namespace: this.namespace,
-          },
-        ],
-        hostnames: [this.hostname],
-        rules: [
-          {
-            backendRefs: [{ name: 'solo-enterprise-ui', port: 80 }],
-            matches: [{ path: { type: 'PathPrefix', value: '/' } }],
-          },
-        ],
+    await this.applyYamlFile(
+      'https-route.yaml',
+      {
+        spec: {
+          parentRefs: [
+            {
+              group: 'gateway.networking.k8s.io',
+              kind: 'Gateway',
+              name: 'solo-enterprise-ui-https',
+              namespace: this.namespace,
+            },
+          ],
+          hostnames: [this.hostname],
+          rules: [
+            {
+              backendRefs: [{ name: 'solo-enterprise-ui', port: 80 }],
+              matches: [{ path: { type: 'PathPrefix', value: '/' } }],
+            },
+          ],
+        },
       },
-    }, this.kubeContext);
+      this.kubeContext
+    );
 
     await this.applyYamlFile('gateway-tracing-suppress-policy.yaml', {}, this.kubeContext);
 
@@ -701,27 +754,53 @@ export class SoloUIFeature extends AddonFeature {
     const helmCtxArgs = this.kubeContext ? ['--kube-context', this.kubeContext] : [];
 
     if (this.oidc?.enabled) {
-      await this.deleteResource('Secret', 'ui-backend-oidc-secret', this.namespace, this.kubeContext);
+      await this.deleteResource(
+        'Secret',
+        'ui-backend-oidc-secret',
+        this.namespace,
+        this.kubeContext
+      );
     }
 
     if (this.hostname && this.tls?.enabled) {
-      await this.deleteResource('HTTPRoute', 'solo-enterprise-ui', this.namespace, this.kubeContext);
-      await this.deleteResource('Gateway', 'solo-enterprise-ui-https', this.namespace, this.kubeContext);
+      await this.deleteResource(
+        'HTTPRoute',
+        'solo-enterprise-ui',
+        this.namespace,
+        this.kubeContext
+      );
+      await this.deleteResource(
+        'Gateway',
+        'solo-enterprise-ui-https',
+        this.namespace,
+        this.kubeContext
+      );
       await this.deleteResource('Certificate', 'solo-ui-tls', this.namespace, this.kubeContext);
     }
 
     try {
-      await CommandRunner.run(
-        'helm',
-        [...helmCtxArgs, 'uninstall', RELEASE_NAME, CRDS_RELEASE_NAME, '-n', this.namespace, '--wait']
-      );
+      await CommandRunner.run('helm', [
+        ...helmCtxArgs,
+        'uninstall',
+        RELEASE_NAME,
+        CRDS_RELEASE_NAME,
+        '-n',
+        this.namespace,
+        '--wait',
+      ]);
       this.log('Management Helm releases uninstalled', 'info');
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) throw error;
     }
 
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
-    await KubernetesHelper.kubectl([...ctxArgs, 'delete', 'namespace', this.namespace, '--ignore-not-found=true']);
+    await KubernetesHelper.kubectl([
+      ...ctxArgs,
+      'delete',
+      'namespace',
+      this.namespace,
+      '--ignore-not-found=true',
+    ]);
 
     this.log('Solo UI management cleaned up', 'success');
   }
@@ -731,17 +810,27 @@ export class SoloUIFeature extends AddonFeature {
 
     const helmCtxArgs = this.kubeContext ? ['--kube-context', this.kubeContext] : [];
     try {
-      await CommandRunner.run(
-        'helm',
-        [...helmCtxArgs, 'uninstall', RELAY_RELEASE_NAME, '-n', this.namespace, '--wait']
-      );
+      await CommandRunner.run('helm', [
+        ...helmCtxArgs,
+        'uninstall',
+        RELAY_RELEASE_NAME,
+        '-n',
+        this.namespace,
+        '--wait',
+      ]);
       this.log('Relay Helm release uninstalled', 'info');
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) throw error;
     }
 
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
-    await KubernetesHelper.kubectl([...ctxArgs, 'delete', 'namespace', this.namespace, '--ignore-not-found=true']);
+    await KubernetesHelper.kubectl([
+      ...ctxArgs,
+      'delete',
+      'namespace',
+      this.namespace,
+      '--ignore-not-found=true',
+    ]);
 
     this.log('Solo UI relay cleaned up', 'success');
   }

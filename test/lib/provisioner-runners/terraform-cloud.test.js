@@ -19,7 +19,12 @@ function makeRunner({ vms = [], clusters } = {}) {
   const defaultClusters = [
     {
       name: 'east',
-      provisioner: { type: 'eks', owner: 'kasunt', region: 'ap-southeast-1', cluster_name: 'maple' },
+      provisioner: {
+        type: 'eks',
+        owner: 'kasunt',
+        region: 'ap-southeast-1',
+        cluster_name: 'maple',
+      },
     },
   ];
   return new TerraformCloudRunner('eks-multi-cluster', clusters || defaultClusters, {
@@ -31,8 +36,24 @@ function makeRunner({ vms = [], clusters } = {}) {
 
 function multiClusterList() {
   return [
-    { name: 'east', provisioner: { type: 'eks', owner: 'kasunt', region: 'ap-southeast-1', cluster_name: 'maple' } },
-    { name: 'west', provisioner: { type: 'eks', owner: 'kasunt', region: 'ap-southeast-1', cluster_name: 'maple' } },
+    {
+      name: 'east',
+      provisioner: {
+        type: 'eks',
+        owner: 'kasunt',
+        region: 'ap-southeast-1',
+        cluster_name: 'maple',
+      },
+    },
+    {
+      name: 'west',
+      provisioner: {
+        type: 'eks',
+        owner: 'kasunt',
+        region: 'ap-southeast-1',
+        cluster_name: 'maple',
+      },
+    },
   ];
 }
 
@@ -48,7 +69,9 @@ test('resolveConfiguration reports enableVm true with vms configured', () => {
 });
 
 test('resolveConfiguration passes through per-vm instance_type', () => {
-  const config = makeRunner({ vms: [{ name: 'vm1', instance_type: 't3.small' }] }).resolveConfiguration();
+  const config = makeRunner({
+    vms: [{ name: 'vm1', instance_type: 't3.small' }],
+  }).resolveConfiguration();
   expect(config.vmInstanceType).toBe('t3.small');
 });
 
@@ -93,7 +116,10 @@ test('resolveConfiguration falls back to index 0 for an unmatched vm.cluster', (
 });
 
 test('writeTerraformVars emits vm_cluster_index when enabled', () => {
-  const runner = makeRunner({ clusters: multiClusterList(), vms: [{ name: 'vm1', cluster: 'west' }] });
+  const runner = makeRunner({
+    clusters: multiClusterList(),
+    vms: [{ name: 'vm1', cluster: 'west' }],
+  });
   runner.ensureDirectories();
   runner.writeTerraformVars(runner.resolveConfiguration());
 

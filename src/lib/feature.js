@@ -132,7 +132,9 @@ export class Feature {
    * resource names are dynamic or prefixed per-gateway.
    */
   async deleteByLabel(kind, labels, namespace = this.namespace, context = null) {
-    const selector = Object.entries(labels).map(([k, v]) => `${k}=${v}`).join(',');
+    const selector = Object.entries(labels)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(',');
     const contextFlag = context ? `--context=${context}` : '';
     try {
       await CommandRunner.exec(
@@ -210,7 +212,9 @@ export class Feature {
       // Namespace might already exist
     }
 
-    await KubernetesHelper.labelNamespaceForDataplaneMode(namespace, dataplaneMode, context, { quiet: true });
+    await KubernetesHelper.labelNamespaceForDataplaneMode(namespace, dataplaneMode, context, {
+      quiet: true,
+    });
     this.log(`Namespace '${namespace}' labeled for ${dataplaneMode} mode`);
   }
 

@@ -48,10 +48,9 @@ export class IstioctlHelper {
 
     await CommandRunner.exec(`chmod +x "${scriptPath}"`, { ignoreError: true });
 
-    const runResult = await CommandRunner.exec(
-      `ISTIO_IMAGE=${istioImage} sh "${scriptPath}"`,
-      { ignoreError: true }
-    );
+    const runResult = await CommandRunner.exec(`ISTIO_IMAGE=${istioImage} sh "${scriptPath}"`, {
+      ignoreError: true,
+    });
     if (runResult.stderr?.trim()) {
       Logger.warn(`Install script: ${runResult.stderr.trim()}`);
     }
@@ -105,7 +104,11 @@ export class IstioctlHelper {
       await CommandRunner.exec(`kubectl ${kubectlCtx} apply -f ${tempFile}`);
       Logger.info(`East-west gateway applied on ${cluster.name}`);
     } finally {
-      try { unlinkSync(tempFile); } catch { /* best effort */ }
+      try {
+        unlinkSync(tempFile);
+      } catch {
+        /* best effort */
+      }
     }
   }
 
@@ -128,7 +131,17 @@ export class IstioctlHelper {
    * @param {string} [options.istioImage]
    * @returns {Promise<{bootstrapToken: string|null, tokenFile: string}>}
    */
-  static async vmAddWorkload({ name, address, namespace, ports, external = false, hostname = null, outputDir, context = null, istioImage } = {}) {
+  static async vmAddWorkload({
+    name,
+    address,
+    namespace,
+    ports,
+    external = false,
+    hostname = null,
+    outputDir,
+    context = null,
+    istioImage,
+  } = {}) {
     const istioctl = await this.resolve({ istioImage });
     if (!istioctl) {
       throw new Error(`Failed to resolve istioctl for vm add-workload '${name}'`);
@@ -151,7 +164,9 @@ export class IstioctlHelper {
 
     if (result.exitCode) {
       const output = [result.stdout, result.stderr].filter(Boolean).join('\n');
-      throw new Error(`istioctl vm add-workload failed for '${name}' (exit ${result.exitCode}): ${output || '(no output)'}`);
+      throw new Error(
+        `istioctl vm add-workload failed for '${name}' (exit ${result.exitCode}): ${output || '(no output)'}`
+      );
     }
 
     const tokenMatch = result.stdout?.match(/BOOTSTRAP_TOKEN=(\S+)/);
@@ -166,7 +181,14 @@ export class IstioctlHelper {
    * Run istioctl zc endpoints for a service in a cluster context.
    * @returns {Promise<string>} combined stdout/stderr output
    */
-  static async zcEndpoints({ service, serviceNamespace, hostname, context, istioImage, timeoutMs = 30000 }) {
+  static async zcEndpoints({
+    service,
+    serviceNamespace,
+    hostname,
+    context,
+    istioImage,
+    timeoutMs = 30000,
+  }) {
     const istioctl = await this.resolve({ istioImage });
     if (!istioctl) {
       throw new Error('istioctl could not be resolved or downloaded');

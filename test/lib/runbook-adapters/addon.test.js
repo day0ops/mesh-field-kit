@@ -6,7 +6,10 @@ const mockSelection = {
   profile: {
     spec: {
       addons: {
-        global: [{ name: 'cilium', version: '1.19.4' }, { name: 'cert-manager', version: '1.20.2' }],
+        global: [
+          { name: 'cilium', version: '1.19.4' },
+          { name: 'cert-manager', version: '1.20.2' },
+        ],
         clusters: [
           { name: 'east', addons: [{ name: 'external-dns' }, { name: 'keycloak' }] },
           { name: 'west', addons: [{ name: 'telemetry', config: { mode: 'agent' } }] },

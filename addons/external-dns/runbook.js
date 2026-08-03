@@ -1,7 +1,7 @@
 // addons/external-dns/runbook.js
 
 // tpl: return v if it's a real value (not an unresolved {{...}} template), otherwise fb
-const tpl = (v, fb) => (v && !/\{\{/.test(v)) ? v : fb
+const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
 
 export function envVarsFor(_addonCfg, _clusterName) {
   return [];
@@ -10,10 +10,17 @@ export function envVarsFor(_addonCfg, _clusterName) {
 export function envExportsFor(addonCfg, _profile, env) {
   const cfg = addonCfg.config || {};
   return [
-    { name: 'EXTERNAL_DNS_VERSION', value: addonCfg.version || '1.14.5', comment: 'external-dns Helm chart version' },
+    {
+      name: 'EXTERNAL_DNS_VERSION',
+      value: addonCfg.version || '1.14.5',
+      comment: 'external-dns Helm chart version',
+    },
     {
       name: 'EXTERNAL_DNS_DOMAIN_FILTER',
-      value: tpl(cfg.domainFilter, `${env.spec.dns?.childZone || ''}.${env.spec.dns?.parentZone?.domain || ''}`),
+      value: tpl(
+        cfg.domainFilter,
+        `${env.spec.dns?.childZone || ''}.${env.spec.dns?.parentZone?.domain || ''}`
+      ),
       comment: 'Domain filter for external-dns',
     },
     {
@@ -29,7 +36,10 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, env) 
   const cfg = addonCfg.config || {};
   const provider = cfg.provider || 'route53';
   const region = tpl(cfg.region, env.spec.aws?.region) || '$AWS_REGION';
-  const domainFilter = tpl(cfg.domainFilter, `${env.spec.dns?.childZone || 'demo'}.${env.spec.dns?.parentZone?.domain || 'example.com'}`);
+  const domainFilter = tpl(
+    cfg.domainFilter,
+    `${env.spec.dns?.childZone || 'demo'}.${env.spec.dns?.parentZone?.domain || 'example.com'}`
+  );
   const zoneId = tpl(cfg.zoneId, env.spec.dns?.parentZone?.hostedZoneId || '$DNS_HOSTED_ZONE_ID');
 
   // external-dns helm chart uses 'aws' for the Route53 provider (not 'route53')

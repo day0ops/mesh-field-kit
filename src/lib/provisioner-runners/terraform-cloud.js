@@ -8,7 +8,12 @@ import { Logger } from '../common.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, '../../..');
-const ENVIRONMENTS_DIR = join(PROJECT_ROOT, 'cloud-provisioner', 'terraform-cloud-provisioner', 'environments');
+const ENVIRONMENTS_DIR = join(
+  PROJECT_ROOT,
+  'cloud-provisioner',
+  'terraform-cloud-provisioner',
+  'environments'
+);
 
 const PROVIDER_CONFIGS = {
   'eks-ipv6': {
@@ -37,7 +42,7 @@ const PROVIDER_CONFIGS = {
     },
   },
 
-  'eks': {
+  eks: {
     environment: 'eks',
     outputPrefix: 'eks',
     label: 'EKS',
@@ -74,7 +79,7 @@ const PROVIDER_CONFIGS = {
     },
   },
 
-  'gke': {
+  gke: {
     environment: 'gke',
     outputPrefix: 'gke',
     label: 'GKE',
@@ -98,13 +103,19 @@ const PROVIDER_CONFIGS = {
     },
   },
 
-  'aks': {
+  aks: {
     environment: 'aks',
     outputPrefix: 'aks',
     label: 'AKS',
     defaultRegion: 'Australia East',
     defaultNodeType: 'Standard_D2_v2',
-    requiredEnv: ['ARM_CLIENT_ID', 'ARM_CLIENT_SECRET', 'ARM_OBJECT_ID', 'ARM_SUBSCRIPTION_ID', 'ARM_TENANT_ID'],
+    requiredEnv: [
+      'ARM_CLIENT_ID',
+      'ARM_CLIENT_SECRET',
+      'ARM_OBJECT_ID',
+      'ARM_SUBSCRIPTION_ID',
+      'ARM_TENANT_ID',
+    ],
     generateVars(config) {
       const vars = {
         owner: config.owner,
@@ -122,7 +133,7 @@ const PROVIDER_CONFIGS = {
     },
   },
 
-  'multicluster': {
+  multicluster: {
     environment: 'multicluster',
     outputPrefix: null,
     label: 'Multicluster',
@@ -134,10 +145,36 @@ const PROVIDER_CONFIGS = {
 };
 
 const CLOUD_DEFAULTS = {
-  eks: { defaultRegion: 'ap-southeast-2', defaultNodeType: 't3.medium', outputPrefix: 'eks', requiredEnv: ['AWS_PROFILE'] },
-  'eks-ipv6': { defaultRegion: 'ap-southeast-2', defaultNodeType: 't3.medium', outputPrefix: 'eks_ipv6', requiredEnv: ['AWS_PROFILE'] },
-  gke: { defaultRegion: 'australia-southeast1', defaultNodeType: 'n1-standard-2', outputPrefix: 'gke', requiredEnv: ['GCP_PROJECT'] },
-  aks: { defaultRegion: 'Australia East', defaultNodeType: 'Standard_D2_v2', outputPrefix: 'aks', requiredEnv: ['ARM_CLIENT_ID', 'ARM_CLIENT_SECRET', 'ARM_OBJECT_ID', 'ARM_SUBSCRIPTION_ID', 'ARM_TENANT_ID'] },
+  eks: {
+    defaultRegion: 'ap-southeast-2',
+    defaultNodeType: 't3.medium',
+    outputPrefix: 'eks',
+    requiredEnv: ['AWS_PROFILE'],
+  },
+  'eks-ipv6': {
+    defaultRegion: 'ap-southeast-2',
+    defaultNodeType: 't3.medium',
+    outputPrefix: 'eks_ipv6',
+    requiredEnv: ['AWS_PROFILE'],
+  },
+  gke: {
+    defaultRegion: 'australia-southeast1',
+    defaultNodeType: 'n1-standard-2',
+    outputPrefix: 'gke',
+    requiredEnv: ['GCP_PROJECT'],
+  },
+  aks: {
+    defaultRegion: 'Australia East',
+    defaultNodeType: 'Standard_D2_v2',
+    outputPrefix: 'aks',
+    requiredEnv: [
+      'ARM_CLIENT_ID',
+      'ARM_CLIENT_SECRET',
+      'ARM_OBJECT_ID',
+      'ARM_SUBSCRIPTION_ID',
+      'ARM_TENANT_ID',
+    ],
+  },
 };
 
 /**
@@ -191,7 +228,9 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
 
   async provision() {
     this.validateEnvironment();
-    this.logDebug(`Provisioning ${this.clusters.length} ${this.providerConfig.label} cluster${this.clusters.length === 1 ? '' : 's'}`);
+    this.logDebug(
+      `Provisioning ${this.clusters.length} ${this.providerConfig.label} cluster${this.clusters.length === 1 ? '' : 's'}`
+    );
 
     if (!existsSync(this.terraformDir)) {
       throw new Error(`Terraform environment not found: ${this.terraformDir}`);
@@ -222,7 +261,9 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
 
   async destroy() {
     this.validateEnvironment();
-    this.logDebug(`Destroying ${this.clusters.length} ${this.providerConfig.label} cluster${this.clusters.length === 1 ? '' : 's'}`);
+    this.logDebug(
+      `Destroying ${this.clusters.length} ${this.providerConfig.label} cluster${this.clusters.length === 1 ? '' : 's'}`
+    );
 
     if (!existsSync(this.stateFile)) {
       this.logWarn('No terraform state file found. Nothing to destroy.');
@@ -309,9 +350,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
         'Set them via environment or in the infra profile spec.settings:',
         ...missing.map(v => {
           const key = TerraformCloudRunner.ENV_TO_SETTINGS[v];
-          return key
-            ? `  export ${v}=<value>  (or spec.settings.${key})`
-            : `  export ${v}=<value>`;
+          return key ? `  export ${v}=<value>  (or spec.settings.${key})` : `  export ${v}=<value>`;
         }),
       ];
       throw new Error(lines.join('\n'));
@@ -337,20 +376,29 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       clusterCount: this.clusters.length,
       nodes: provisioner.nodes ?? 2,
       nodeType: provisioner.node_type || pc.defaultNodeType,
-      kubernetesVersion: provisioner.kubernetes_version || process.env.KUBERNETES_VERSION || undefined,
+      kubernetesVersion:
+        provisioner.kubernetes_version || process.env.KUBERNETES_VERSION || undefined,
       enableDns64: provisioner.enable_dns64,
       enableBastion: provisioner.enable_bastion,
       enableVm: this.vms.length > 0,
-      vmClusterIndex: this.vms.length > 0
-        ? Math.max(0, this.clusters.findIndex(c => c.name === this.vms[0].cluster))
-        : 0,
+      vmClusterIndex:
+        this.vms.length > 0
+          ? Math.max(
+              0,
+              this.clusters.findIndex(c => c.name === this.vms[0].cluster)
+            )
+          : 0,
       vmInstanceType: this.vms[0]?.instance_type || undefined,
-      gkeProject: provisioner.project || (this.providerType === 'gke' ? process.env.GCP_PROJECT : undefined),
-      aksServicePrincipal: (provisioner.arm_client_id || process.env.ARM_CLIENT_ID) ? {
-        object_id: provisioner.arm_object_id || process.env.ARM_OBJECT_ID,
-        client_id: provisioner.arm_client_id || process.env.ARM_CLIENT_ID,
-        client_secret: provisioner.arm_client_secret || process.env.ARM_CLIENT_SECRET,
-      } : undefined,
+      gkeProject:
+        provisioner.project || (this.providerType === 'gke' ? process.env.GCP_PROJECT : undefined),
+      aksServicePrincipal:
+        provisioner.arm_client_id || process.env.ARM_CLIENT_ID
+          ? {
+              object_id: provisioner.arm_object_id || process.env.ARM_OBJECT_ID,
+              client_id: provisioner.arm_client_id || process.env.ARM_CLIENT_ID,
+              client_secret: provisioner.arm_client_secret || process.env.ARM_CLIENT_SECRET,
+            }
+          : undefined,
     };
   }
 
@@ -364,13 +412,21 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       team: provisioner.team || process.env.TEAM || undefined,
       purpose: provisioner.purpose || process.env.PURPOSE || undefined,
       awsProfile: provisioner.aws_profile || process.env.AWS_PROFILE,
-      kubernetesVersion: provisioner.kubernetes_version || process.env.KUBERNETES_VERSION || undefined,
-      gkeProject: provisioner.project || (this.clusters.some(c => (c.provisioner?.cloud || c.provisioner?.type) === 'gke') ? process.env.GCP_PROJECT : undefined),
-      aksServicePrincipal: (provisioner.arm_client_id || process.env.ARM_CLIENT_ID) ? {
-        object_id: provisioner.arm_object_id || process.env.ARM_OBJECT_ID,
-        client_id: provisioner.arm_client_id || process.env.ARM_CLIENT_ID,
-        client_secret: provisioner.arm_client_secret || process.env.ARM_CLIENT_SECRET,
-      } : undefined,
+      kubernetesVersion:
+        provisioner.kubernetes_version || process.env.KUBERNETES_VERSION || undefined,
+      gkeProject:
+        provisioner.project ||
+        (this.clusters.some(c => (c.provisioner?.cloud || c.provisioner?.type) === 'gke')
+          ? process.env.GCP_PROJECT
+          : undefined),
+      aksServicePrincipal:
+        provisioner.arm_client_id || process.env.ARM_CLIENT_ID
+          ? {
+              object_id: provisioner.arm_object_id || process.env.ARM_OBJECT_ID,
+              client_id: provisioner.arm_client_id || process.env.ARM_CLIENT_ID,
+              client_secret: provisioner.arm_client_secret || process.env.ARM_CLIENT_SECRET,
+            }
+          : undefined,
       clouds: {},
       cloudOrder: [],
     };
@@ -427,7 +483,8 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
 
     if (config.team) lines.push(`team = ${formatTfValue(config.team)}`);
     if (config.purpose) lines.push(`purpose = ${formatTfValue(config.purpose)}`);
-    if (config.kubernetesVersion) lines.push(`kubernetes_version = ${formatTfValue(config.kubernetesVersion)}`);
+    if (config.kubernetesVersion)
+      lines.push(`kubernetes_version = ${formatTfValue(config.kubernetesVersion)}`);
 
     lines.push('');
 
@@ -623,12 +680,18 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
   async extractNetworkInfo(terraform, prefix, clusterIndex) {
     try {
       const vpcIds = await terraform.getOutput(this.stateFile, `${prefix}_vpc_ids`);
-      const allSubnetIds = await terraform.getOutput(this.stateFile, `${prefix}_private_subnet_ids`);
-      const sgIds = await terraform.getOutput(this.stateFile, `${prefix}_worker_security_group_ids`);
+      const allSubnetIds = await terraform.getOutput(
+        this.stateFile,
+        `${prefix}_private_subnet_ids`
+      );
+      const sgIds = await terraform.getOutput(
+        this.stateFile,
+        `${prefix}_worker_security_group_ids`
+      );
 
-      const vpcId = Array.isArray(vpcIds) ? (vpcIds[clusterIndex] || null) : null;
-      const privateSubnetIds = Array.isArray(allSubnetIds) ? (allSubnetIds[clusterIndex] || []) : [];
-      const workerSgId = Array.isArray(sgIds) ? (sgIds[clusterIndex] || null) : null;
+      const vpcId = Array.isArray(vpcIds) ? vpcIds[clusterIndex] || null : null;
+      const privateSubnetIds = Array.isArray(allSubnetIds) ? allSubnetIds[clusterIndex] || [] : [];
+      const workerSgId = Array.isArray(sgIds) ? sgIds[clusterIndex] || null : null;
 
       if (!vpcId) return null;
 
@@ -687,19 +750,27 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
 
       const publicIp = await terraform.getOutput(this.stateFile, `${prefix}_vm_public_ip`);
       const privateIp = await terraform.getOutput(this.stateFile, `${prefix}_vm_private_ip`);
-      const securityGroupId = await terraform.getOutput(this.stateFile, `${prefix}_vm_security_group_id`);
-      const sshPrivateKeyPath = await terraform.getOutput(this.stateFile, `${prefix}_vm_ssh_private_key_path`);
+      const securityGroupId = await terraform.getOutput(
+        this.stateFile,
+        `${prefix}_vm_security_group_id`
+      );
+      const sshPrivateKeyPath = await terraform.getOutput(
+        this.stateFile,
+        `${prefix}_vm_ssh_private_key_path`
+      );
 
-      return [{
-        name: this.vms[0]?.name || 'vm',
-        cluster: this.vms[0]?.cluster || null,
-        publicIp: publicIp || null,
-        privateIp: privateIp || null,
-        instanceId,
-        securityGroupId: securityGroupId || null,
-        sshPrivateKeyPath: sshPrivateKeyPath || null,
-        provisioned: true,
-      }];
+      return [
+        {
+          name: this.vms[0]?.name || 'vm',
+          cluster: this.vms[0]?.cluster || null,
+          publicIp: publicIp || null,
+          privateIp: privateIp || null,
+          instanceId,
+          securityGroupId: securityGroupId || null,
+          sshPrivateKeyPath: sshPrivateKeyPath || null,
+          provisioned: true,
+        },
+      ];
     } catch {
       this.logWarn('Could not extract VM outputs from Terraform state');
       return [];
@@ -730,7 +801,9 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
     const contexts = results.map(r => r.context).filter(Boolean);
     if (contexts.length > 0) {
       const defaultContext = contexts[Math.floor(Math.random() * contexts.length)];
-      this.appendShellCommand(`kubectl config use-context "${defaultContext.replace(/"/g, '\\"')}"`);
+      this.appendShellCommand(
+        `kubectl config use-context "${defaultContext.replace(/"/g, '\\"')}"`
+      );
     }
   }
 
@@ -784,4 +857,3 @@ function formatTfValue(value) {
   }
   return `"${value}"`;
 }
-

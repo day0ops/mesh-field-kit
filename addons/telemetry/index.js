@@ -135,8 +135,7 @@ export class TelemetryFeature extends AddonFeature {
 
   validate() {
     if (this.mode === 'agent') {
-      const missing = ['otelGatewayEndpoint', 'lokiPushUrl']
-        .filter(f => !this[f]);
+      const missing = ['otelGatewayEndpoint', 'lokiPushUrl'].filter(f => !this[f]);
       if (missing.length) {
         throw new Error(`telemetry agent mode requires: ${missing.join(', ')}`);
       }
@@ -210,12 +209,7 @@ export class TelemetryFeature extends AddonFeature {
    */
   async buildGrafanaOidcValuesFile() {
     const yaml = (await import('js-yaml')).default;
-    const {
-      issuerUrl,
-      clientId,
-      clientSecret,
-      adminGroup = 'grafana-admins',
-    } = this.grafanaOidc;
+    const { issuerUrl, clientId, clientSecret, adminGroup = 'grafana-admins' } = this.grafanaOidc;
     const roleAttrPath = `contains(Groups[*], '${adminGroup}') && 'Admin' || 'Viewer'`;
 
     const values = {
@@ -330,7 +324,12 @@ export class TelemetryFeature extends AddonFeature {
 
     await KubernetesHelper.ensureNamespace(this.namespace, this.spinner, this.kubeContext);
     // Label for Ambient mesh so peering controller exports ServiceEntries to remote clusters
-    await KubernetesHelper.labelNamespaceForDataplaneMode(this.namespace, 'ambient', this.kubeContext, { quiet: true });
+    await KubernetesHelper.labelNamespaceForDataplaneMode(
+      this.namespace,
+      'ambient',
+      this.kubeContext,
+      { quiet: true }
+    );
     this.log(`Namespace '${this.namespace}' ready`, 'info');
 
     // Tempo first — Grafana datasource config needs its endpoint
@@ -395,7 +394,7 @@ export class TelemetryFeature extends AddonFeature {
       '{{SOLO_UI_NAMESPACE}}': this.soloUiNamespace,
       '{{CLUSTER_NAME}}': this.clusterName,
     };
-    const fill = (tmpl) =>
+    const fill = tmpl =>
       Object.entries(replacements).reduce((s, [k, v]) => s.replaceAll(k, v), tmpl);
 
     await this.installOtelChart(
@@ -427,7 +426,7 @@ export class TelemetryFeature extends AddonFeature {
       '{{TELEMETRY_NAMESPACE}}': this.namespace,
       '{{SOLO_UI_NAMESPACE}}': this.soloUiNamespace,
     };
-    const fill = (tmpl) =>
+    const fill = tmpl =>
       Object.entries(replacements).reduce((s, [k, v]) => s.replaceAll(k, v), tmpl);
 
     await this.installOtelChart(
@@ -446,48 +445,54 @@ export class TelemetryFeature extends AddonFeature {
   async applyAmbientTracingConfig() {
     const fqdn = `${OTEL_TRACES_RELEASE}.${this.namespace}.svc.cluster.local`;
     this.log(`Applying ambient tracing config → ${fqdn}`, 'info');
-    await this.applyResource({
-      apiVersion: 'v1',
-      kind: 'ConfigMap',
-      metadata: {
-        name: 'gloo-extensions-config',
-        namespace: 'gloo-mesh',
-      },
-      data: {
-        'values.istio-ztunnel': [
-          'l7Telemetry:',
-          '  distributedTracing:',
-          '    enabled: true',
-          `    otlpEndpoint: "http://${fqdn}:4317"`,
-        ].join('\n'),
-        'values.istiod': [
-          'meshConfig:',
-          '  enableTracing: true',
-          '  extensionProviders:',
-          '  - name: mesh-tracing',
-          '    opentelemetry:',
-          '      port: 4317',
-          `      service: ${fqdn}`,
-        ].join('\n'),
-      },
-    }, this.kubeContext);
-
-    // Activate OTel tracing provider mesh-wide via Telemetry API
-    await this.applyResource({
-      apiVersion: 'telemetry.istio.io/v1',
-      kind: 'Telemetry',
-      metadata: {
-        name: 'mesh-default-tracing',
-        namespace: 'istio-system',
-        labels: {
-          'app.kubernetes.io/managed-by': 'mesh-demo',
-          'ambient.demo/feature': 'telemetry',
+    await this.applyResource(
+      {
+        apiVersion: 'v1',
+        kind: 'ConfigMap',
+        metadata: {
+          name: 'gloo-extensions-config',
+          namespace: 'gloo-mesh',
+        },
+        data: {
+          'values.istio-ztunnel': [
+            'l7Telemetry:',
+            '  distributedTracing:',
+            '    enabled: true',
+            `    otlpEndpoint: "http://${fqdn}:4317"`,
+          ].join('\n'),
+          'values.istiod': [
+            'meshConfig:',
+            '  enableTracing: true',
+            '  extensionProviders:',
+            '  - name: mesh-tracing',
+            '    opentelemetry:',
+            '      port: 4317',
+            `      service: ${fqdn}`,
+          ].join('\n'),
         },
       },
-      spec: {
-        tracing: [{ providers: [{ name: 'mesh-tracing' }], randomSamplingPercentage: 100 }],
+      this.kubeContext
+    );
+
+    // Activate OTel tracing provider mesh-wide via Telemetry API
+    await this.applyResource(
+      {
+        apiVersion: 'telemetry.istio.io/v1',
+        kind: 'Telemetry',
+        metadata: {
+          name: 'mesh-default-tracing',
+          namespace: 'istio-system',
+          labels: {
+            'app.kubernetes.io/managed-by': 'mesh-demo',
+            'ambient.demo/feature': 'telemetry',
+          },
+        },
+        spec: {
+          tracing: [{ providers: [{ name: 'mesh-tracing' }], randomSamplingPercentage: 100 }],
+        },
       },
-    }, this.kubeContext);
+      this.kubeContext
+    );
 
     this.log('Ambient tracing config applied', 'info');
   }
@@ -501,8 +506,12 @@ export class TelemetryFeature extends AddonFeature {
     this.log('Exporting OTel gateway as global service...', 'info');
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
     await KubernetesHelper.kubectl([
-      ...ctxArgs, 'label', 'service', OTEL_GATEWAY_RELEASE,
-      '-n', this.namespace,
+      ...ctxArgs,
+      'label',
+      'service',
+      OTEL_GATEWAY_RELEASE,
+      '-n',
+      this.namespace,
       'solo.io/service-scope=global',
       '--overwrite',
     ]);
@@ -519,7 +528,12 @@ export class TelemetryFeature extends AddonFeature {
 
     await KubernetesHelper.ensureNamespace(this.namespace, this.spinner, this.kubeContext);
     // Label for Ambient mesh so ztunnel proxies DNS — required to resolve *.mesh.internal hostnames (e.g. otel-gateway)
-    await KubernetesHelper.labelNamespaceForDataplaneMode(this.namespace, 'ambient', this.kubeContext, { quiet: true });
+    await KubernetesHelper.labelNamespaceForDataplaneMode(
+      this.namespace,
+      'ambient',
+      this.kubeContext,
+      { quiet: true }
+    );
     this.log(`Namespace '${this.namespace}' ready`, 'info');
 
     const helmCtxArgs = this.kubeContext ? ['--kube-context', this.kubeContext] : [];
@@ -528,7 +542,8 @@ export class TelemetryFeature extends AddonFeature {
       '{{LOKI_PUSH_URL}}': this.lokiPushUrl,
       '{{CLUSTER_NAME}}': this.clusterName,
     };
-    const fill = (tmpl) => Object.entries(replacements).reduce((s, [k, v]) => s.replaceAll(k, v), tmpl);
+    const fill = tmpl =>
+      Object.entries(replacements).reduce((s, [k, v]) => s.replaceAll(k, v), tmpl);
 
     await this.installOtelChart(
       OTEL_METRICS_RELEASE,
@@ -546,30 +561,53 @@ export class TelemetryFeature extends AddonFeature {
       helmCtxArgs
     );
 
-    await this.installAlloyAgent(fill(readFileSync(join(CONFIG_DIR, 'alloy-agent-values.yaml'), 'utf8')), helmCtxArgs);
+    await this.installAlloyAgent(
+      fill(readFileSync(join(CONFIG_DIR, 'alloy-agent-values.yaml'), 'utf8')),
+      helmCtxArgs
+    );
 
-    this.log('Telemetry agent installed. All signals → east OTel gateway; pod logs → east Loki (Alloy)', 'success');
+    this.log(
+      'Telemetry agent installed. All signals → east OTel gateway; pod logs → east Loki (Alloy)',
+      'success'
+    );
   }
 
   async installOtelChart(release, valuesContent, helmCtxArgs) {
     const valuesFile = join(tmpdir(), `.telemetry-${release}-${process.pid}.yaml`);
     writeFileSync(valuesFile, valuesContent);
     try {
-      await KubernetesHelper.helm([
-        'upgrade', '-i', release, 'opentelemetry-collector',
-        '--repo', OTEL_HELM_REPO,
-        '--version', this.otelChartVersion,
-        '--set', 'mode=deployment',
-        '--set', 'image.repository=ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib',
-        '--set', 'command.name=otelcol-contrib',
-        '-n', this.namespace,
-        '--create-namespace',
-        '-f', valuesFile,
-        ...helmCtxArgs,
-      ], { spinner: this.spinner });
+      await KubernetesHelper.helm(
+        [
+          'upgrade',
+          '-i',
+          release,
+          'opentelemetry-collector',
+          '--repo',
+          OTEL_HELM_REPO,
+          '--version',
+          this.otelChartVersion,
+          '--set',
+          'mode=deployment',
+          '--set',
+          'image.repository=ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib',
+          '--set',
+          'command.name=otelcol-contrib',
+          '-n',
+          this.namespace,
+          '--create-namespace',
+          '-f',
+          valuesFile,
+          ...helmCtxArgs,
+        ],
+        { spinner: this.spinner }
+      );
     } finally {
       if (existsSync(valuesFile)) {
-        try { unlinkSync(valuesFile); } catch { /* best effort */ }
+        try {
+          unlinkSync(valuesFile);
+        } catch {
+          /* best effort */
+        }
       }
     }
   }
@@ -579,19 +617,36 @@ export class TelemetryFeature extends AddonFeature {
     const valuesFile = join(tmpdir(), `.telemetry-alloy-agent-${process.pid}.yaml`);
     writeFileSync(valuesFile, valuesContent);
     try {
-      await CommandRunner.run('helm', ['repo', 'add', 'grafana', 'https://grafana.github.io/helm-charts'], { ignoreError: true });
+      await CommandRunner.run(
+        'helm',
+        ['repo', 'add', 'grafana', 'https://grafana.github.io/helm-charts'],
+        { ignoreError: true }
+      );
       await CommandRunner.run('helm', ['repo', 'update', 'grafana'], { ignoreError: true });
-      await KubernetesHelper.helm([
-        'upgrade', '-i', 'alloy', 'grafana/alloy',
-        '--version', this.alloyVersion,
-        '-n', this.namespace,
-        '--create-namespace',
-        '-f', valuesFile,
-        ...helmCtxArgs,
-      ], { spinner: this.spinner });
+      await KubernetesHelper.helm(
+        [
+          'upgrade',
+          '-i',
+          'alloy',
+          'grafana/alloy',
+          '--version',
+          this.alloyVersion,
+          '-n',
+          this.namespace,
+          '--create-namespace',
+          '-f',
+          valuesFile,
+          ...helmCtxArgs,
+        ],
+        { spinner: this.spinner }
+      );
     } finally {
       if (existsSync(valuesFile)) {
-        try { unlinkSync(valuesFile); } catch { /* best effort */ }
+        try {
+          unlinkSync(valuesFile);
+        } catch {
+          /* best effort */
+        }
       }
     }
     await this.waitForDaemonSet('alloy', 120);
@@ -632,12 +687,18 @@ export class TelemetryFeature extends AddonFeature {
         : []),
       ...(this.storageClass
         ? [
-            '--set', `ingester.persistence.storageClass=${this.storageClass}`,
-            '--set', `ingester.persistence.size=${this.storageSize}`,
-            '--set', `compactor.persistence.storageClass=${this.storageClass}`,
-            '--set', `compactor.persistence.size=${this.storageSize}`,
-            '--set', `metricsGenerator.persistence.storageClass=${this.storageClass}`,
-            '--set', `metricsGenerator.persistence.size=${this.storageSize}`,
+            '--set',
+            `ingester.persistence.storageClass=${this.storageClass}`,
+            '--set',
+            `ingester.persistence.size=${this.storageSize}`,
+            '--set',
+            `compactor.persistence.storageClass=${this.storageClass}`,
+            '--set',
+            `compactor.persistence.size=${this.storageSize}`,
+            '--set',
+            `metricsGenerator.persistence.storageClass=${this.storageClass}`,
+            '--set',
+            `metricsGenerator.persistence.size=${this.storageSize}`,
           ]
         : []),
       ...(this.kubeContext ? ['--kube-context', this.kubeContext] : []),
@@ -689,10 +750,14 @@ export class TelemetryFeature extends AddonFeature {
       ...this.buildNodeSelectorArgs('singleBinary'),
       ...(this.storageClass
         ? [
-            '--set', `minio.storageClass=${this.storageClass}`,
-            '--set', `minio.persistence.size=${this.storageSize}`,
-            '--set', `singleBinary.persistence.storageClass=${this.storageClass}`,
-            '--set', `singleBinary.persistence.size=${this.storageSize}`,
+            '--set',
+            `minio.storageClass=${this.storageClass}`,
+            '--set',
+            `minio.persistence.size=${this.storageSize}`,
+            '--set',
+            `singleBinary.persistence.storageClass=${this.storageClass}`,
+            '--set',
+            `singleBinary.persistence.size=${this.storageSize}`,
           ]
         : []),
       ...(this.kubeContext ? ['--kube-context', this.kubeContext] : []),
@@ -806,11 +871,19 @@ export class TelemetryFeature extends AddonFeature {
       await KubernetesHelper.helm(helmArgs, { spinner: this.spinner });
     } finally {
       if (oidcValuesFile) {
-        try { await unlink(oidcValuesFile); } catch { /* ignore */ }
+        try {
+          await unlink(oidcValuesFile);
+        } catch {
+          /* ignore */
+        }
       }
     }
 
-    await KubernetesHelper.assertHelmDeployed('kube-prometheus-stack', this.namespace, this.kubeContext);
+    await KubernetesHelper.assertHelmDeployed(
+      'kube-prometheus-stack',
+      this.namespace,
+      this.kubeContext
+    );
 
     await this.waitForDeployment('kube-prometheus-stack-operator', 120);
     await this.waitForDeployment('kube-prometheus-stack-grafana', 120);
@@ -833,21 +906,24 @@ export class TelemetryFeature extends AddonFeature {
     const template = await readFile(join(CONFIG_DIR, 'grafana-datasources.yaml'), 'utf8');
     const content = template.replaceAll('{{TELEMETRY_NAMESPACE}}', this.namespace);
 
-    await this.applyResource({
-      apiVersion: 'v1',
-      kind: 'ConfigMap',
-      metadata: {
-        name: 'grafana-datasources',
-        namespace: this.namespace,
-        labels: {
-          grafana_datasource: '1',
-          'app.kubernetes.io/managed-by': 'mesh-demo',
+    await this.applyResource(
+      {
+        apiVersion: 'v1',
+        kind: 'ConfigMap',
+        metadata: {
+          name: 'grafana-datasources',
+          namespace: this.namespace,
+          labels: {
+            grafana_datasource: '1',
+            'app.kubernetes.io/managed-by': 'mesh-demo',
+          },
+        },
+        data: {
+          'datasources.yaml': content,
         },
       },
-      data: {
-        'datasources.yaml': content,
-      },
-    }, this.kubeContext);
+      this.kubeContext
+    );
 
     this.log('Grafana datasources installed', 'info');
   }
@@ -950,21 +1026,24 @@ export class TelemetryFeature extends AddonFeature {
    * kube-prometheus-stack's Grafana sidecar watches for label grafana_dashboard=1.
    */
   async createDashboardConfigMap(name, jsonContent) {
-    await this.applyResource({
-      apiVersion: 'v1',
-      kind: 'ConfigMap',
-      metadata: {
-        name: `grafana-dashboard-${name}`,
-        namespace: this.namespace,
-        labels: {
-          grafana_dashboard: '1',
-          'app.kubernetes.io/managed-by': 'mesh-demo',
+    await this.applyResource(
+      {
+        apiVersion: 'v1',
+        kind: 'ConfigMap',
+        metadata: {
+          name: `grafana-dashboard-${name}`,
+          namespace: this.namespace,
+          labels: {
+            grafana_dashboard: '1',
+            'app.kubernetes.io/managed-by': 'mesh-demo',
+          },
+        },
+        data: {
+          [`${name}.json`]: this.normalizeDashboardJson(jsonContent),
         },
       },
-      data: {
-        [`${name}.json`]: this.normalizeDashboardJson(jsonContent),
-      },
-    }, this.kubeContext);
+      this.kubeContext
+    );
   }
 
   async cleanup() {
@@ -993,7 +1072,12 @@ export class TelemetryFeature extends AddonFeature {
       }
     }
     for (const name of [...new Set(dashboardNames)]) {
-      await this.deleteResource('configmap', `grafana-dashboard-${name}`, this.namespace, this.kubeContext);
+      await this.deleteResource(
+        'configmap',
+        `grafana-dashboard-${name}`,
+        this.namespace,
+        this.kubeContext
+      );
     }
 
     // Remove Grafana HTTPS Gateway resources
@@ -1010,12 +1094,18 @@ export class TelemetryFeature extends AddonFeature {
       for (const svc of [OTEL_GATEWAY_RELEASE]) {
         try {
           await KubernetesHelper.kubectl([
-            ...ctxArgs, 'label', 'service', svc,
-            '-n', this.namespace,
+            ...ctxArgs,
+            'label',
+            'service',
+            svc,
+            '-n',
+            this.namespace,
             'solo.io/service-scope-',
             '--ignore-not-found=true',
           ]);
-        } catch { /* best effort */ }
+        } catch {
+          /* best effort */
+        }
       }
     }
 
@@ -1024,12 +1114,23 @@ export class TelemetryFeature extends AddonFeature {
     const releasesToUninstall = ['alloy', 'loki', 'tempo', 'kube-prometheus-stack'];
 
     if (this.shouldInstallOtelCollectors) {
-      releasesToUninstall.push(OTEL_GATEWAY_RELEASE, OTEL_TRACES_RELEASE, OTEL_LOGS_RELEASE, OTEL_METRICS_RELEASE);
+      releasesToUninstall.push(
+        OTEL_GATEWAY_RELEASE,
+        OTEL_TRACES_RELEASE,
+        OTEL_LOGS_RELEASE,
+        OTEL_METRICS_RELEASE
+      );
     }
 
     for (const release of releasesToUninstall) {
       try {
-        await CommandRunner.run('helm', [...helmCtxArgs, 'uninstall', release, '-n', this.namespace]);
+        await CommandRunner.run('helm', [
+          ...helmCtxArgs,
+          'uninstall',
+          release,
+          '-n',
+          this.namespace,
+        ]);
       } catch (error) {
         if (!/not found|no deployed releases/i.test(error.message)) {
           this.log(`helm uninstall ${release}: ${error.message}`, 'warn');
@@ -1038,7 +1139,13 @@ export class TelemetryFeature extends AddonFeature {
     }
 
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
-    await KubernetesHelper.kubectl([...ctxArgs, 'delete', 'namespace', this.namespace, '--ignore-not-found=true']);
+    await KubernetesHelper.kubectl([
+      ...ctxArgs,
+      'delete',
+      'namespace',
+      this.namespace,
+      '--ignore-not-found=true',
+    ]);
 
     this.log('Telemetry stack cleaned up', 'success');
   }
@@ -1049,7 +1156,13 @@ export class TelemetryFeature extends AddonFeature {
     const helmCtxArgs = this.kubeContext ? ['--kube-context', this.kubeContext] : [];
     for (const release of ['alloy', OTEL_METRICS_RELEASE, OTEL_LOGS_RELEASE, OTEL_TRACES_RELEASE]) {
       try {
-        await CommandRunner.run('helm', [...helmCtxArgs, 'uninstall', release, '-n', this.namespace]);
+        await CommandRunner.run('helm', [
+          ...helmCtxArgs,
+          'uninstall',
+          release,
+          '-n',
+          this.namespace,
+        ]);
       } catch (error) {
         if (!/not found|no deployed releases/i.test(error.message)) {
           this.log(`helm uninstall ${release}: ${error.message}`, 'warn');
@@ -1058,14 +1171,26 @@ export class TelemetryFeature extends AddonFeature {
     }
 
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
-    await KubernetesHelper.kubectl([...ctxArgs, 'delete', 'namespace', this.namespace, '--ignore-not-found=true']);
+    await KubernetesHelper.kubectl([
+      ...ctxArgs,
+      'delete',
+      'namespace',
+      this.namespace,
+      '--ignore-not-found=true',
+    ]);
 
     this.log('Telemetry agent cleaned up', 'success');
   }
 
   async waitForDeployment(name, timeout = 120) {
     try {
-      await KubernetesHelper.waitForDeployment(this.namespace, name, timeout, this.spinner, this.kubeContext);
+      await KubernetesHelper.waitForDeployment(
+        this.namespace,
+        name,
+        timeout,
+        this.spinner,
+        this.kubeContext
+      );
     } catch (_error) {
       this.log(`Deployment ${name} may take longer to be ready`, 'warn');
     }
@@ -1095,7 +1220,15 @@ export class TelemetryFeature extends AddonFeature {
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
     try {
       await KubernetesHelper.kubectl(
-        [...ctxArgs, 'rollout', 'status', `daemonset/${name}`, '-n', this.namespace, `--timeout=${timeout}s`],
+        [
+          ...ctxArgs,
+          'rollout',
+          'status',
+          `daemonset/${name}`,
+          '-n',
+          this.namespace,
+          `--timeout=${timeout}s`,
+        ],
         { spinner: this.spinner }
       );
     } catch (_error) {

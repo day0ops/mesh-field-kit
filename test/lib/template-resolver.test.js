@@ -65,7 +65,9 @@ test('resolveString resolves {{infra.vms.vm1.publicIp}} and {{infra.vms.vm1.sshP
     mockInfraStateWithVms
   );
   expect(TemplateResolver.resolveString('{{infra.vms.vm1.publicIp}}', ctx)).toBe('1.2.3.4');
-  expect(TemplateResolver.resolveString('{{infra.vms.vm1.sshPrivateKeyPath}}', ctx)).toBe('/tmp/vm1-key.pem');
+  expect(TemplateResolver.resolveString('{{infra.vms.vm1.sshPrivateKeyPath}}', ctx)).toBe(
+    '/tmp/vm1-key.pem'
+  );
 });
 
 test('buildContext with infraState lacking vms exposes an empty infra.vms', () => {
@@ -78,7 +80,10 @@ test('buildContext with infraState lacking vms exposes an empty infra.vms', () =
 });
 
 test('buildContext without infraState has no infra key', () => {
-  const ctx = TemplateResolver.buildContext({ name: 'east', context: 'ctx', role: 'workload' }, mockEnvironment);
+  const ctx = TemplateResolver.buildContext(
+    { name: 'east', context: 'ctx', role: 'workload' },
+    mockEnvironment
+  );
   expect(ctx.infra).toBeUndefined();
 });
 
@@ -109,7 +114,10 @@ test('resolveString resolves {{infra.clusters.east.network.privateSubnetIds}} as
     mockEnvironment,
     mockInfraState
   );
-  const result = TemplateResolver.resolveString('{{infra.clusters.east.network.privateSubnetIds}}', ctx);
+  const result = TemplateResolver.resolveString(
+    '{{infra.clusters.east.network.privateSubnetIds}}',
+    ctx
+  );
   expect(result).toEqual(['subnet-0def456', 'subnet-0ghi789']);
 });
 
@@ -119,7 +127,10 @@ test('resolveString resolves {{infra.clusters.east.network.privateSubnetIds[0]}}
     mockEnvironment,
     mockInfraState
   );
-  const result = TemplateResolver.resolveString('{{infra.clusters.east.network.privateSubnetIds[0]}}', ctx);
+  const result = TemplateResolver.resolveString(
+    '{{infra.clusters.east.network.privateSubnetIds[0]}}',
+    ctx
+  );
   expect(result).toBe('subnet-0def456');
 });
 

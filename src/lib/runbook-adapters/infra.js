@@ -5,10 +5,18 @@ export class InfraAdapter {
     const provider = selection?.infraProfile?.spec?.provider || 'eks';
     const isAws = provider.startsWith('eks');
     const vars = [
-      { name: 'ENTERPRISE_ISTIO_LICENSE', description: 'Solo.io Istio enterprise license key', required: true },
+      {
+        name: 'ENTERPRISE_ISTIO_LICENSE',
+        description: 'Solo.io Istio enterprise license key',
+        required: true,
+      },
     ];
     if (isAws) {
-      vars.push({ name: 'AWS_PROFILE', description: 'AWS CLI profile configured for the target account', required: true });
+      vars.push({
+        name: 'AWS_PROFILE',
+        description: 'AWS CLI profile configured for the target account',
+        required: true,
+      });
     }
     return vars;
   }
@@ -20,9 +28,17 @@ export class InfraAdapter {
     const isAws = provider.startsWith('eks');
     const exports = [];
     if (isAws) {
-      exports.push({ name: 'AWS_REGION', value: environment.spec.aws?.region || 'us-east-1', comment: 'AWS region for EKS clusters' });
+      exports.push({
+        name: 'AWS_REGION',
+        value: environment.spec.aws?.region || 'us-east-1',
+        comment: 'AWS region for EKS clusters',
+      });
     }
-    exports.push({ name: 'INFRA_NAME', value: infraProfile.spec.name, comment: 'Terraform infrastructure name' });
+    exports.push({
+      name: 'INFRA_NAME',
+      value: infraProfile.spec.name,
+      comment: 'Terraform infrastructure name',
+    });
     return exports;
   }
 
@@ -109,7 +125,8 @@ Verify access:
 az account show
 \`\`\``;
     } else {
-      authSection = '### Cloud Credentials\n\nAuthenticate with your cloud provider before proceeding.';
+      authSection =
+        '### Cloud Credentials\n\nAuthenticate with your cloud provider before proceeding.';
     }
 
     return `## Lab ${labNum} — Cloud Ecosystem Authentication
@@ -130,11 +147,13 @@ ${authSection}`;
     const allClusterAddons = (profile.spec.addons?.clusters || []).flatMap(c => c.addons || []);
     const hasDns = allClusterAddons.some(a => a.name === 'external-dns');
     const dns = environment.spec.dns || {};
-    const dnsVars = hasDns ? `
+    const dnsVars = hasDns
+      ? `
 enable_dns          = true
 dns_parent_zone_id  = "${dns.parentZone?.hostedZoneId || '<hosted-zone-id>'}"
 dns_parent_domain   = "${dns.parentZone?.domain || '<parent-domain>'}"
-dns_child_zone_name = "${dns.childZone || '<child-zone>'}"` : '';
+dns_child_zone_name = "${dns.childZone || '<child-zone>'}"`
+      : '';
 
     const tfvars = isAws
       ? `owner               = "<your-name>"
@@ -149,7 +168,10 @@ eks_max_nodes       = ${(settings.nodes || 2) + 2}${dnsVars}`
       : `# Fill in your provider-specific terraform.tfvars`;
 
     const contextExports = clusters
-      .map((c, i) => `export ${c.name.toUpperCase()}_CONTEXT="$(terraform -chdir=${envDir} output -json eks_kubeconfig_context | jq -r '.[${i}]')"`)
+      .map(
+        (c, i) =>
+          `export ${c.name.toUpperCase()}_CONTEXT="$(terraform -chdir=${envDir} output -json eks_kubeconfig_context | jq -r '.[${i}]')"`
+      )
       .join('\n');
 
     const nextLab = labNum + 1;

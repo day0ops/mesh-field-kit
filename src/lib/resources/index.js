@@ -33,13 +33,15 @@ export function buildRemotePeerGateway({
   zone,
   preferredServiceType,
 }) {
-  const gateway = yaml.load(renderTemplate('gateway-remote-peer.yaml', {
-    peerName,
-    namespace,
-    address,
-    addressType,
-    trustDomain: trustDomain || peerName,
-  }));
+  const gateway = yaml.load(
+    renderTemplate('gateway-remote-peer.yaml', {
+      peerName,
+      namespace,
+      address,
+      addressType,
+      trustDomain: trustDomain || peerName,
+    })
+  );
 
   if (region) {
     gateway.metadata.labels['topology.kubernetes.io/region'] = region;
@@ -48,7 +50,8 @@ export function buildRemotePeerGateway({
     gateway.metadata.labels['topology.kubernetes.io/zone'] = zone;
   }
   if (preferredServiceType) {
-    gateway.metadata.annotations['peering.solo.io/preferred-data-plane-service-type'] = preferredServiceType;
+    gateway.metadata.annotations['peering.solo.io/preferred-data-plane-service-type'] =
+      preferredServiceType;
   }
 
   return gateway;

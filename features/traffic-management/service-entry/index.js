@@ -45,9 +45,10 @@ export class ServiceEntryFeature extends Feature {
     const namespace = this.config.namespace;
     const entryName = this.config.entryName;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying ServiceEntry feature: ${entryName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -89,9 +90,10 @@ export class ServiceEntryFeature extends Feature {
     const entryName = this.config.entryName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up ServiceEntry feature: ${entryName}`, 'info');
 

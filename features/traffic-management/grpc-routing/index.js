@@ -37,9 +37,10 @@ export class GrpcRoutingFeature extends Feature {
     const namespace = this.config.namespace;
     const routeName = this.config.routeName;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying GrpcRouting feature: ${routeName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -53,10 +54,12 @@ export class GrpcRoutingFeature extends Feature {
       parentRefs = this.config.parentRefs;
     } else {
       const gatewayNamespace = this.config.gatewayNamespace || namespace;
-      parentRefs = [{
-        name: this.config.gatewayName,
-        namespace: gatewayNamespace !== namespace ? gatewayNamespace : undefined,
-      }];
+      parentRefs = [
+        {
+          name: this.config.gatewayName,
+          namespace: gatewayNamespace !== namespace ? gatewayNamespace : undefined,
+        },
+      ];
     }
 
     const rules = this.config.rules.map(rule => {
@@ -95,9 +98,10 @@ export class GrpcRoutingFeature extends Feature {
     const routeName = this.config.routeName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up GrpcRouting feature: ${routeName}`, 'info');
 

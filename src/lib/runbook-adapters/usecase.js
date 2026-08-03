@@ -12,8 +12,12 @@ const FEATURE_BUILDERS = {
 };
 
 export class UseCaseAdapter {
-  envVars(_selection) { return []; }
-  envExports(_selection) { return []; }
+  envVars(_selection) {
+    return [];
+  }
+  envExports(_selection) {
+    return [];
+  }
 
   async generate(labNum, selection) {
     const { usecases = [] } = selection;
@@ -46,7 +50,12 @@ export class UseCaseAdapter {
 
     if (usecase.spec.diagram) {
       lines.push('```mermaid');
-      lines.push(usecase.spec.diagram.replace(/\\n/g, '<br>').replace(/\s*·\s*/g, '<br>').trim());
+      lines.push(
+        usecase.spec.diagram
+          .replace(/\\n/g, '<br>')
+          .replace(/\s*·\s*/g, '<br>')
+          .trim()
+      );
       lines.push('```');
       lines.push('');
     }
@@ -90,7 +99,10 @@ export class UseCaseAdapter {
         }
 
         if (FeatureClass?.buildRunbook) {
-          const resources = FeatureClass.buildRunbook(_resolveEnvTemplates(feature.config, options.env), options);
+          const resources = FeatureClass.buildRunbook(
+            _resolveEnvTemplates(feature.config, options.env),
+            options
+          );
           const targets = clusterNames.length ? clusterNames : [null];
           for (const clusterName of targets) {
             const ctxFlag = clusterName ? `--context $${clusterName.toUpperCase()}_CONTEXT ` : '';
@@ -116,7 +128,9 @@ export class UseCaseAdapter {
     return lines.join('\n');
   }
 
-  cleanup(_selection) { return ''; }
+  cleanup(_selection) {
+    return '';
+  }
 }
 
 function _runbookOptions(selection) {

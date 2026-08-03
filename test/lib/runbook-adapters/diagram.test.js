@@ -21,7 +21,11 @@ const baseSelection = {
           {
             name: 'east',
             addons: [
-              { name: 'kgateway', description: 'Gateway API ingress', config: { enterprise: true } },
+              {
+                name: 'kgateway',
+                description: 'Gateway API ingress',
+                config: { enterprise: true },
+              },
               { name: 'keycloak', description: 'OIDC provider' },
               { name: 'telemetry', config: {} },
               { name: 'solo-ui', mode: 'management' },
@@ -30,7 +34,11 @@ const baseSelection = {
           {
             name: 'west',
             addons: [
-              { name: 'kgateway', description: 'Gateway API ingress', config: { enterprise: true } },
+              {
+                name: 'kgateway',
+                description: 'Gateway API ingress',
+                config: { enterprise: true },
+              },
               { name: 'telemetry', config: { mode: 'agent' } },
               { name: 'solo-ui', mode: 'relay' },
             ],
@@ -78,7 +86,6 @@ test('DiagramAdapter topology diagram includes addon nodes for each cluster', ()
   expect(md).toContain('kgateway');
   expect(md).toContain('keycloak');
 });
-
 
 test('DiagramAdapter.generate includes component descriptions section', () => {
   const adapter = new DiagramAdapter();

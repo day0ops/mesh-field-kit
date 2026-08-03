@@ -39,9 +39,10 @@ export class HeaderRoutingFeature extends Feature {
     const namespace = this.config.namespace;
     const routeName = this.config.routeName;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying HeaderRouting feature: ${routeName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -54,17 +55,21 @@ export class HeaderRoutingFeature extends Feature {
     if (this.config.parentRefs) {
       parentRefs = this.config.parentRefs;
     } else if (this.config.waypointName) {
-      parentRefs = [{
-        name: this.config.waypointName,
-        kind: 'Gateway',
-        group: 'gateway.networking.k8s.io',
-      }];
+      parentRefs = [
+        {
+          name: this.config.waypointName,
+          kind: 'Gateway',
+          group: 'gateway.networking.k8s.io',
+        },
+      ];
     } else {
-      parentRefs = [{
-        name: 'waypoint',
-        kind: 'Gateway',
-        group: 'gateway.networking.k8s.io',
-      }];
+      parentRefs = [
+        {
+          name: 'waypoint',
+          kind: 'Gateway',
+          group: 'gateway.networking.k8s.io',
+        },
+      ];
     }
 
     const rules = this.config.rules.map(rule => {
@@ -102,9 +107,10 @@ export class HeaderRoutingFeature extends Feature {
     const routeName = this.config.routeName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up HeaderRouting feature: ${routeName}`, 'info');
 

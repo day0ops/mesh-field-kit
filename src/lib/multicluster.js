@@ -15,10 +15,7 @@ import { buildRemotePeerGateway } from './resources/index.js';
 import yaml from 'js-yaml';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import {
-  writeFileSync, unlinkSync, existsSync,
-  mkdirSync, readFileSync,
-} from 'fs';
+import { writeFileSync, unlinkSync, existsSync, mkdirSync, readFileSync } from 'fs';
 
 // ── CertificateManager ────────────────────────────────────────────────────────
 
@@ -108,7 +105,7 @@ export class CertificateManager {
   async #deploySelfSigned(clusters) {
     mkdirSync(CERTS_WORK_DIR, { recursive: true });
 
-    const rootKeyPath  = join(CERTS_WORK_DIR, 'root-key.pem');
+    const rootKeyPath = join(CERTS_WORK_DIR, 'root-key.pem');
     const rootCertPath = join(CERTS_WORK_DIR, 'root-cert.pem');
 
     if (!existsSync(rootKeyPath)) {
@@ -116,7 +113,7 @@ export class CertificateManager {
       await CommandRunner.exec(`openssl genrsa -out "${rootKeyPath}" 4096`);
       await CommandRunner.exec(
         `openssl req -new -x509 -days 3650 -key "${rootKeyPath}" -sha256 ` +
-        `-out "${rootCertPath}" -subj "/O=Istio/CN=Root CA"`
+          `-out "${rootCertPath}" -subj "/O=Istio/CN=Root CA"`
       );
     } else {
       Logger.info('Root CA already exists, reusing');
@@ -126,33 +123,35 @@ export class CertificateManager {
       const clusterDir = join(CERTS_WORK_DIR, cluster.name);
       mkdirSync(clusterDir, { recursive: true });
 
-      const caKeyPath       = join(clusterDir, 'ca-key.pem');
-      const caCsrPath       = join(clusterDir, 'ca-csr.pem');
-      const caCertPath      = join(clusterDir, 'ca-cert.pem');
-      const certChainPath   = join(clusterDir, 'cert-chain.pem');
+      const caKeyPath = join(clusterDir, 'ca-key.pem');
+      const caCsrPath = join(clusterDir, 'ca-csr.pem');
+      const caCertPath = join(clusterDir, 'ca-cert.pem');
+      const certChainPath = join(clusterDir, 'cert-chain.pem');
       const clusterRootPath = join(clusterDir, 'root-cert.pem');
-      const extFile         = join(clusterDir, 'ca-ext.cnf');
+      const extFile = join(clusterDir, 'ca-ext.cnf');
 
       Logger.info(`Generating intermediate CA for ${cluster.name}...`);
 
-      writeFileSync(extFile,
+      writeFileSync(
+        extFile,
         'basicConstraints=CA:true,pathlen:0\n' +
-        'subjectKeyIdentifier=hash\n' +
-        'authorityKeyIdentifier=keyid,issuer\n'
+          'subjectKeyIdentifier=hash\n' +
+          'authorityKeyIdentifier=keyid,issuer\n'
       );
 
       await CommandRunner.exec(`openssl genrsa -out "${caKeyPath}" 4096`);
       await CommandRunner.exec(
         `openssl req -new -sha256 -key "${caKeyPath}" -out "${caCsrPath}" ` +
-        `-subj "/O=Istio/CN=Intermediate CA - ${cluster.name}"`
+          `-subj "/O=Istio/CN=Intermediate CA - ${cluster.name}"`
       );
       await CommandRunner.exec(
         `openssl x509 -req -days 3650 -sha256 ` +
-        `-CA "${rootCertPath}" -CAkey "${rootKeyPath}" -CAcreateserial ` +
-        `-in "${caCsrPath}" -out "${caCertPath}" -extfile "${extFile}"`
+          `-CA "${rootCertPath}" -CAkey "${rootKeyPath}" -CAcreateserial ` +
+          `-in "${caCsrPath}" -out "${caCertPath}" -extfile "${extFile}"`
       );
 
-      writeFileSync(certChainPath,
+      writeFileSync(
+        certChainPath,
         readFileSync(caCertPath, 'utf8') + readFileSync(rootCertPath, 'utf8')
       );
       writeFileSync(clusterRootPath, readFileSync(rootCertPath, 'utf8'));
@@ -167,10 +166,10 @@ export class CertificateManager {
       );
       await CommandRunner.exec(
         `kubectl ${contextFlag} create secret generic cacerts -n istio-system ` +
-        `--from-file="${caCertPath}" ` +
-        `--from-file="${caKeyPath}" ` +
-        `--from-file="${clusterRootPath}" ` +
-        `--from-file="${certChainPath}"`
+          `--from-file="${caCertPath}" ` +
+          `--from-file="${caKeyPath}" ` +
+          `--from-file="${clusterRootPath}" ` +
+          `--from-file="${certChainPath}"`
       );
 
       Logger.success(`cacerts secret installed on ${cluster.name}`);
@@ -207,14 +206,13 @@ export class CertificateManager {
 
     Logger.info('Generating shared root CA key pair...');
 
-    await CommandRunner.exec(
-      'openssl genrsa -out /tmp/mesh-root-ca-key.pem 4096',
-      { ignoreError: false }
-    );
+    await CommandRunner.exec('openssl genrsa -out /tmp/mesh-root-ca-key.pem 4096', {
+      ignoreError: false,
+    });
     await CommandRunner.exec(
       'openssl req -new -x509 -key /tmp/mesh-root-ca-key.pem ' +
-      '-out /tmp/mesh-root-ca-cert.pem -days 3650 ' +
-      '-subj "/O=Istio/CN=Root CA"',
+        '-out /tmp/mesh-root-ca-cert.pem -days 3650 ' +
+        '-subj "/O=Istio/CN=Root CA"',
       { ignoreError: false }
     );
 
@@ -231,7 +229,7 @@ export class CertificateManager {
       );
       await CommandRunner.exec(
         `kubectl ${contextFlag} create secret tls istio-root-ca-secret -n istio-system ` +
-        `--cert=/tmp/mesh-root-ca-cert.pem --key=/tmp/mesh-root-ca-key.pem`
+          `--cert=/tmp/mesh-root-ca-cert.pem --key=/tmp/mesh-root-ca-key.pem`
       );
 
       Logger.info(`Creating cert-manager resources on ${cluster.name}...`);
@@ -275,7 +273,9 @@ export class CertificateManager {
     try {
       unlinkSync('/tmp/mesh-root-ca-key.pem');
       unlinkSync('/tmp/mesh-root-ca-cert.pem');
-    } catch { /* best effort */ }
+    } catch {
+      /* best effort */
+    }
 
     Logger.success('cert-manager certificates generated and deployed');
   }
@@ -287,7 +287,11 @@ export class CertificateManager {
     try {
       await CommandRunner.exec(`kubectl ${contextFlag} apply -f ${tempFile}`);
     } finally {
-      try { unlinkSync(tempFile); } catch { /* best effort */ }
+      try {
+        unlinkSync(tempFile);
+      } catch {
+        /* best effort */
+      }
     }
   }
 
@@ -329,7 +333,9 @@ export class EastWestGateway {
     const method = this.config.method || 'istioctl';
     const clusters = this.config.clusters;
 
-    Logger.info(`Deploying east-west gateways (method: ${method}) on ${clusters.length} cluster(s)`);
+    Logger.info(
+      `Deploying east-west gateways (method: ${method}) on ${clusters.length} cluster(s)`
+    );
 
     for (const cluster of clusters) {
       const contextFlag = cluster.context ? `--context ${cluster.context}` : '';
@@ -392,8 +398,10 @@ export class EastWestGateway {
     const helmRepo = this.config.helmRepo || process.env.HELM_REPO;
     const istioImage = this.config.istioImage || process.env.ISTIO_IMAGE;
 
-    if (!helmRepo) throw new Error('helmRepo is required for Helm-based east-west gateway deployment');
-    if (!istioImage) throw new Error('istioImage is required for Helm-based east-west gateway deployment');
+    if (!helmRepo)
+      throw new Error('helmRepo is required for Helm-based east-west gateway deployment');
+    if (!istioImage)
+      throw new Error('istioImage is required for Helm-based east-west gateway deployment');
 
     const flags = {
       kubectl: cluster.context ? `--context=${cluster.context}` : '',
@@ -422,7 +430,9 @@ export class EastWestGateway {
             Logger.success(`East-west gateway pod is running on ${clusterName}`);
             return;
           }
-        } catch { /* continue polling */ }
+        } catch {
+          /* continue polling */
+        }
       }
 
       await new Promise(resolve => setTimeout(resolve, 5000));
@@ -439,9 +449,11 @@ function deepMerge(target, source) {
   if (!target) return source;
   const result = { ...target };
   for (const key of Object.keys(source)) {
-    const s = source[key], t = result[key];
+    const s = source[key],
+      t = result[key];
     if (Array.isArray(s)) result[key] = [...s];
-    else if (s && typeof s === 'object') result[key] = deepMerge(t && typeof t === 'object' ? t : {}, s);
+    else if (s && typeof s === 'object')
+      result[key] = deepMerge(t && typeof t === 'object' ? t : {}, s);
     else result[key] = s;
   }
   return result;
@@ -579,7 +591,9 @@ export class ClusterLinker {
     if (stderr) for (const line of stderr.split('\n')) box.writeLine(line);
     if (!stdout && !stderr) box.writeLine('(no output)');
     box.close();
-    Logger.warn('Multicluster check completed with warnings after all retries — review output above');
+    Logger.warn(
+      'Multicluster check completed with warnings after all retries — review output above'
+    );
   }
 
   // ── Discovery ──────────────────────────────────────────────────────────────
@@ -588,15 +602,17 @@ export class ClusterLinker {
     const { clusters } = this.config;
     Logger.info('Discovering east-west gateway peer info...');
 
-    const entries = await Promise.all(clusters.map(async cluster => {
-      const info = await this.#discoverPeerInfo(cluster);
-      Logger.info(
-        `  ${cluster.name}: ${info.address} (${info.addressType}, ${info.preferredDataplaneServiceType})` +
-        (info.region ? `, region=${info.region}` : '') +
-        (info.zone ? `, zone=${info.zone}` : '')
-      );
-      return [cluster.name, info];
-    }));
+    const entries = await Promise.all(
+      clusters.map(async cluster => {
+        const info = await this.#discoverPeerInfo(cluster);
+        Logger.info(
+          `  ${cluster.name}: ${info.address} (${info.addressType}, ${info.preferredDataplaneServiceType})` +
+            (info.region ? `, region=${info.region}` : '') +
+            (info.zone ? `, zone=${info.zone}` : '')
+        );
+        return [cluster.name, info];
+      })
+    );
 
     return Object.fromEntries(entries);
   }
@@ -620,8 +636,10 @@ export class ClusterLinker {
 
     const addressType = this.#detectAddressType(address);
 
-    const region = cluster.region ?? await this.#detectNodeLabel(cluster, 'topology.kubernetes.io/region');
-    const zone   = cluster.zone   ?? await this.#detectNodeLabel(cluster, 'topology.kubernetes.io/zone');
+    const region =
+      cluster.region ?? (await this.#detectNodeLabel(cluster, 'topology.kubernetes.io/region'));
+    const zone =
+      cluster.zone ?? (await this.#detectNodeLabel(cluster, 'topology.kubernetes.io/zone'));
 
     return { address, addressType, preferredDataplaneServiceType, region, zone };
   }
@@ -632,7 +650,7 @@ export class ClusterLinker {
     for (let i = 0; i < EW_GATEWAY_POLL_MAX; i++) {
       const result = await CommandRunner.exec(
         `kubectl ${ctx} get svc ${svc} -n ${ns}` +
-        ` -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}"`,
+          ` -o jsonpath="{.status.loadBalancer.ingress[0]['hostname','ip']}"`,
         { ignoreError: true }
       );
       const addr = result.stdout?.trim();
@@ -650,7 +668,7 @@ export class ClusterLinker {
 
     const nodeResult = await CommandRunner.exec(
       `kubectl ${ctx} get nodes -o jsonpath=` +
-      `"{.items[0].status.addresses[?(@.type=='ExternalIP')].address}"`,
+        `"{.items[0].status.addresses[?(@.type=='ExternalIP')].address}"`,
       { ignoreError: true }
     );
     const externalIP = nodeResult.stdout?.trim();
@@ -658,7 +676,7 @@ export class ClusterLinker {
 
     const internalResult = await CommandRunner.exec(
       `kubectl ${ctx} get nodes -o jsonpath=` +
-      `"{.items[0].status.addresses[?(@.type=='InternalIP')].address}"`,
+        `"{.items[0].status.addresses[?(@.type=='InternalIP')].address}"`,
       { ignoreError: true }
     );
     const internalIP = internalResult.stdout?.trim();
@@ -692,9 +710,9 @@ export class ClusterLinker {
     } = this.config;
 
     // trustDomain may contain {{ cluster.name }} template — resolve per-peer
-    const trustDomainPattern   = peeringRemoteValues.trustDomain || 'cluster.local';
-    const addressTypeOverride  = peeringRemoteValues.addressType || null;
-    const serviceTypeOverride  = peeringRemoteValues.preferredDataplaneServiceType || null;
+    const trustDomainPattern = peeringRemoteValues.trustDomain || 'cluster.local';
+    const addressTypeOverride = peeringRemoteValues.addressType || null;
+    const serviceTypeOverride = peeringRemoteValues.preferredDataplaneServiceType || null;
 
     for (const cluster of clusters) {
       const peers = clusters.filter(c => c.name !== cluster.name);
@@ -730,16 +748,12 @@ export class ClusterLinker {
   }
 
   async #linkViaDeclarative(peerInfoMap) {
-    const {
-      clusters,
-      namespace = 'istio-eastwest',
-      peeringRemoteValues = {},
-    } = this.config;
+    const { clusters, namespace = 'istio-eastwest', peeringRemoteValues = {} } = this.config;
 
     // trustDomain may contain {{ cluster.name }} template — resolve per-peer
-    const trustDomainPattern     = peeringRemoteValues.trustDomain || null;
-    const addressTypeOverride    = peeringRemoteValues.addressType || null;
-    const serviceTypeOverride    = peeringRemoteValues.preferredDataplaneServiceType || null;
+    const trustDomainPattern = peeringRemoteValues.trustDomain || null;
+    const addressTypeOverride = peeringRemoteValues.addressType || null;
+    const serviceTypeOverride = peeringRemoteValues.preferredDataplaneServiceType || null;
 
     for (const cluster of clusters) {
       const peers = clusters.filter(c => c.name !== cluster.name);
@@ -764,14 +778,22 @@ export class ClusterLinker {
         });
 
         const gwYaml = yaml.dump(gateway, { lineWidth: -1 });
-        const tmpFile = join(tmpdir(), `.mesh-gateway-${cluster.name}-${peer.name}-${process.pid}.yaml`);
+        const tmpFile = join(
+          tmpdir(),
+          `.mesh-gateway-${cluster.name}-${peer.name}-${process.pid}.yaml`
+        );
         writeFileSync(tmpFile, gwYaml);
 
         try {
           Logger.info(`Applying istio-remote-peer-${peer.name} on ${cluster.name}...`);
           await CommandRunner.exec(`kubectl ${ctx} apply -f ${tmpFile}`, { ignoreError: false });
         } finally {
-          if (existsSync(tmpFile)) try { unlinkSync(tmpFile); } catch { /* best effort */ }
+          if (existsSync(tmpFile))
+            try {
+              unlinkSync(tmpFile);
+            } catch {
+              /* best effort */
+            }
         }
       }
     }
@@ -785,7 +807,6 @@ export class ClusterLinker {
  * Used by both helm and operator install paths.
  */
 export class PeeringInstaller {
-
   /**
    * Deploy east-west gateway (peering-eastwest chart) via Helm.
    * Profile component values must already be template-resolved by the caller.
@@ -821,12 +842,12 @@ export class PeeringInstaller {
 
       const result = await CommandRunner.exec(
         `helm ${flags.helm} upgrade --install peering-eastwest ` +
-        `oci://${helmRepo}/peering ` +
-        `--version ${version} ` +
-        `--namespace istio-eastwest ` +
-        `--create-namespace ` +
-        `--wait --timeout 5m ` +
-        `-f ${tempFile}`,
+          `oci://${helmRepo}/peering ` +
+          `--version ${version} ` +
+          `--namespace istio-eastwest ` +
+          `--create-namespace ` +
+          `--wait --timeout 5m ` +
+          `-f ${tempFile}`,
         { ignoreError: true }
       );
       if (result.exitCode) {
@@ -834,7 +855,11 @@ export class PeeringInstaller {
       }
       log.logSuccess(`peering-eastwest gateway deployed on ${cluster.name}`);
     } finally {
-      try { unlinkSync(tempFile); } catch { /* best effort */ }
+      try {
+        unlinkSync(tempFile);
+      } catch {
+        /* best effort */
+      }
     }
   }
 
@@ -859,14 +884,19 @@ export class PeeringInstaller {
       log.logInfo(`Installing peering-remote on ${cluster.name}...`);
       await CommandRunner.exec(
         `helm ${flags.helm} upgrade --install peering-remote ` +
-        `oci://${helmRepo}/peering ` +
-        `--version ${version} --namespace ${namespace} --create-namespace ` +
-        `--wait --timeout 5m -f ${valuesFile}`,
+          `oci://${helmRepo}/peering ` +
+          `--version ${version} --namespace ${namespace} --create-namespace ` +
+          `--wait --timeout 5m -f ${valuesFile}`,
         { ignoreError: false }
       );
       log.logInfo(`peering-remote installed on ${cluster.name}`);
     } finally {
-      if (existsSync(valuesFile)) try { unlinkSync(valuesFile); } catch { /* best effort */ }
+      if (existsSync(valuesFile))
+        try {
+          unlinkSync(valuesFile);
+        } catch {
+          /* best effort */
+        }
     }
   }
 }

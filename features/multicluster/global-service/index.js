@@ -33,13 +33,17 @@ export class GlobalServiceFeature extends Feature {
     const namespace = this.config.namespace;
     const services = this.config.services;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying GlobalService feature`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
-    this.log(`  Services: ${services.map(s => `${s.name} (${s.scope || 'global'})`).join(', ')}`, 'info');
+    this.log(
+      `  Services: ${services.map(s => `${s.name} (${s.scope || 'global'})`).join(', ')}`,
+      'info'
+    );
 
     const deploymentPatches = this.config.deploymentPatches || [];
 
@@ -68,7 +72,10 @@ export class GlobalServiceFeature extends Feature {
               `kubectl ${contextFlag} label service ${svc.name} -n ${namespace} ${labelArgs} --overwrite`
             );
           } catch (error) {
-            this.log(`Warning: Could not apply labels to service ${svc.name}: ${error.message}`, 'warn');
+            this.log(
+              `Warning: Could not apply labels to service ${svc.name}: ${error.message}`,
+              'warn'
+            );
           }
         }
 
@@ -89,14 +96,19 @@ export class GlobalServiceFeature extends Feature {
 
       for (const patch of deploymentPatches) {
         if (!patch.env || Object.keys(patch.env).length === 0) continue;
-        const envArgs = Object.entries(patch.env).map(([k, v]) => `${k}=${v}`).join(' ');
+        const envArgs = Object.entries(patch.env)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(' ');
         this.log(`Patching deployment ${patch.deployment} env${contextInfo}...`, 'info');
         try {
           await CommandRunner.exec(
             `kubectl ${contextFlag} set env deployment/${patch.deployment} -n ${namespace} ${envArgs}`
           );
         } catch (error) {
-          this.log(`Warning: Could not patch deployment ${patch.deployment}: ${error.message}`, 'warn');
+          this.log(
+            `Warning: Could not patch deployment ${patch.deployment}: ${error.message}`,
+            'warn'
+          );
         }
       }
     }
@@ -107,9 +119,10 @@ export class GlobalServiceFeature extends Feature {
     const services = this.config.services;
     const deploymentPatches = this.config.deploymentPatches || [];
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up GlobalService feature`, 'info');
 
@@ -121,36 +134,50 @@ export class GlobalServiceFeature extends Feature {
           await CommandRunner.exec(
             `kubectl ${contextFlag} label service ${svc.name} -n ${namespace} solo.io/service-scope- --ignore-not-found=true`
           );
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
 
         if (svc.labels && Object.keys(svc.labels).length > 0) {
-          const labelKeys = Object.keys(svc.labels).map(k => `${k}-`).join(' ');
+          const labelKeys = Object.keys(svc.labels)
+            .map(k => `${k}-`)
+            .join(' ');
           try {
             await CommandRunner.exec(
               `kubectl ${contextFlag} label service ${svc.name} -n ${namespace} ${labelKeys} --ignore-not-found=true`
             );
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
 
         if (svc.annotations && Object.keys(svc.annotations).length > 0) {
-          const annotationKeys = Object.keys(svc.annotations).map(k => `${k}-`).join(' ');
+          const annotationKeys = Object.keys(svc.annotations)
+            .map(k => `${k}-`)
+            .join(' ');
           try {
             await CommandRunner.exec(
               `kubectl ${contextFlag} annotate service ${svc.name} -n ${namespace} ${annotationKeys} --ignore-not-found=true`
             );
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
       }
 
       for (const patch of deploymentPatches) {
         if (!patch.env || Object.keys(patch.env).length === 0) continue;
         // Remove env vars by appending '-' to each key
-        const envRemoveArgs = Object.keys(patch.env).map(k => `${k}-`).join(' ');
+        const envRemoveArgs = Object.keys(patch.env)
+          .map(k => `${k}-`)
+          .join(' ');
         try {
           await CommandRunner.exec(
             `kubectl ${contextFlag} set env deployment/${patch.deployment} -n ${namespace} ${envRemoveArgs}`
           );
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     }
   }

@@ -38,9 +38,10 @@ export class PeerAuthenticationFeature extends Feature {
     const policyName = this.config.policyName;
     const mode = this.config.mtls.mode;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying PeerAuthentication feature: ${policyName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -82,9 +83,10 @@ export class PeerAuthenticationFeature extends Feature {
     const policyName = this.config.policyName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up PeerAuthentication feature: ${policyName}`, 'info');
 

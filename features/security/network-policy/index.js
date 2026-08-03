@@ -37,9 +37,10 @@ export class NetworkPolicyFeature extends Feature {
     const policyName = this.config.policyName;
     const policyTypes = this.config.policyTypes;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying NetworkPolicy feature: ${policyName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -82,9 +83,10 @@ export class NetworkPolicyFeature extends Feature {
     const policyName = this.config.policyName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up NetworkPolicy feature: ${policyName}`, 'info');
 

@@ -51,34 +51,41 @@ export class RedirectRewriteFeature extends Feature {
       return this.config.parentRefs;
     }
     if (this.config.serviceName) {
-      return [{
-        group: '',
-        kind: 'Service',
-        name: this.config.serviceName,
-        port: this.config.port,
-      }];
+      return [
+        {
+          group: '',
+          kind: 'Service',
+          name: this.config.serviceName,
+          port: this.config.port,
+        },
+      ];
     }
     if (this.config.gatewayName) {
       const gatewayNamespace = this.config.gatewayNamespace || namespace;
-      return [{
-        name: this.config.gatewayName,
-        namespace: gatewayNamespace !== namespace ? gatewayNamespace : undefined,
-      }];
+      return [
+        {
+          name: this.config.gatewayName,
+          namespace: gatewayNamespace !== namespace ? gatewayNamespace : undefined,
+        },
+      ];
     }
-    return [{
-      name: this.config.waypointName,
-      kind: 'Gateway',
-      group: 'gateway.networking.k8s.io',
-    }];
+    return [
+      {
+        name: this.config.waypointName,
+        kind: 'Gateway',
+        group: 'gateway.networking.k8s.io',
+      },
+    ];
   }
 
   async deploy() {
     const namespace = this.config.namespace;
     const routeName = this.config.routeName;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying RedirectRewrite feature: ${routeName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -125,9 +132,10 @@ export class RedirectRewriteFeature extends Feature {
     const routeName = this.config.routeName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up RedirectRewrite feature: ${routeName}`, 'info');
 

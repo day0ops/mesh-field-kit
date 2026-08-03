@@ -6,7 +6,7 @@ import { dirname, join } from 'path';
 const __dir = dirname(fileURLToPath(import.meta.url));
 
 // tpl: return v if it's a real value (not an unresolved {{...}} template), otherwise fb
-const tpl = (v, fb) => (v && !/\{\{/.test(v)) ? v : fb
+const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
 
 export function envVarsFor(_addonCfg, _clusterName) {
   return [];
@@ -20,11 +20,21 @@ const DEFAULT_KEYCLOAK_ADMIN_PASSWORD = 'admin';
 export function envExportsFor(addonCfg, _profile, env) {
   const cfg = addonCfg.config || {};
   const hostname = tpl(cfg.hostname, env.spec.domains?.keycloak) || 'keycloak.example.com';
-  const keycloakVersion = addonCfg.version || addonCfg.keycloakVersion || cfg.version || cfg.keycloakVersion || DEFAULT_KEYCLOAK_VERSION;
-  const postgresVersion = addonCfg.postgresVersion || cfg.postgresVersion || DEFAULT_POSTGRES_VERSION;
+  const keycloakVersion =
+    addonCfg.version ||
+    addonCfg.keycloakVersion ||
+    cfg.version ||
+    cfg.keycloakVersion ||
+    DEFAULT_KEYCLOAK_VERSION;
+  const postgresVersion =
+    addonCfg.postgresVersion || cfg.postgresVersion || DEFAULT_POSTGRES_VERSION;
   const exports = [
     { name: 'KEYCLOAK_HOSTNAME', value: hostname, comment: 'Keycloak public hostname' },
-    { name: 'KEYCLOAK_NAMESPACE', value: addonCfg.namespace || 'keycloak', comment: 'Keycloak namespace' },
+    {
+      name: 'KEYCLOAK_NAMESPACE',
+      value: addonCfg.namespace || 'keycloak',
+      comment: 'Keycloak namespace',
+    },
     { name: 'KEYCLOAK_VERSION', value: keycloakVersion, comment: 'Keycloak container image tag' },
     { name: 'POSTGRES_VERSION', value: postgresVersion, comment: 'PostgreSQL container image tag' },
     {
@@ -46,7 +56,7 @@ export function envExportsFor(addonCfg, _profile, env) {
         name: 'SOLO_UI_ADMIN_PASSWORD',
         value: soloUIClients.defaultPassword || 'Passwd00',
         comment: 'Solo UI demo admin password (solo-reader/solo-writer use the same password)',
-      },
+      }
     );
   }
 
@@ -69,41 +79,48 @@ export async function generate(_subIndex, addonCfg, clusterName, profile, env) {
   const issuerName = tpl(cfg.tls?.clusterIssuerName, null) || 'selfsigned-issuer';
   const tlsSecretName = tpl(cfg.tls?.secretName, null) || 'keycloak-tls';
   const certOrg = tpl(cfg.tls?.organization, null) || 'solo.io';
-  const keycloakVersion = addonCfg.version || addonCfg.keycloakVersion || cfg.version || cfg.keycloakVersion || DEFAULT_KEYCLOAK_VERSION;
-  const postgresVersion = addonCfg.postgresVersion || cfg.postgresVersion || DEFAULT_POSTGRES_VERSION;
+  const keycloakVersion =
+    addonCfg.version ||
+    addonCfg.keycloakVersion ||
+    cfg.version ||
+    cfg.keycloakVersion ||
+    DEFAULT_KEYCLOAK_VERSION;
+  const postgresVersion =
+    addonCfg.postgresVersion || cfg.postgresVersion || DEFAULT_POSTGRES_VERSION;
   const adminPassword = cfg.adminPassword || DEFAULT_KEYCLOAK_ADMIN_PASSWORD;
 
   // Substitute template vars in embedded YAML files
-  const fillYaml = (s) => s
-    .replaceAll("'{{NAMESPACE}}'", ns)
-    .replaceAll('"{{NAMESPACE}}"', ns)
-    .replaceAll('{{NAMESPACE}}', ns)
-    .replaceAll("'{{HOSTNAME}}'", hostname)
-    .replaceAll('"{{HOSTNAME}}"', hostname)
-    .replaceAll('{{HOSTNAME}}', hostname)
-    .replaceAll("'{{TLS_SECRET_NAME}}'", tlsSecretName)
-    .replaceAll('"{{TLS_SECRET_NAME}}"', tlsSecretName)
-    .replaceAll('{{TLS_SECRET_NAME}}', tlsSecretName)
-    .replaceAll("'{{POSTGRES_VERSION}}'", postgresVersion)
-    .replaceAll('"{{POSTGRES_VERSION}}"', postgresVersion)
-    .replaceAll('{{POSTGRES_VERSION}}', postgresVersion)
-    .replaceAll("'{{KEYCLOAK_VERSION}}'", keycloakVersion)
-    .replaceAll('"{{KEYCLOAK_VERSION}}"', keycloakVersion)
-    .replaceAll('{{KEYCLOAK_VERSION}}', keycloakVersion)
-    .replaceAll("'{{ADMIN_PASSWORD}}'", adminPassword)
-    .replaceAll('"{{ADMIN_PASSWORD}}"', adminPassword)
-    .replaceAll('{{ADMIN_PASSWORD}}', adminPassword)
+  const fillYaml = s =>
+    s
+      .replaceAll("'{{NAMESPACE}}'", ns)
+      .replaceAll('"{{NAMESPACE}}"', ns)
+      .replaceAll('{{NAMESPACE}}', ns)
+      .replaceAll("'{{HOSTNAME}}'", hostname)
+      .replaceAll('"{{HOSTNAME}}"', hostname)
+      .replaceAll('{{HOSTNAME}}', hostname)
+      .replaceAll("'{{TLS_SECRET_NAME}}'", tlsSecretName)
+      .replaceAll('"{{TLS_SECRET_NAME}}"', tlsSecretName)
+      .replaceAll('{{TLS_SECRET_NAME}}', tlsSecretName)
+      .replaceAll("'{{POSTGRES_VERSION}}'", postgresVersion)
+      .replaceAll('"{{POSTGRES_VERSION}}"', postgresVersion)
+      .replaceAll('{{POSTGRES_VERSION}}', postgresVersion)
+      .replaceAll("'{{KEYCLOAK_VERSION}}'", keycloakVersion)
+      .replaceAll('"{{KEYCLOAK_VERSION}}"', keycloakVersion)
+      .replaceAll('{{KEYCLOAK_VERSION}}', keycloakVersion)
+      .replaceAll("'{{ADMIN_PASSWORD}}'", adminPassword)
+      .replaceAll('"{{ADMIN_PASSWORD}}"', adminPassword)
+      .replaceAll('{{ADMIN_PASSWORD}}', adminPassword);
 
-  const postgresYaml = fillYaml(postgresYamlRaw)
-  const keycloakYaml = fillYaml(keycloakYamlRaw)
+  const postgresYaml = fillYaml(postgresYamlRaw);
+  const keycloakYaml = fillYaml(keycloakYamlRaw);
 
   // Collect all addon names defined anywhere in the profile (global + per-cluster)
   const allProfileAddonNames = new Set();
-  for (const g of (profile?.spec?.addons?.global || [])) {
+  for (const g of profile?.spec?.addons?.global || []) {
     allProfileAddonNames.add(typeof g === 'string' ? g : g.name);
   }
-  for (const clusterDef of (profile?.spec?.addons?.clusters || [])) {
-    for (const a of (clusterDef.addons || [])) {
+  for (const clusterDef of profile?.spec?.addons?.clusters || []) {
+    for (const a of clusterDef.addons || []) {
       allProfileAddonNames.add(typeof a === 'string' ? a : a.name);
     }
   }
@@ -111,12 +128,12 @@ export async function generate(_subIndex, addonCfg, clusterName, profile, env) {
   // Collect addon names installed on this specific cluster
   const thisClusterDef = (profile?.spec?.addons?.clusters || []).find(c => c.name === clusterName);
   const thisClusterAddonNames = new Set(
-    (thisClusterDef?.addons || []).map(a => typeof a === 'string' ? a : a.name)
+    (thisClusterDef?.addons || []).map(a => (typeof a === 'string' ? a : a.name))
   );
 
   // Filter realms: if realm name matches a known addon, only include if that addon is on this cluster
-  const realms = (cfg.realms || []).filter(r =>
-    !allProfileAddonNames.has(r.realm) || thisClusterAddonNames.has(r.realm)
+  const realms = (cfg.realms || []).filter(
+    r => !allProfileAddonNames.has(r.realm) || thisClusterAddonNames.has(r.realm)
   );
   const soloUIClients = cfg.soloUIClients || null;
 
@@ -161,28 +178,38 @@ kubectl wait certificate/${tlsSecretName} -n ${ns} \\
   const baseUrl = `${protocol}://${hostname}`;
 
   // Helper — builds the "Configure realm `<name>`" snippet
-  const makeRealmSnippet = (realm) => {
+  const makeRealmSnippet = realm => {
     const clients = realm.clients || [];
     const users = realm.users || [];
     const groups = realm.groups || [];
 
-    const groupLines = groups.map(g => `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/groups" \\
+    const groupLines = groups
+      .map(
+        g => `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/groups" \\
         -H "Authorization: Bearer $ACCESS_TOKEN" \\
         -H "Content-Type: application/json" \\
-        -d '{"name":"${g}"}'`).join('\n\n');
+        -d '{"name":"${g}"}'`
+      )
+      .join('\n\n');
 
-    const clientLines = clients.map(c => {
-      const isPublic = c.type === 'public';
-      return `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/clients" \\
+    const clientLines = clients
+      .map(c => {
+        const isPublic = c.type === 'public';
+        return `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/clients" \\
         -H "Authorization: Bearer $ACCESS_TOKEN" \\
         -H "Content-Type: application/json" \\
         -d '{"clientId":"${c.clientId}","publicClient":${isPublic},"enabled":true}'`;
-    }).join('\n\n');
+      })
+      .join('\n\n');
 
-    const userLines = users.map(u => `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/users" \\
+    const userLines = users
+      .map(
+        u => `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/users" \\
         -H "Authorization: Bearer $ACCESS_TOKEN" \\
         -H "Content-Type: application/json" \\
-        -d '{"username":"${u.username}","email":"${u.email || ''}","enabled":true,"credentials":[{"type":"password","value":"${realm.defaultPassword || 'Admin1234'}","temporary":false}]}'`).join('\n\n');
+        -d '{"username":"${u.username}","email":"${u.email || ''}","enabled":true,"credentials":[{"type":"password","value":"${realm.defaultPassword || 'Admin1234'}","temporary":false}]}'`
+      )
+      .join('\n\n');
 
     return `
 **Configure realm \`${realm.realm}\`** (${clients.length} clients, ${users.length} users):
@@ -198,13 +225,25 @@ curl -s -X POST "$KEYCLOAK_URL/admin/realms" \\
   -H "Authorization: Bearer $ACCESS_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{"realm":"${realm.realm}","enabled":true,"defaultLocale":"en"}'
-${groups.length > 0 ? `
+${
+  groups.length > 0
+    ? `
 # Create groups
-${groupLines}` : ''}${clients.length > 0 ? `
+${groupLines}`
+    : ''
+}${
+      clients.length > 0
+        ? `
 # Create clients
-${clientLines}` : ''}${users.length > 0 ? `
+${clientLines}`
+        : ''
+    }${
+      users.length > 0
+        ? `
 # Create users
-${userLines}` : ''}
+${userLines}`
+        : ''
+    }
 \`\`\`
 `;
   };
@@ -217,10 +256,14 @@ ${userLines}` : ''}
     const suiHostname = tpl(soloUIClients.hostname, env.spec.domains?.soloUI) || '';
     const suiPassword = soloUIClients.defaultPassword || 'Passwd00';
     const suiUsers = ['solo-admin', 'solo-reader', 'solo-writer'];
-    const suiUserLines = suiUsers.map(u => `curl -s -X POST "$KEYCLOAK_URL/admin/realms/${suiRealm}/users" \\
+    const suiUserLines = suiUsers
+      .map(
+        u => `curl -s -X POST "$KEYCLOAK_URL/admin/realms/${suiRealm}/users" \\
   -H "Authorization: Bearer $ACCESS_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"username":"${u}","enabled":true,"credentials":[{"type":"password","value":"${suiPassword}","temporary":false}]}'`).join('\n\n');
+  -d '{"username":"${u}","enabled":true,"credentials":[{"type":"password","value":"${suiPassword}","temporary":false}]}'`
+      )
+      .join('\n\n');
     soloUISection = `
 
 **Configure Solo UI realm \`${suiRealm}\`**:

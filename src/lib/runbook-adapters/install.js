@@ -55,7 +55,12 @@ function buildBaseValues(componentName, { istioRepo, istioTag, meshProfile, ns }
       return { defaultRevision: 'stable', profile: meshProfile };
     case 'istiod':
       return {
-        global: { hub: istioRepo, tag: istioTag, network: clusterName, proxy: { clusterDomain: 'cluster.local' } },
+        global: {
+          hub: istioRepo,
+          tag: istioTag,
+          network: clusterName,
+          proxy: { clusterDomain: 'cluster.local' },
+        },
         profile: meshProfile,
         license: { value: '$ENTERPRISE_ISTIO_LICENSE' },
       };
@@ -89,8 +94,12 @@ function buildBaseValues(componentName, { istioRepo, istioTag, meshProfile, ns }
 }
 
 export class InstallAdapter {
-  envVars(_selection) { return []; }
-  envExports(_selection) { return []; }
+  envVars(_selection) {
+    return [];
+  }
+  envExports(_selection) {
+    return [];
+  }
 
   generate(labNum, selection) {
     const { profile, infraProfile } = selection;
@@ -152,9 +161,10 @@ ${sections.join('\n\n')}`;
 
   _certSection(certMode, clusters, ns) {
     if (certMode === 'self-signed') {
-      const clusterBlocks = clusters.map(c => {
-        const ctx = `\$${c.name.toUpperCase()}_CONTEXT`;
-        return `# ${c.name}
+      const clusterBlocks = clusters
+        .map(c => {
+          const ctx = `\$${c.name.toUpperCase()}_CONTEXT`;
+          return `# ${c.name}
 kubectl --context=${ctx} create namespace ${ns} --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
 kubectl --context=${ctx} delete secret cacerts -n ${ns} --ignore-not-found=true
 kubectl --context=${ctx} create secret generic cacerts -n ${ns} \\
@@ -162,9 +172,12 @@ kubectl --context=${ctx} create secret generic cacerts -n ${ns} \\
   --from-file=certs/${c.name}/ca-key.pem \\
   --from-file=certs/${c.name}/root-cert.pem \\
   --from-file=certs/${c.name}/cert-chain.pem`;
-      }).join('\n\n');
+        })
+        .join('\n\n');
 
-      const clusterCertGen = clusters.map(c => `
+      const clusterCertGen = clusters
+        .map(
+          c => `
 # Intermediate CA — ${c.name}
 mkdir -p certs/${c.name}
 cat > certs/${c.name}/ca-ext.cnf <<'EOF'
@@ -181,7 +194,9 @@ openssl x509 -req -days 3650 -sha256 \\
   -in certs/${c.name}/ca-csr.pem -out certs/${c.name}/ca-cert.pem \\
   -extfile certs/${c.name}/ca-ext.cnf
 cat certs/${c.name}/ca-cert.pem certs/root-cert.pem > certs/${c.name}/cert-chain.pem
-cp certs/root-cert.pem certs/${c.name}/root-cert.pem`).join('\n');
+cp certs/root-cert.pem certs/${c.name}/root-cert.pem`
+        )
+        .join('\n');
 
       return `### Set Up Shared Root of Trust
 
@@ -205,9 +220,10 @@ ${clusterBlocks}
     }
 
     // cert-manager mode
-    const clusterBlocks = clusters.map(c => {
-      const ctx = `\$${c.name.toUpperCase()}_CONTEXT`;
-      return `# ${c.name}
+    const clusterBlocks = clusters
+      .map(c => {
+        const ctx = `\$${c.name.toUpperCase()}_CONTEXT`;
+        return `# ${c.name}
 kubectl --context=${ctx} create namespace ${ns} --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
 kubectl --context=${ctx} create secret tls istio-root-ca-secret -n ${ns} \\
   --cert=/tmp/ambient-root-ca-cert.pem --key=/tmp/ambient-root-ca-key.pem
@@ -247,7 +263,8 @@ spec:
     size: 4096
 EOF
 kubectl --context=${ctx} wait secret/cacerts -n ${ns} --for=jsonpath='{.data}' --timeout=120s`;
-    }).join('\n\n');
+      })
+      .join('\n\n');
 
     return `### Set Up Shared Root of Trust (cert-manager)
 
@@ -284,7 +301,11 @@ rm /tmp/ambient-root-ca-key.pem /tmp/ambient-root-ca-cert.pem
       const baseVals = buildBaseValues(comp.name, cfg, cluster.name);
       const profileVals = resolveTemplates(comp.values, cluster.name);
       const mergedVals = deepMerge(baseVals, profileVals);
-      const valuesYaml = yamlDump(mergedVals, { lineWidth: 120, quotingType: '"', forceQuotes: false })
+      const valuesYaml = yamlDump(mergedVals, {
+        lineWidth: 120,
+        quotingType: '"',
+        forceQuotes: false,
+      })
         .trimEnd()
         .split('\n')
         .map(l => `  ${l}`)
@@ -334,16 +355,17 @@ ${networkLabel}
 
     if (peeringMethod === 'helm' && peeringRemote) {
       // helm peering-remote chart installed on each cluster pointing to all others
-      const helmBlocks = clusters.map(cluster => {
-        const ctx = `\$${cluster.name.toUpperCase()}_CONTEXT`;
-        const profileVals = resolveTemplates(peeringRemote.values || {}, cluster.name);
-        const valuesYaml = yamlDump(profileVals, { lineWidth: 120 })
-          .trimEnd()
-          .split('\n')
-          .map(l => `  ${l}`)
-          .join('\n');
+      const helmBlocks = clusters
+        .map(cluster => {
+          const ctx = `\$${cluster.name.toUpperCase()}_CONTEXT`;
+          const profileVals = resolveTemplates(peeringRemote.values || {}, cluster.name);
+          const valuesYaml = yamlDump(profileVals, { lineWidth: 120 })
+            .trimEnd()
+            .split('\n')
+            .map(l => `  ${l}`)
+            .join('\n');
 
-        return `# peering-remote on ${cluster.name}
+          return `# peering-remote on ${cluster.name}
 helm upgrade --install peering-remote oci://${helmIstioRepo}/peering \\
   --kube-context=${ctx} \\
   --namespace istio-eastwest \\
@@ -353,7 +375,8 @@ helm upgrade --install peering-remote oci://${helmIstioRepo}/peering \\
   -f - <<'EOF'
 ${valuesYaml}
 EOF`;
-      }).join('\n\n');
+        })
+        .join('\n\n');
 
       sections.push(`### Link Clusters (Helm Peering)
 
@@ -362,9 +385,10 @@ ${helmBlocks}
 \`\`\``);
     } else {
       // East-west gateway (istioctl method)
-      const gwBlocks = clusters.map(c => {
-        const ctx = `\$${c.name.toUpperCase()}_CONTEXT`;
-        return `# ${c.name}
+      const gwBlocks = clusters
+        .map(c => {
+          const ctx = `\$${c.name.toUpperCase()}_CONTEXT`;
+          return `# ${c.name}
 kubectl --context=${ctx} create namespace istio-eastwest --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
 istioctl --context=${ctx} install -y -f - <<'EOF'
 apiVersion: install.istio.io/v1alpha1
@@ -400,7 +424,8 @@ spec:
                 port: 15017
                 targetPort: 15017
 EOF`;
-      }).join('\n\n');
+        })
+        .join('\n\n');
 
       sections.push(`### Deploy East-West Gateways
 
@@ -411,17 +436,24 @@ ${gwBlocks}
       sections.push(`### Exchange Service Accounts and Link Clusters
 
 \`\`\`bash
-${clusters.flatMap(src =>
-  clusters.filter(dst => dst.name !== src.name).map(dst =>
-    `istioctl x create-remote-secret --context=\$${src.name.toUpperCase()}_CONTEXT \\
+${clusters
+  .flatMap(src =>
+    clusters
+      .filter(dst => dst.name !== src.name)
+      .map(
+        dst =>
+          `istioctl x create-remote-secret --context=\$${src.name.toUpperCase()}_CONTEXT \\
   --name=${src.name} | kubectl --context=\$${dst.name.toUpperCase()}_CONTEXT apply -f -`
+      )
   )
-).join('\n')}
+  .join('\n')}
 \`\`\``);
     }
 
     return sections.join('\n\n');
   }
 
-  cleanup(_selection) { return ''; }
+  cleanup(_selection) {
+    return '';
+  }
 }

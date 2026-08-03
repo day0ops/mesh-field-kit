@@ -80,7 +80,8 @@ export const ConfigResolver = {
    */
   resolveForCluster(profile, cluster) {
     const baseComponentsRaw = ProfileSchema.getBaseComponents(profile);
-    const { names: baseNames, componentValues: baseComponentValues } = ProfileSchema.normalizeComponents(baseComponentsRaw);
+    const { names: baseNames, componentValues: baseComponentValues } =
+      ProfileSchema.normalizeComponents(baseComponentsRaw);
     const baseAddons = ProfileSchema.getBaseAddons(profile);
 
     let components = [...baseNames];

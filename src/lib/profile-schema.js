@@ -1,4 +1,11 @@
-const DEFAULT_COMPONENTS = ['base', 'istiod', 'cni', 'ztunnel', 'peering-eastwest', 'peering-remote'];
+const DEFAULT_COMPONENTS = [
+  'base',
+  'istiod',
+  'cni',
+  'ztunnel',
+  'peering-eastwest',
+  'peering-remote',
+];
 const VALID_COMPONENTS = [...DEFAULT_COMPONENTS, 'ingress-gateway'];
 const VALID_INSTALL_METHODS = ['helm', 'operator'];
 const VALID_CERT_MODES = ['self-signed', 'cert-manager'];
@@ -17,7 +24,9 @@ function validateMesh(mesh, errors) {
 
   const isOperator = mesh.installMethod === 'operator';
   if (!isOperator && !mesh.profile) {
-    errors.push('Missing required field: spec.mesh.profile (required when installMethod is not operator)');
+    errors.push(
+      'Missing required field: spec.mesh.profile (required when installMethod is not operator)'
+    );
   }
 
   if (mesh.components) {
@@ -26,7 +35,9 @@ function validateMesh(mesh, errors) {
 
   if (mesh.peering !== undefined) {
     if (!VALID_PEERING_METHODS.includes(mesh.peering)) {
-      errors.push(`Invalid spec.mesh.peering: ${mesh.peering}. Valid values: ${VALID_PEERING_METHODS.join(', ')}`);
+      errors.push(
+        `Invalid spec.mesh.peering: ${mesh.peering}. Valid values: ${VALID_PEERING_METHODS.join(', ')}`
+      );
     }
     if (mesh.peering === 'helm') {
       const hasRemote = (mesh.components || []).some(
@@ -53,7 +64,10 @@ function validateMesh(mesh, errors) {
   }
 
   if (mesh.serviceMeshController !== undefined) {
-    if (typeof mesh.serviceMeshController !== 'object' || Array.isArray(mesh.serviceMeshController)) {
+    if (
+      typeof mesh.serviceMeshController !== 'object' ||
+      Array.isArray(mesh.serviceMeshController)
+    ) {
       errors.push('spec.mesh.serviceMeshController must be an object');
     }
   }

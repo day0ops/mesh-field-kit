@@ -39,9 +39,10 @@ export class EgressAuthorizationFeature extends Feature {
     const waypointName = this.config.waypointName || 'egress-waypoint';
     const action = this.config.action || 'ALLOW';
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying EgressAuthorization feature: ${policyName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -59,11 +60,13 @@ export class EgressAuthorizationFeature extends Feature {
         namespace: namespace,
       },
       spec: {
-        targetRefs: [{
-          kind: 'Gateway',
-          group: 'gateway.networking.k8s.io',
-          name: waypointName,
-        }],
+        targetRefs: [
+          {
+            kind: 'Gateway',
+            group: 'gateway.networking.k8s.io',
+            name: waypointName,
+          },
+        ],
         action: action,
         rules: this.config.rules,
       },
@@ -80,9 +83,10 @@ export class EgressAuthorizationFeature extends Feature {
     const policyName = this.config.policyName;
     const namespace = this.config.namespace || 'egress';
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up EgressAuthorization feature: ${policyName}`, 'info');
 

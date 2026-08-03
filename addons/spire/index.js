@@ -58,7 +58,9 @@ export class SpireFeature extends AddonFeature {
 
   validate() {
     if (!VALID_CERT_MODES.includes(this.certMode)) {
-      throw new Error(`Invalid certMode '${this.certMode}'. Must be: ${VALID_CERT_MODES.join(', ')}`);
+      throw new Error(
+        `Invalid certMode '${this.certMode}'. Must be: ${VALID_CERT_MODES.join(', ')}`
+      );
     }
     if (this.certMode === 'manual') {
       if (!this.certs?.caCert || !this.certs?.caKey || !this.certs?.caChain) {
@@ -121,7 +123,7 @@ export class SpireFeature extends AddonFeature {
     );
     const data = JSON.parse(result.stdout || '{}');
     const caCert = Buffer.from(data['tls.crt'] || '', 'base64').toString('utf8');
-    const caKey  = Buffer.from(data['tls.key'] || '', 'base64').toString('utf8');
+    const caKey = Buffer.from(data['tls.key'] || '', 'base64').toString('utf8');
 
     // ca.crt from cert-manager contains the full chain in newer versions;
     // fall back to tls.crt only if ca.crt is absent
@@ -138,8 +140,8 @@ export class SpireFeature extends AddonFeature {
    */
   async #prepareManualCerts(context) {
     this.log('Preparing SPIRE CA certificates (manual)...', 'info');
-    const caCert   = readFileSync(this.certs.caCert, 'utf8');
-    const caKey    = readFileSync(this.certs.caKey, 'utf8');
+    const caCert = readFileSync(this.certs.caCert, 'utf8');
+    const caKey = readFileSync(this.certs.caKey, 'utf8');
     const caBundle = readFileSync(this.certs.caChain, 'utf8');
     await this.#createUpstreamCaSecret(caCert, caKey, caBundle, context);
     this.log('SPIRE upstream CA secret created from manual certs', 'success');
@@ -153,16 +155,16 @@ export class SpireFeature extends AddonFeature {
     this.log('Preparing SPIRE CA certificates (self-signed)...', 'info');
     mkdirSync(SPIRE_CERTS_WORK_DIR, { recursive: true });
 
-    const rootKeyPath  = join(SPIRE_CERTS_WORK_DIR, 'root-key.pem');
+    const rootKeyPath = join(SPIRE_CERTS_WORK_DIR, 'root-key.pem');
     const rootCertPath = join(SPIRE_CERTS_WORK_DIR, 'root-cert.pem');
-    const clusterDir   = join(SPIRE_CERTS_WORK_DIR, this.trustDomain.replace(/\//g, '-'));
+    const clusterDir = join(SPIRE_CERTS_WORK_DIR, this.trustDomain.replace(/\//g, '-'));
     mkdirSync(clusterDir, { recursive: true });
 
-    const caKeyPath     = join(clusterDir, 'ca.key');
-    const caCsrPath     = join(clusterDir, 'ca.csr');
-    const caCertPath    = join(clusterDir, 'ca.crt');
-    const caBundlePath  = join(clusterDir, 'ca-chain.pem');
-    const extFilePath   = join(clusterDir, 'ca-ext.cnf');
+    const caKeyPath = join(clusterDir, 'ca.key');
+    const caCsrPath = join(clusterDir, 'ca.csr');
+    const caCertPath = join(clusterDir, 'ca.crt');
+    const caBundlePath = join(clusterDir, 'ca-chain.pem');
+    const extFilePath = join(clusterDir, 'ca-ext.cnf');
 
     // Generate or reuse shared root CA
     if (!existsSync(rootKeyPath)) {
@@ -170,7 +172,7 @@ export class SpireFeature extends AddonFeature {
       await CommandRunner.exec(`openssl genrsa -out "${rootKeyPath}" 2048`);
       await CommandRunner.exec(
         `openssl req -new -x509 -days 3650 -key "${rootKeyPath}" ` +
-        `-out "${rootCertPath}" -subj "/CN=SPIRE Root CA"`
+          `-out "${rootCertPath}" -subj "/CN=SPIRE Root CA"`
       );
     } else {
       this.log('Shared SPIRE root CA already exists, reusing', 'info');
@@ -182,28 +184,30 @@ export class SpireFeature extends AddonFeature {
     // subjectAltName carries the trust domain on the intermediate CA itself (not just the
     // leaf SVID) - required for ztunnel's VALIDATE_SPIFFE_TRUST_DOMAIN_NAMES=STRICT chain
     // verification, which walks the chain looking for an ancestor SAN matching the trust domain.
-    writeFileSync(extFilePath,
+    writeFileSync(
+      extFilePath,
       '[req]\ndistinguished_name = req_distinguished_name\n' +
-      'req_extensions = v3_req\nprompt = no\n' +
-      '[req_distinguished_name]\nCN = SPIRE Intermediate CA\n' +
-      '[v3_req]\nkeyUsage = critical, keyCertSign, cRLSign\n' +
-      'basicConstraints = critical, CA:true, pathlen:1\n' +
-      'subjectKeyIdentifier = hash\n' +
-      `subjectAltName = DNS:${this.trustDomain}, URI:spiffe://${this.trustDomain}\n`
+        'req_extensions = v3_req\nprompt = no\n' +
+        '[req_distinguished_name]\nCN = SPIRE Intermediate CA\n' +
+        '[v3_req]\nkeyUsage = critical, keyCertSign, cRLSign\n' +
+        'basicConstraints = critical, CA:true, pathlen:1\n' +
+        'subjectKeyIdentifier = hash\n' +
+        `subjectAltName = DNS:${this.trustDomain}, URI:spiffe://${this.trustDomain}\n`
     );
 
     await CommandRunner.exec(`openssl genrsa -out "${caKeyPath}" 2048`);
     await CommandRunner.exec(
       `openssl req -new -key "${caKeyPath}" -out "${caCsrPath}" ` +
-      `-config "${extFilePath}" -subj "/CN=SPIRE Intermediate CA"`
+        `-config "${extFilePath}" -subj "/CN=SPIRE Intermediate CA"`
     );
     await CommandRunner.exec(
       `openssl x509 -req -in "${caCsrPath}" -CA "${rootCertPath}" -CAkey "${rootKeyPath}" ` +
-      `-CAcreateserial -out "${caCertPath}" -days 1825 -extensions v3_req -extfile "${extFilePath}"`
+        `-CAcreateserial -out "${caCertPath}" -days 1825 -extensions v3_req -extfile "${extFilePath}"`
     );
 
     // Build chain: intermediate + root
-    writeFileSync(caBundlePath,
+    writeFileSync(
+      caBundlePath,
       readFileSync(caCertPath, 'utf8') + readFileSync(rootCertPath, 'utf8')
     );
 
@@ -225,26 +229,38 @@ export class SpireFeature extends AddonFeature {
     const ctxArgs = context ? [`--context=${context}`] : [];
 
     // Write temp files for kubectl --from-literal doesn't support multi-line well
-    const tmpCert   = join(tmpdir(), `spire-ca-cert-${process.pid}.pem`);
-    const tmpKey    = join(tmpdir(), `spire-ca-key-${process.pid}.pem`);
+    const tmpCert = join(tmpdir(), `spire-ca-cert-${process.pid}.pem`);
+    const tmpKey = join(tmpdir(), `spire-ca-key-${process.pid}.pem`);
     const tmpBundle = join(tmpdir(), `spire-ca-bundle-${process.pid}.pem`);
 
     try {
-      writeFileSync(tmpCert,   caCert,   'utf8');
-      writeFileSync(tmpKey,    caKey,    'utf8');
+      writeFileSync(tmpCert, caCert, 'utf8');
+      writeFileSync(tmpKey, caKey, 'utf8');
       writeFileSync(tmpBundle, caBundle, 'utf8');
 
       // Delete existing secret if present (idempotent)
       await KubernetesHelper.kubectl(
-        [...ctxArgs, 'delete', 'secret', 'spiffe-upstream-ca',
-          '-n', this.spireNamespace, '--ignore-not-found=true'],
+        [
+          ...ctxArgs,
+          'delete',
+          'secret',
+          'spiffe-upstream-ca',
+          '-n',
+          this.spireNamespace,
+          '--ignore-not-found=true',
+        ],
         { spinner: this.spinner }
       );
 
       await KubernetesHelper.kubectl(
-        [...ctxArgs,
-          'create', 'secret', 'generic', 'spiffe-upstream-ca',
-          `-n`, this.spireNamespace,
+        [
+          ...ctxArgs,
+          'create',
+          'secret',
+          'generic',
+          'spiffe-upstream-ca',
+          `-n`,
+          this.spireNamespace,
           `--from-file=tls.crt=${tmpCert}`,
           `--from-file=tls.key=${tmpKey}`,
           `--from-file=bundle.crt=${tmpBundle}`,
@@ -253,7 +269,11 @@ export class SpireFeature extends AddonFeature {
       );
     } finally {
       for (const f of [tmpCert, tmpKey, tmpBundle]) {
-        try { unlinkSync(f); } catch { /* best effort */ }
+        try {
+          unlinkSync(f);
+        } catch {
+          /* best effort */
+        }
       }
     }
   }
@@ -296,9 +316,7 @@ export class SpireFeature extends AddonFeature {
         spire: { trustDomain: this.trustDomain },
       },
       'spire-agent': {
-        authorizedDelegates: [
-          `spiffe://${this.trustDomain}/ns/istio-system/sa/ztunnel`,
-        ],
+        authorizedDelegates: [`spiffe://${this.trustDomain}/ns/istio-system/sa/ztunnel`],
         sockets: {
           admin: { enabled: true, mountOnHost: true },
           hostBasePath: '/run/spire/agent/sockets',
@@ -358,9 +376,14 @@ export class SpireFeature extends AddonFeature {
   async #installSpirecRDs() {
     this.log(`Installing spire-crds chart (${this.spireCrdsVersion})...`, 'info');
     const args = [
-      'upgrade', '-i', 'spire-crds', `${SPIRE_HELM_REPO_NAME}/spire-crds`,
-      '--namespace', this.spireNamespace,
-      '--version', this.spireCrdsVersion,
+      'upgrade',
+      '-i',
+      'spire-crds',
+      `${SPIRE_HELM_REPO_NAME}/spire-crds`,
+      '--namespace',
+      this.spireNamespace,
+      '--version',
+      this.spireCrdsVersion,
       '--create-namespace',
       '--wait',
     ];
@@ -375,17 +398,28 @@ export class SpireFeature extends AddonFeature {
     try {
       writeFileSync(tmpValues, valuesYaml, 'utf8');
       const args = [
-        'upgrade', '-i', 'spire', `${SPIRE_HELM_REPO_NAME}/spire`,
-        '--namespace', this.spireNamespace,
-        '--version', this.spireVersion,
-        '-f', tmpValues,
+        'upgrade',
+        '-i',
+        'spire',
+        `${SPIRE_HELM_REPO_NAME}/spire`,
+        '--namespace',
+        this.spireNamespace,
+        '--version',
+        this.spireVersion,
+        '-f',
+        tmpValues,
         '--wait',
-        '--timeout', '5m',
+        '--timeout',
+        '5m',
       ];
       if (this.kubeContext) args.push('--kube-context', this.kubeContext);
       await KubernetesHelper.helm(args, { spinner: this.spinner });
     } finally {
-      try { unlinkSync(tmpValues); } catch { /* best effort */ }
+      try {
+        unlinkSync(tmpValues);
+      } catch {
+        /* best effort */
+      }
     }
     this.log('spire chart installed', 'info');
   }
@@ -395,8 +429,16 @@ export class SpireFeature extends AddonFeature {
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
     try {
       await KubernetesHelper.kubectl(
-        [...ctxArgs, '-n', this.spireNamespace,
-          'wait', '--for=condition=Ready', 'pods', '--all', '--timeout=300s'],
+        [
+          ...ctxArgs,
+          '-n',
+          this.spireNamespace,
+          'wait',
+          '--for=condition=Ready',
+          'pods',
+          '--all',
+          '--timeout=300s',
+        ],
         { spinner: this.spinner }
       );
     } catch (error) {
@@ -460,7 +502,13 @@ export class SpireFeature extends AddonFeature {
 
     // 2. Uninstall spire Helm chart
     try {
-      await CommandRunner.run('helm', [...helmCtxArgs, 'uninstall', 'spire', '-n', this.spireNamespace]);
+      await CommandRunner.run('helm', [
+        ...helmCtxArgs,
+        'uninstall',
+        'spire',
+        '-n',
+        this.spireNamespace,
+      ]);
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) {
         this.log(`Warning: could not uninstall spire chart: ${error.message}`, 'warn');
@@ -469,7 +517,13 @@ export class SpireFeature extends AddonFeature {
 
     // 3. Uninstall spire-crds Helm chart
     try {
-      await CommandRunner.run('helm', [...helmCtxArgs, 'uninstall', 'spire-crds', '-n', this.spireNamespace]);
+      await CommandRunner.run('helm', [
+        ...helmCtxArgs,
+        'uninstall',
+        'spire-crds',
+        '-n',
+        this.spireNamespace,
+      ]);
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) {
         this.log(`Warning: could not uninstall spire-crds chart: ${error.message}`, 'warn');

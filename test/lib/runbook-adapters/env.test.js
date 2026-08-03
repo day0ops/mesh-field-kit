@@ -55,7 +55,11 @@ test('EnvAdapter dedup logic: first-occurrence wins', () => {
     { name: 'KEY', description: 'second', required: false },
   ];
   const seen = new Set();
-  const deduped = vars.filter(v => { if (seen.has(v.name)) return false; seen.add(v.name); return true; });
+  const deduped = vars.filter(v => {
+    if (seen.has(v.name)) return false;
+    seen.add(v.name);
+    return true;
+  });
   expect(deduped).toHaveLength(1);
   expect(deduped[0].description).toBe('first');
 });

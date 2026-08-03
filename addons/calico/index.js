@@ -154,12 +154,7 @@ export class CalicoFeature extends AddonFeature {
       helmArgs.push('--kube-context', this.kubeContext);
     }
 
-    helmArgs.push(
-      '--create-namespace',
-      '--wait',
-      '--timeout',
-      '10m',
-    );
+    helmArgs.push('--create-namespace', '--wait', '--timeout', '10m');
 
     try {
       await KubernetesHelper.helm(helmArgs, this.spinner);
@@ -167,7 +162,11 @@ export class CalicoFeature extends AddonFeature {
       this.log('Calico Helm chart installed', 'info');
     } finally {
       if (userValuesFile && existsSync(userValuesFile)) {
-        try { unlinkSync(userValuesFile); } catch { /* best effort */ }
+        try {
+          unlinkSync(userValuesFile);
+        } catch {
+          /* best effort */
+        }
       }
     }
   }
@@ -181,7 +180,15 @@ export class CalicoFeature extends AddonFeature {
 
     try {
       await KubernetesHelper.kubectl(
-        [...ctxArgs, 'rollout', 'status', 'daemonset/calico-node', '-n', CALICO_NAMESPACE, '--timeout=300s'],
+        [
+          ...ctxArgs,
+          'rollout',
+          'status',
+          'daemonset/calico-node',
+          '-n',
+          CALICO_NAMESPACE,
+          '--timeout=300s',
+        ],
         { ignoreError: true }
       );
       this.log('calico-node daemonset is ready', 'info');
@@ -210,7 +217,12 @@ export class CalicoFeature extends AddonFeature {
 
     try {
       await CommandRunner.run('helm', [
-        ...helmCtxArgs, 'uninstall', RELEASE_NAME, '-n', OPERATOR_NAMESPACE, '--wait',
+        ...helmCtxArgs,
+        'uninstall',
+        RELEASE_NAME,
+        '-n',
+        OPERATOR_NAMESPACE,
+        '--wait',
       ]);
       this.log('Calico Helm release uninstalled', 'info');
     } catch (err) {

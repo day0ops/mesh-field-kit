@@ -1,7 +1,7 @@
 // addons/cert-manager/runbook.js
 
 // tpl: return v if it's a real value (not an unresolved {{...}} template), otherwise fb
-const tpl = (v, fb) => (v && !/\{\{/.test(v)) ? v : fb
+const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
 
 export function envVarsFor(_addonCfg, _clusterName) {
   return [];
@@ -9,7 +9,11 @@ export function envVarsFor(_addonCfg, _clusterName) {
 
 export function envExportsFor(addonCfg, _profile, env) {
   const exports = [
-    { name: 'CERT_MANAGER_VERSION', value: addonCfg.version || '1.20.2', comment: 'cert-manager version' },
+    {
+      name: 'CERT_MANAGER_VERSION',
+      value: addonCfg.version || '1.20.2',
+      comment: 'cert-manager version',
+    },
   ];
   const letsencrypt = addonCfg.config?.letsencrypt;
   if (letsencrypt?.enabled) {

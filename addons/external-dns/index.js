@@ -120,13 +120,25 @@ export class ExternalDnsFeature extends AddonFeature {
 
     const helmCtxArgs = this.kubeContext ? ['--kube-context', this.kubeContext] : [];
     try {
-      await CommandRunner.run('helm', [...helmCtxArgs, 'uninstall', 'external-dns', '-n', this.namespace]);
+      await CommandRunner.run('helm', [
+        ...helmCtxArgs,
+        'uninstall',
+        'external-dns',
+        '-n',
+        this.namespace,
+      ]);
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) throw error;
     }
 
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
-    await KubernetesHelper.kubectl([...ctxArgs, 'delete', 'namespace', this.namespace, '--ignore-not-found=true']);
+    await KubernetesHelper.kubectl([
+      ...ctxArgs,
+      'delete',
+      'namespace',
+      this.namespace,
+      '--ignore-not-found=true',
+    ]);
 
     this.log('external-dns cleaned up', 'success');
   }
@@ -135,7 +147,13 @@ export class ExternalDnsFeature extends AddonFeature {
     this.log(`Waiting for deployment ${name} to be ready...`, 'info');
 
     try {
-      await KubernetesHelper.waitForDeployment(this.namespace, name, timeout, this.spinner, this.kubeContext);
+      await KubernetesHelper.waitForDeployment(
+        this.namespace,
+        name,
+        timeout,
+        this.spinner,
+        this.kubeContext
+      );
     } catch (_error) {
       this.log(`Deployment ${name} may take longer to be ready`, 'warn');
     }

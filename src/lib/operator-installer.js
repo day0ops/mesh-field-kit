@@ -50,7 +50,9 @@ export class OperatorInstaller {
     const resolved = ConfigResolver.resolveForCluster(profile, cluster);
     const label = ConfigResolver.meshModeLabel(resolved.components);
 
-    spinner.start(`Installing ${label} via Gloo Operator on ${cluster.name} (${contextDisplay})...`);
+    spinner.start(
+      `Installing ${label} via Gloo Operator on ${cluster.name} (${contextDisplay})...`
+    );
 
     try {
       spinner.log(`Cluster: ${cluster.name} (role: ${cluster.role || 'default'})`);
@@ -108,7 +110,9 @@ export class OperatorInstaller {
         });
       }
 
-      spinner.succeed(`${label} installed via Gloo Operator on ${cluster.name} (${contextDisplay})`);
+      spinner.succeed(
+        `${label} installed via Gloo Operator on ${cluster.name} (${contextDisplay})`
+      );
       return true;
     } catch (error) {
       spinner.fail(`Failed to install via Gloo Operator on ${cluster.name}: ${error.message}`);
@@ -212,11 +216,11 @@ export class OperatorInstaller {
   static async #installOperatorChart(cfg, flags, { opRepo, opVersion, opNamespace }, spinner) {
     const helmResult = await CommandRunner.exec(
       `helm ${flags.helm} upgrade --install gloo-operator oci://${opRepo}/gloo-operator ` +
-      `--version ${opVersion} ` +
-      `-n ${opNamespace} ` +
-      `--create-namespace ` +
-      `--set manager.env.ENTERPRISE_ISTIO_LICENSE=${cfg.licenseKey} ` +
-      `--wait --timeout 5m`,
+        `--version ${opVersion} ` +
+        `-n ${opNamespace} ` +
+        `--create-namespace ` +
+        `--set manager.env.ENTERPRISE_ISTIO_LICENSE=${cfg.licenseKey} ` +
+        `--wait --timeout 5m`,
       { ignoreError: true }
     );
 
@@ -245,7 +249,9 @@ export class OperatorInstaller {
             spinner.log('Gloo Operator pod is running', 'success');
             return;
           }
-        } catch { /* continue polling */ }
+        } catch {
+          /* continue polling */
+        }
       }
 
       await sleep(DEFAULTS.POLL_INTERVAL_MS);
@@ -254,7 +260,18 @@ export class OperatorInstaller {
     throw new Error('Gloo Operator pod did not become ready within timeout');
   }
 
-  static async #applyServiceMeshController({ cluster, cfg, flags, opNamespace, istioNamespace, imageConfig, scalingProfile, smcSpec = {}, templateContext, spinner }) {
+  static async #applyServiceMeshController({
+    cluster,
+    cfg,
+    flags,
+    opNamespace,
+    istioNamespace,
+    imageConfig,
+    scalingProfile,
+    smcSpec = {},
+    templateContext,
+    spinner,
+  }) {
     // Resolve {{ cluster.name }} etc. in user-supplied spec
     const userSpec = TemplateResolver.resolveValues(smcSpec, templateContext);
 
@@ -300,12 +317,14 @@ export class OperatorInstaller {
     writeFileSync(tempFile, yamlContent);
 
     try {
-      await CommandRunner.exec(
-        `kubectl ${flags.kubectl} apply -f ${tempFile}`
-      );
+      await CommandRunner.exec(`kubectl ${flags.kubectl} apply -f ${tempFile}`);
       spinner.log('ServiceMeshController CR applied', 'success');
     } finally {
-      try { unlinkSync(tempFile); } catch { /* best effort */ }
+      try {
+        unlinkSync(tempFile);
+      } catch {
+        /* best effort */
+      }
     }
   }
 
@@ -358,5 +377,4 @@ export class OperatorInstaller {
 
     throw new Error('ServiceMeshController did not reach SUCCEEDED phase within timeout');
   }
-
 }

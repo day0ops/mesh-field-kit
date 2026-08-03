@@ -50,9 +50,10 @@ export class TrafficMirroringFeature extends Feature {
     const namespace = this.config.namespace;
     const routeName = this.config.routeName;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying TrafficMirroring feature: ${routeName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -65,24 +66,30 @@ export class TrafficMirroringFeature extends Feature {
     if (this.config.parentRefs) {
       parentRefs = this.config.parentRefs;
     } else if (this.config.serviceName && this.config.port) {
-      parentRefs = [{
-        group: '',
-        kind: 'Service',
-        name: this.config.serviceName,
-        port: this.config.port,
-      }];
+      parentRefs = [
+        {
+          group: '',
+          kind: 'Service',
+          name: this.config.serviceName,
+          port: this.config.port,
+        },
+      ];
     } else if (this.config.waypointName) {
-      parentRefs = [{
-        name: this.config.waypointName,
-        kind: 'Gateway',
-        group: 'gateway.networking.k8s.io',
-      }];
+      parentRefs = [
+        {
+          name: this.config.waypointName,
+          kind: 'Gateway',
+          group: 'gateway.networking.k8s.io',
+        },
+      ];
     } else {
-      parentRefs = [{
-        name: 'waypoint',
-        kind: 'Gateway',
-        group: 'gateway.networking.k8s.io',
-      }];
+      parentRefs = [
+        {
+          name: 'waypoint',
+          kind: 'Gateway',
+          group: 'gateway.networking.k8s.io',
+        },
+      ];
     }
 
     const rules = this.config.rules.map(rule => {
@@ -92,19 +99,21 @@ export class TrafficMirroringFeature extends Feature {
       }));
 
       const mirrorBackendRef = rule.mirrorBackendRef;
-      const filters = [{
-        type: 'RequestMirror',
-        requestMirror: {
-          backendRef: {
-            name: mirrorBackendRef.name,
-            port: mirrorBackendRef.port,
-            namespace: mirrorBackendRef.namespace || namespace,
+      const filters = [
+        {
+          type: 'RequestMirror',
+          requestMirror: {
+            backendRef: {
+              name: mirrorBackendRef.name,
+              port: mirrorBackendRef.port,
+              namespace: mirrorBackendRef.namespace || namespace,
+            },
+            ...(rule.mirrorPercent !== undefined
+              ? { fraction: { numerator: rule.mirrorPercent, denominator: 100 } }
+              : {}),
           },
-          ...(rule.mirrorPercent !== undefined
-            ? { fraction: { numerator: rule.mirrorPercent, denominator: 100 } }
-            : {}),
         },
-      }];
+      ];
 
       const processed = { ...rule, backendRefs, filters };
       delete processed.mirrorBackendRef;
@@ -136,9 +145,10 @@ export class TrafficMirroringFeature extends Feature {
     const routeName = this.config.routeName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up TrafficMirroring feature: ${routeName}`, 'info');
 

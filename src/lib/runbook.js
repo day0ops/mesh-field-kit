@@ -25,7 +25,7 @@ export class RunbookPicker {
         short: p.metadata.name,
         description: (p.metadata.description || '').trim() || null,
         value: p.metadata.name,
-      })),
+      }))
     );
 
     const profile = filtered.find(p => p.metadata.name === profileName);
@@ -40,87 +40,99 @@ export class RunbookPicker {
       const getPathParts = u => u._filePath.split('/'); // config/usecases/<scope>/<category>/...
 
       // Step 3a: scope
-      const availableScopes = [...new Set(allUsecases.map(u => getPathParts(u)[2]))].sort((a, b) => {
-        if (a === 'single-cluster') return -1;
-        if (b === 'single-cluster') return 1;
-        return a.localeCompare(b);
-      });
-      const { selectedScope } = await inquirer.prompt([{
-        type: 'list',
-        name: 'selectedScope',
-        message: 'Select use case scope:',
-        choices: [
-          ...availableScopes.map(s => ({ name: humanize(s), value: s })),
-          new Separator(),
-          { name: 'skip', value: 'skip' },
-        ],
-      }]);
+      const availableScopes = [...new Set(allUsecases.map(u => getPathParts(u)[2]))].sort(
+        (a, b) => {
+          if (a === 'single-cluster') return -1;
+          if (b === 'single-cluster') return 1;
+          return a.localeCompare(b);
+        }
+      );
+      const { selectedScope } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'selectedScope',
+          message: 'Select use case scope:',
+          choices: [
+            ...availableScopes.map(s => ({ name: humanize(s), value: s })),
+            new Separator(),
+            { name: 'skip', value: 'skip' },
+          ],
+        },
+      ]);
 
       if (selectedScope === 'skip') {
         // fall through to output config with no use cases
       } else {
+        const scopeFiltered = allUsecases.filter(u => getPathParts(u)[2] === selectedScope);
 
-      const scopeFiltered = allUsecases.filter(u => getPathParts(u)[2] === selectedScope);
+        // Steps 3b+3c: loop — category → use cases → back, until done
+        const availableCategories = [...new Set(scopeFiltered.map(u => getPathParts(u)[3]))].sort();
+        const selectedNames = new Set();
 
-      // Steps 3b+3c: loop — category → use cases → back, until done
-      const availableCategories = [...new Set(scopeFiltered.map(u => getPathParts(u)[3]))].sort();
-      const selectedNames = new Set();
+        while (true) {
+          const count = selectedNames.size;
+          const { selectedCategory } = await inquirer.prompt([
+            {
+              type: 'list',
+              name: 'selectedCategory',
+              message: `Select category${count > 0 ? ` (${count} use case${count > 1 ? 's' : ''} selected)` : ''}:`,
+              choices: [
+                ...availableCategories.map(c => ({ name: humanize(c), value: c })),
+                new Separator(),
+                { name: 'done', value: '__done__' },
+              ],
+            },
+          ]);
 
-      while (true) {
-        const count = selectedNames.size;
-        const { selectedCategory } = await inquirer.prompt([{
-          type: 'list',
-          name: 'selectedCategory',
-          message: `Select category${count > 0 ? ` (${count} use case${count > 1 ? 's' : ''} selected)` : ''}:`,
-          choices: [
-            ...availableCategories.map(c => ({ name: humanize(c), value: c })),
-            new Separator(),
-            { name: 'done', value: '__done__' },
-          ],
-        }]);
+          if (selectedCategory === '__done__') break;
 
-        if (selectedCategory === '__done__') break;
+          const categoryFiltered = scopeFiltered.filter(
+            u => getPathParts(u)[3] === selectedCategory
+          );
+          const usecaseChoices = categoryFiltered.map(u => ({
+            name: `${u.metadata.name}  —  ${(u.metadata.description || '').split('\n')[0].trim()}`,
+            value: u.metadata.name,
+            checked: selectedNames.has(u.metadata.name),
+          }));
 
-        const categoryFiltered = scopeFiltered.filter(u => getPathParts(u)[3] === selectedCategory);
-        const usecaseChoices = categoryFiltered.map(u => ({
-          name: `${u.metadata.name}  —  ${(u.metadata.description || '').split('\n')[0].trim()}`,
-          value: u.metadata.name,
-          checked: selectedNames.has(u.metadata.name),
-        }));
+          const { usecaseNames } = await inquirer.prompt([
+            {
+              type: 'checkbox',
+              name: 'usecaseNames',
+              message: `Select use cases from ${humanize(selectedCategory)}:`,
+              choices: usecaseChoices,
+            },
+          ]);
 
-        const { usecaseNames } = await inquirer.prompt([{
-          type: 'checkbox',
-          name: 'usecaseNames',
-          message: `Select use cases from ${humanize(selectedCategory)}:`,
-          choices: usecaseChoices,
-        }]);
-
-        // Sync selections for this category (allow deselect on revisit)
-        for (const u of categoryFiltered) {
-          if (usecaseNames.includes(u.metadata.name)) selectedNames.add(u.metadata.name);
-          else selectedNames.delete(u.metadata.name);
-        }
-
-        // Show current selection summary
-        if (selectedNames.size === 0) {
-          console.log('\n  (none selected)\n');
-        } else {
-          console.log('');
-          for (const name of selectedNames) {
-            console.log(`  • ${name}`);
+          // Sync selections for this category (allow deselect on revisit)
+          for (const u of categoryFiltered) {
+            if (usecaseNames.includes(u.metadata.name)) selectedNames.add(u.metadata.name);
+            else selectedNames.delete(u.metadata.name);
           }
-          console.log('');
+
+          // Show current selection summary
+          if (selectedNames.size === 0) {
+            console.log('\n  (none selected)\n');
+          } else {
+            console.log('');
+            for (const name of selectedNames) {
+              console.log(`  • ${name}`);
+            }
+            console.log('');
+          }
         }
-      }
 
-      selectedUsecases = allUsecases.filter(u => selectedNames.has(u.metadata.name));
-
+        selectedUsecases = allUsecases.filter(u => selectedNames.has(u.metadata.name));
       } // end else (selectedScope !== 'skip')
     }
 
     // 4. Output config — always prefix today's date (local), stripping any existing date prefix
     const _d = new Date();
-    const today = [_d.getFullYear(), String(_d.getMonth() + 1).padStart(2, '0'), String(_d.getDate()).padStart(2, '0')].join('-');
+    const today = [
+      _d.getFullYear(),
+      String(_d.getMonth() + 1).padStart(2, '0'),
+      String(_d.getDate()).padStart(2, '0'),
+    ].join('-');
     const baseFilename = (options.filename || profileName).replace(/^\d{4}-\d{2}-\d{2}-/, '');
     const defaultFilename = `${today}-${baseFilename}`;
 
@@ -200,11 +212,17 @@ function _buildToc(content) {
     const h3 = line.match(/^### (.+)$/);
     if (h2) {
       const text = h2[1];
-      const anchor = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/ /g, '-');
+      const anchor = text
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/ /g, '-');
       entries.push(`- [${text}](#${anchor})`);
     } else if (h3) {
       const text = h3[1];
-      const anchor = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/ /g, '-');
+      const anchor = text
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/ /g, '-');
       entries.push(`  - [${text}](#${anchor})`);
     }
   }
@@ -239,25 +257,41 @@ export class RunbookBuilder {
 
     const syncAdapters = [infraAdapter, envAdapter, diagramAdapter, installAdapter, usecaseAdapter];
     for (const adapter of syncAdapters) {
-      for (const v of (adapter.envVars(this.selection) || [])) {
-        if (!seenVars.has(v.name)) { seenVars.add(v.name); allEnvVars.push(v); }
+      for (const v of adapter.envVars(this.selection) || []) {
+        if (!seenVars.has(v.name)) {
+          seenVars.add(v.name);
+          allEnvVars.push(v);
+        }
       }
-      for (const e of (adapter.envExports(this.selection) || [])) {
-        if (!seenExports.has(e.name)) { seenExports.add(e.name); allEnvExports.push(e); }
+      for (const e of adapter.envExports(this.selection) || []) {
+        if (!seenExports.has(e.name)) {
+          seenExports.add(e.name);
+          allEnvExports.push(e);
+        }
       }
     }
 
     // Collect from async addon sidecars
-    for (const v of (await addonAdapter.envVars(this.selection))) {
-      if (!seenVars.has(v.name)) { seenVars.add(v.name); allEnvVars.push(v); }
+    for (const v of await addonAdapter.envVars(this.selection)) {
+      if (!seenVars.has(v.name)) {
+        seenVars.add(v.name);
+        allEnvVars.push(v);
+      }
     }
-    for (const e of (await addonAdapter.envExports(this.selection))) {
-      if (!seenExports.has(e.name)) { seenExports.add(e.name); allEnvExports.push(e); }
+    for (const e of await addonAdapter.envExports(this.selection)) {
+      if (!seenExports.has(e.name)) {
+        seenExports.add(e.name);
+        allEnvExports.push(e);
+      }
     }
 
     // Generate all lab sections
     const now = new Date();
-    const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
     const timestamp = `${today} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} (local)`;
 
     const header = `# Mesh Demo Runbook\n\nGenerated: ${timestamp}\n\n---\n`;

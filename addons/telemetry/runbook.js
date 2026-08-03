@@ -7,7 +7,7 @@ import { resolveChartVersions } from './versions.js';
 const __dir = dirname(fileURLToPath(import.meta.url));
 
 // tpl: return v if it's a real value (not an unresolved {{...}} template), otherwise fb
-const tpl = (v, fb) => (v && !/\{\{/.test(v)) ? v : fb
+const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
 
 function readConfig(name) {
   return fs.promises.readFile(join(__dir, 'config', name), 'utf8');
@@ -28,17 +28,34 @@ export function envExportsFor(addonCfg, _profile, env) {
   const cfg = addonCfg.config || {};
   const versions = chartVersionsFromAddon(addonCfg);
   const exports = [
-    { name: 'OTEL_CHART_VERSION', value: versions.otel, comment: 'OpenTelemetry collector Helm chart version' },
-    { name: 'TELEMETRY_ALLOY_VERSION', value: versions.alloy, comment: 'Grafana Alloy Helm chart version' },
+    {
+      name: 'OTEL_CHART_VERSION',
+      value: versions.otel,
+      comment: 'OpenTelemetry collector Helm chart version',
+    },
+    {
+      name: 'TELEMETRY_ALLOY_VERSION',
+      value: versions.alloy,
+      comment: 'Grafana Alloy Helm chart version',
+    },
   ];
   if (cfg.mode !== 'agent') {
-    const grafanaHostname = tpl(cfg.grafanaHostname, env.spec.domains?.grafana) || 'grafana.example.com';
+    const grafanaHostname =
+      tpl(cfg.grafanaHostname, env.spec.domains?.grafana) || 'grafana.example.com';
     exports.unshift(
       { name: 'GRAFANA_HOSTNAME', value: grafanaHostname, comment: 'Grafana public hostname' },
-      { name: 'TELEMETRY_NAMESPACE', value: addonCfg.namespace || 'telemetry', comment: 'Telemetry stack namespace' },
-      { name: 'PROMETHEUS_STACK_VERSION', value: versions['kube-prom-stack'], comment: 'kube-prometheus-stack Helm chart version' },
+      {
+        name: 'TELEMETRY_NAMESPACE',
+        value: addonCfg.namespace || 'telemetry',
+        comment: 'Telemetry stack namespace',
+      },
+      {
+        name: 'PROMETHEUS_STACK_VERSION',
+        value: versions['kube-prom-stack'],
+        comment: 'kube-prometheus-stack Helm chart version',
+      },
       { name: 'LOKI_VERSION', value: versions.loki, comment: 'Grafana Loki Helm chart version' },
-      { name: 'TEMPO_VERSION', value: versions.tempo, comment: 'Grafana Tempo Helm chart version' },
+      { name: 'TEMPO_VERSION', value: versions.tempo, comment: 'Grafana Tempo Helm chart version' }
     );
   }
   return exports;
@@ -53,9 +70,17 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, env) 
 }
 
 async function _generateGateway(addonCfg, clusterName, env) {
-  const [tempoValues, lokiValues, alloyValues, prometheusValues,
-         metricsValuesRaw, logsValuesRaw, tracesValuesRaw, gatewayValuesRaw,
-         datasourcesYamlRaw] = await Promise.all([
+  const [
+    tempoValues,
+    lokiValues,
+    alloyValues,
+    prometheusValues,
+    metricsValuesRaw,
+    logsValuesRaw,
+    tracesValuesRaw,
+    gatewayValuesRaw,
+    datasourcesYamlRaw,
+  ] = await Promise.all([
     readConfig('tempo-values.yaml'),
     readConfig('loki-values.yaml'),
     readConfig('alloy-values.yaml'),
@@ -73,7 +98,8 @@ async function _generateGateway(addonCfg, clusterName, env) {
   const storageClass = cfg.storageClass || 'standard';
   const storageSize = cfg.storageSize || '50Gi';
   const retention = cfg.retention || '120h';
-  const grafanaHostname = tpl(cfg.grafanaHostname, env.spec.domains?.grafana) || 'grafana.example.com';
+  const grafanaHostname =
+    tpl(cfg.grafanaHostname, env.spec.domains?.grafana) || 'grafana.example.com';
   const grafanaTls = cfg.grafanaTls || {};
   const grafanaOidc = cfg.grafanaOidc || {};
   const globalExport = cfg.globalExport === true;
@@ -82,10 +108,11 @@ async function _generateGateway(addonCfg, clusterName, env) {
   const tlsSecret = grafanaTls.secretName || 'grafana-tls';
 
   // Substitute {{...}} template vars in OTel values files before embedding
-  const fillGateway = (s) => s
-    .replaceAll('{{TELEMETRY_NAMESPACE}}', ns)
-    .replaceAll('{{SOLO_UI_NAMESPACE}}', soloUiNs)
-    .replaceAll('{{CLUSTER_NAME}}', clusterName);
+  const fillGateway = s =>
+    s
+      .replaceAll('{{TELEMETRY_NAMESPACE}}', ns)
+      .replaceAll('{{SOLO_UI_NAMESPACE}}', soloUiNs)
+      .replaceAll('{{CLUSTER_NAME}}', clusterName);
 
   const metricsValues = fillGateway(metricsValuesRaw);
   const logsValues = fillGateway(logsValuesRaw);
@@ -94,7 +121,11 @@ async function _generateGateway(addonCfg, clusterName, env) {
   const datasourcesYaml = fillGateway(datasourcesYamlRaw);
 
   // Indent datasources YAML for embedding inside ConfigMap data block
-  const datasourcesIndented = datasourcesYaml.trimEnd().split('\n').map(l => `    ${l}`).join('\n');
+  const datasourcesIndented = datasourcesYaml
+    .trimEnd()
+    .split('\n')
+    .map(l => `    ${l}`)
+    .join('\n');
 
   let grafanaTlsSection = '';
   if (grafanaTls?.enabled && grafanaHostname) {
@@ -173,10 +204,14 @@ EOF
   let grafanaOidcValuesBlock = '';
   let grafanaOidcNote = '';
   if (grafanaOidc?.enabled) {
-    const realm = (grafanaOidc.issuerUrl?.split('/realms/')[1] || 'grafana').replace(/\{\{[^}]+\}\}/g, '').replace(/^\//, '') || 'grafana';
+    const realm =
+      (grafanaOidc.issuerUrl?.split('/realms/')[1] || 'grafana')
+        .replace(/\{\{[^}]+\}\}/g, '')
+        .replace(/^\//, '') || 'grafana';
     const keycloakHostname = env.spec?.domains?.keycloak || '$KEYCLOAK_HOSTNAME';
-    const issuerUrl = tpl(grafanaOidc.issuerUrl, null)
-      || (grafanaOidc.issuerUrl || '').replace(/\{\{env\.domains\.keycloak\}\}/g, keycloakHostname);
+    const issuerUrl =
+      tpl(grafanaOidc.issuerUrl, null) ||
+      (grafanaOidc.issuerUrl || '').replace(/\{\{env\.domains\.keycloak\}\}/g, keycloakHostname);
     const clientId = grafanaOidc.clientId || 'grafana';
     const clientSecret = grafanaOidc.clientSecret || 'grafana-client-secret';
     const adminGroup = grafanaOidc.adminGroup || 'grafana-admins';
@@ -220,13 +255,15 @@ EOF
 `;
   }
 
-  const globalExportSection = globalExport ? `
+  const globalExportSection = globalExport
+    ? `
 
 Label OTel gateway as a global service so agent clusters can reach it over the ambient mesh:
 
 \`\`\`bash
 kubectl label svc opentelemetry-collector-gateway -n ${ns} solo.io/service-scope=global --overwrite
-\`\`\`` : '';
+\`\`\``
+    : '';
 
   return `Install telemetry stack (Tempo, Loki, Alloy, Prometheus, Grafana, OTel collectors) on the **${clusterName}** cluster in gateway mode.
 
@@ -400,14 +437,17 @@ async function _generateAgent(addonCfg, clusterName, _env) {
   const cfg = addonCfg.config || {};
   const ns = addonCfg.namespace || 'telemetry';
   const { alloy: alloyVersion, otel: otelVersion } = chartVersionsFromAddon(addonCfg);
-  const otelEndpoint = cfg.otelGatewayEndpoint || 'opentelemetry-collector-gateway.telemetry.mesh.internal:4317';
-  const lokiPushUrl = cfg.lokiPushUrl || 'http://loki.telemetry.mesh.internal:3100/loki/api/v1/push';
+  const otelEndpoint =
+    cfg.otelGatewayEndpoint || 'opentelemetry-collector-gateway.telemetry.mesh.internal:4317';
+  const lokiPushUrl =
+    cfg.lokiPushUrl || 'http://loki.telemetry.mesh.internal:3100/loki/api/v1/push';
 
   // Substitute {{...}} template vars in agent OTel values files before embedding
-  const fillAgent = (s) => s
-    .replaceAll('{{CLUSTER_NAME}}', clusterName)
-    .replaceAll('{{OTEL_GATEWAY_ENDPOINT}}', otelEndpoint)
-    .replaceAll('{{LOKI_PUSH_URL}}', lokiPushUrl);
+  const fillAgent = s =>
+    s
+      .replaceAll('{{CLUSTER_NAME}}', clusterName)
+      .replaceAll('{{OTEL_GATEWAY_ENDPOINT}}', otelEndpoint)
+      .replaceAll('{{LOKI_PUSH_URL}}', lokiPushUrl);
 
   const metricsValues = fillAgent(metricsValuesRaw);
   const logsValues = fillAgent(logsValuesRaw);

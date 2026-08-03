@@ -28,7 +28,13 @@ export function waitForKey() {
       stdin.removeListener('keypress', onKey);
       stdin.setRawMode(false);
       stdin.pause();
-      if (ttyStream) { try { ttyStream.close(); } catch { /* best effort */ } }
+      if (ttyStream) {
+        try {
+          ttyStream.close();
+        } catch {
+          /* best effort */
+        }
+      }
       resolve();
     };
 
@@ -77,14 +83,16 @@ export class Prompts {
           stdin = ttyStream;
         } catch {
           const selectable = choices.filter(
-            c => !(c instanceof inquirer.Separator) && c.type !== 'separator',
+            c => !(c instanceof inquirer.Separator) && c.type !== 'separator'
           );
           const listing = selectable.map(c => `  - ${c.value}`).join('\n');
-          reject(new Error(
-            `Interactive prompt requires a TTY.\n`
-            + `Available options:\n${listing}\n`
-            + `Specify explicitly with -p <name> or PROFILE=<name>`
-          ));
+          reject(
+            new Error(
+              `Interactive prompt requires a TTY.\n` +
+                `Available options:\n${listing}\n` +
+                `Specify explicitly with -p <name> or PROFILE=<name>`
+            )
+          );
           return;
         }
       }
@@ -101,7 +109,7 @@ export class Prompts {
 
       const cols = stdout.columns || 80;
       const maxLabel = cols - 4;
-      const fit = (text) => {
+      const fit = text => {
         const clean = text.replace(/[\r\n]+/g, ' ').trim();
         if (clean.length <= maxLabel) return clean;
         return clean.slice(0, maxLabel - 1) + '…';
@@ -117,7 +125,7 @@ export class Prompts {
           chalk.green('?') +
             ' ' +
             chalk.bold(message) +
-            chalk.yellow('  (enter/space to select' + (allowBack ? ', esc to go back' : '') + ')'),
+            chalk.yellow('  (enter/space to select' + (allowBack ? ', esc to go back' : '') + ')')
         );
 
         let itemIdx = 0;
@@ -135,7 +143,9 @@ export class Prompts {
               for (const dl of descLines) {
                 const descText = dl.trim();
                 if (descText) {
-                  lines.push(active ? chalk.dim.cyan(`    • ${descText}`) : chalk.dim(`    • ${descText}`));
+                  lines.push(
+                    active ? chalk.dim.cyan(`    • ${descText}`) : chalk.dim(`    • ${descText}`)
+                  );
                 }
               }
             }
@@ -149,7 +159,11 @@ export class Prompts {
 
       const closeTty = () => {
         if (ttyStream) {
-          try { ttyStream.close(); } catch { /* best effort */ }
+          try {
+            ttyStream.close();
+          } catch {
+            /* best effort */
+          }
         }
       };
 
@@ -161,12 +175,7 @@ export class Prompts {
           const item = selectable[pointer];
           const confirmText = fit(item?.short || item?.name || '');
           stdout.write(
-            chalk.green('✔') +
-              ' ' +
-              chalk.bold(message) +
-              ' ' +
-              chalk.cyan(confirmText) +
-              '\n',
+            chalk.green('✔') + ' ' + chalk.bold(message) + ' ' + chalk.cyan(confirmText) + '\n'
           );
         }
         stdout.write('\x1B[?25h');
@@ -218,7 +227,7 @@ export class Prompts {
    */
   static async select(message, choices, defaultValue = null) {
     const selectable = choices.filter(
-      c => !(c instanceof inquirer.Separator) && c.type !== 'separator',
+      c => !(c instanceof inquirer.Separator) && c.type !== 'separator'
     );
     let defaultIndex = 0;
     if (defaultValue != null) {
@@ -321,9 +330,9 @@ export class Prompts {
   static async selectTree(message, tree) {
     const BACK = Symbol('back');
 
-    const isBranch = (node) => Array.isArray(node.children);
+    const isBranch = node => Array.isArray(node.children);
 
-    const countLeaves = (nodes) => {
+    const countLeaves = nodes => {
       let total = 0;
       for (const n of nodes) {
         total += isBranch(n) ? countLeaves(n.children) : 1;
@@ -364,7 +373,7 @@ export class Prompts {
           const result = await navigate(
             selectedNode.children,
             `Select from ${chalk.cyan(selectedNode.label)}:`,
-            true,
+            true
           );
           if (result !== null) return result;
           continue;

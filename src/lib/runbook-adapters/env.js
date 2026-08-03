@@ -19,14 +19,20 @@ export class EnvAdapter {
       ...consolidatedVars,
       ...consolidatedExports
         .filter(e => !varNames.has(e.name))
-        .map(e => ({ name: e.name, value: e.value, description: e.comment || '', required: false })),
+        .map(e => ({
+          name: e.name,
+          value: e.value,
+          description: e.comment || '',
+          required: false,
+        })),
     ];
 
     const table = [
       '| Variable | Value | Description | Required |',
       '|----------|-------|-------------|----------|',
       ...allTableVars.map(
-        v => `| \`${v.name}\` | ${v.value != null ? `\`${v.value}\`` : ''} | ${v.description} | ${v.required ? 'Yes' : 'No'} |`
+        v =>
+          `| \`${v.name}\` | ${v.value != null ? `\`${v.value}\`` : ''} | ${v.description} | ${v.required ? 'Yes' : 'No'} |`
       ),
     ].join('\n');
 

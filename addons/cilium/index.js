@@ -86,7 +86,10 @@ export class CiliumFeature extends AddonFeature {
         `Hubble UI: kubectl port-forward -n ${this.ciliumNamespace} svc/hubble-ui 12000:80`
       );
     }
-    this.log(`Cilium installed successfully.${hints.length ? ' ' + hints.join(' | ') : ''}`, 'success');
+    this.log(
+      `Cilium installed successfully.${hints.length ? ' ' + hints.join(' | ') : ''}`,
+      'success'
+    );
   }
 
   /**
@@ -140,9 +143,12 @@ export class CiliumFeature extends AddonFeature {
     }
 
     helmArgs.push(
-      '--set', `hubble.enabled=${this.hubbleEnabled}`,
-      '--set', `hubble.relay.enabled=${this.hubbleEnabled}`,
-      '--set', `hubble.ui.enabled=${this.hubbleEnabled}`,
+      '--set',
+      `hubble.enabled=${this.hubbleEnabled}`,
+      '--set',
+      `hubble.relay.enabled=${this.hubbleEnabled}`,
+      '--set',
+      `hubble.ui.enabled=${this.hubbleEnabled}`
     );
 
     let userValuesFile = null;
@@ -156,20 +162,23 @@ export class CiliumFeature extends AddonFeature {
       helmArgs.push('--kube-context', this.kubeContext);
     }
 
-    helmArgs.push(
-      '--create-namespace',
-      '--wait',
-      '--timeout',
-      '10m',
-    );
+    helmArgs.push('--create-namespace', '--wait', '--timeout', '10m');
 
     try {
       await KubernetesHelper.helm(helmArgs, this.spinner);
-      await KubernetesHelper.assertHelmDeployed(RELEASE_NAME, this.ciliumNamespace, this.kubeContext);
+      await KubernetesHelper.assertHelmDeployed(
+        RELEASE_NAME,
+        this.ciliumNamespace,
+        this.kubeContext
+      );
       this.log('Cilium Helm chart installed', 'info');
     } finally {
       if (userValuesFile && existsSync(userValuesFile)) {
-        try { unlinkSync(userValuesFile); } catch { /* best effort */ }
+        try {
+          unlinkSync(userValuesFile);
+        } catch {
+          /* best effort */
+        }
       }
     }
   }
@@ -183,7 +192,15 @@ export class CiliumFeature extends AddonFeature {
 
     try {
       await KubernetesHelper.kubectl(
-        [...ctxArgs, 'rollout', 'status', 'daemonset/cilium', '-n', this.ciliumNamespace, '--timeout=300s'],
+        [
+          ...ctxArgs,
+          'rollout',
+          'status',
+          'daemonset/cilium',
+          '-n',
+          this.ciliumNamespace,
+          '--timeout=300s',
+        ],
         { ignoreError: true }
       );
       this.log('Cilium agent daemonset is ready', 'info');
@@ -259,7 +276,9 @@ export class CiliumFeature extends AddonFeature {
     try {
       await KubernetesHelper.kubectl([
         ...ctxArgs,
-        'delete', 'ciliumclusterwidenetworkpolicy', 'allow-ambient-hostprobes',
+        'delete',
+        'ciliumclusterwidenetworkpolicy',
+        'allow-ambient-hostprobes',
         '--ignore-not-found=true',
       ]);
     } catch (err) {
@@ -292,7 +311,10 @@ export class CiliumFeature extends AddonFeature {
         'warn'
       );
     } else {
-      this.log('cilium CLI unavailable — falling back to helm uninstall (node-level BPF/interface cleanup may be incomplete)', 'warn');
+      this.log(
+        'cilium CLI unavailable — falling back to helm uninstall (node-level BPF/interface cleanup may be incomplete)',
+        'warn'
+      );
     }
 
     // Fallback: enable Cilium's built-in CNI cleanup before uninstalling.
@@ -304,12 +326,17 @@ export class CiliumFeature extends AddonFeature {
       this.log('Enabling CNI cleanup on Cilium agents...', 'info');
       await CommandRunner.run('helm', [
         ...helmCtxArgs,
-        'upgrade', RELEASE_NAME, 'cilium/cilium',
-        '-n', this.ciliumNamespace,
+        'upgrade',
+        RELEASE_NAME,
+        'cilium/cilium',
+        '-n',
+        this.ciliumNamespace,
         '--reuse-values',
-        '--set', 'cni.uninstall=true',
+        '--set',
+        'cni.uninstall=true',
         '--wait',
-        '--timeout', '5m',
+        '--timeout',
+        '5m',
       ]);
     } catch (error) {
       this.log(
@@ -320,7 +347,12 @@ export class CiliumFeature extends AddonFeature {
 
     try {
       await CommandRunner.run('helm', [
-        ...helmCtxArgs, 'uninstall', RELEASE_NAME, '-n', this.ciliumNamespace, '--wait',
+        ...helmCtxArgs,
+        'uninstall',
+        RELEASE_NAME,
+        '-n',
+        this.ciliumNamespace,
+        '--wait',
       ]);
       this.log('Cilium Helm release uninstalled', 'info');
     } catch (err) {

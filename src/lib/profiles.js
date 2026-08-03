@@ -129,7 +129,9 @@ export class ProfileManager {
   static async getProfileSummary(profileName) {
     const profile = await this.load(profileName);
     const mesh = ProfileSchema.getMesh(profile);
-    const { names: componentNames } = ProfileSchema.normalizeComponents(ProfileSchema.getBaseComponents(profile));
+    const { names: componentNames } = ProfileSchema.normalizeComponents(
+      ProfileSchema.getBaseComponents(profile)
+    );
 
     const summary = {
       name: profile.metadata?.name || profileName,

@@ -1,58 +1,62 @@
-import { Feature } from '../../../src/lib/feature.js'
-import { KubernetesHelper, Logger } from '../../../src/lib/common.js'
+import { Feature } from '../../../src/lib/feature.js';
+import { KubernetesHelper, Logger } from '../../../src/lib/common.js';
 
 // Maps gatewayClassName → valid backend kinds for mismatch warnings
 const GATEWAY_BACKEND_AFFINITY = {
   kgateway: ['Service', 'Backend', 'Hostname'],
   'enterprise-kgateway': ['Service', 'Backend', 'Hostname'],
   istio: ['Service'],
-}
+};
 
 export class IngressHttpRouteFeature extends Feature {
   constructor(name, config = {}) {
-    super(name, config)
-    this.routeName = config.routeName || config.gatewayName
-    this.namespace = config.namespace
-    this.gatewayName = config.gatewayName
-    this.gatewayNamespace = config.gatewayNamespace || config.namespace
-    this.hostname = config.hostname
-    this.rules = config.rules || []
+    super(name, config);
+    this.routeName = config.routeName || config.gatewayName;
+    this.namespace = config.namespace;
+    this.gatewayName = config.gatewayName;
+    this.gatewayNamespace = config.gatewayNamespace || config.namespace;
+    this.hostname = config.hostname;
+    this.rules = config.rules || [];
   }
 
   validate() {
-    if (!this.gatewayName) throw new Error('gatewayName is required')
-    if (!this.routeName) throw new Error('routeName or gatewayName is required')
-    if (!this.namespace) throw new Error('namespace is required')
-    if (!this.rules.length) throw new Error('at least one rule with backendRefs is required')
+    if (!this.gatewayName) throw new Error('gatewayName is required');
+    if (!this.routeName) throw new Error('routeName or gatewayName is required');
+    if (!this.namespace) throw new Error('namespace is required');
+    if (!this.rules.length) throw new Error('at least one rule with backendRefs is required');
     for (const rule of this.rules) {
       if (!rule.backendRefs?.length) {
-        throw new Error('each rule must have at least one backendRef')
+        throw new Error('each rule must have at least one backendRef');
       }
     }
-    return true
+    return true;
   }
 
   /**
    * Read parent Gateway's spec.gatewayClassName from the cluster.
    */
   async readGatewayClassName(context) {
-    const ctxArgs = context ? ['--context', context] : []
+    const ctxArgs = context ? ['--context', context] : [];
     const r = await KubernetesHelper.kubectl(
       [
-        'get', 'gateway', this.gatewayName,
-        '-n', this.gatewayNamespace,
-        '-o', 'jsonpath={.spec.gatewayClassName}',
+        'get',
+        'gateway',
+        this.gatewayName,
+        '-n',
+        this.gatewayNamespace,
+        '-o',
+        'jsonpath={.spec.gatewayClassName}',
         ...ctxArgs,
       ],
       { ignoreError: true }
-    )
-    const cls = r?.stdout?.trim()
+    );
+    const cls = r?.stdout?.trim();
     if (!cls) {
       throw new Error(
         `Gateway "${this.gatewayName}" not found or has no gatewayClassName in namespace "${this.gatewayNamespace}". Deploy ingress-gateway first.`
-      )
+      );
     }
-    return cls
+    return cls;
   }
 
   /**
@@ -61,45 +65,45 @@ export class IngressHttpRouteFeature extends Feature {
    * Backend CRD (kgateway) requires explicit backendKind in config.
    */
   resolveBackendRef(backendRef, gatewayClassName) {
-    const { name, port, backendKind } = backendRef
+    const { name, port, backendKind } = backendRef;
 
     // Warn on mismatch between gateway type and backend kind
-    const affinity = GATEWAY_BACKEND_AFFINITY[gatewayClassName] || ['Service']
-    const effectiveKind = backendKind || 'Service'
+    const affinity = GATEWAY_BACKEND_AFFINITY[gatewayClassName] || ['Service'];
+    const effectiveKind = backendKind || 'Service';
     if (!affinity.includes(effectiveKind)) {
       Logger.warn(
         `backendKind "${effectiveKind}" is unusual for gatewayClassName "${gatewayClassName}"`
-      )
+      );
     }
 
     if (!backendKind || backendKind === 'Service') {
-      return { name, port, kind: 'Service', group: '' }
+      return { name, port, kind: 'Service', group: '' };
     }
 
     if (backendKind === 'Backend') {
       // kgateway Backend CRD — port is defined inside the Backend resource, omit from backendRef
-      return { name, kind: 'Backend', group: 'gateway.kgateway.dev' }
+      return { name, kind: 'Backend', group: 'gateway.kgateway.dev' };
     }
 
     if (backendKind === 'Hostname') {
       // Routes directly to an Istio ServiceEntry-backed hostname (e.g. a global
       // mesh.internal service), letting the gateway load-balance across every
       // cluster that exports it rather than just the local Service.
-      return { name, port, kind: 'Hostname', group: 'networking.istio.io' }
+      return { name, port, kind: 'Hostname', group: 'networking.istio.io' };
     }
 
-    throw new Error(`Unknown backendKind "${backendKind}". Use: Service, Backend, Hostname`)
+    throw new Error(`Unknown backendKind "${backendKind}". Use: Service, Backend, Hostname`);
   }
 
   async buildHttpRoute(gatewayClassName) {
-    const resolvedRules = []
+    const resolvedRules = [];
     for (const rule of this.rules) {
-      const resolvedRefs = []
+      const resolvedRefs = [];
       for (const ref of rule.backendRefs) {
-        const resolved = this.resolveBackendRef(ref, gatewayClassName)
-        resolvedRefs.push(resolved)
+        const resolved = this.resolveBackendRef(ref, gatewayClassName);
+        resolvedRefs.push(resolved);
       }
-      resolvedRules.push({ ...rule, backendRefs: resolvedRefs })
+      resolvedRules.push({ ...rule, backendRefs: resolvedRefs });
     }
 
     const route = {
@@ -110,14 +114,12 @@ export class IngressHttpRouteFeature extends Feature {
         namespace: this.namespace,
       },
       spec: {
-        parentRefs: [
-          { name: this.gatewayName, namespace: this.gatewayNamespace },
-        ],
+        parentRefs: [{ name: this.gatewayName, namespace: this.gatewayNamespace }],
         rules: resolvedRules,
       },
-    }
-    if (this.hostname) route.spec.hostnames = [this.hostname]
-    return route
+    };
+    if (this.hostname) route.spec.hostnames = [this.hostname];
+    return route;
   }
 
   static buildRunbook(config) {
@@ -125,13 +127,23 @@ export class IngressHttpRouteFeature extends Feature {
       ...rule,
       backendRefs: (rule.backendRefs || []).map(ref => {
         if (!ref.backendKind || ref.backendKind === 'Service') {
-          return { name: ref.name, ...(ref.port != null ? { port: ref.port } : {}), kind: 'Service', group: '' };
+          return {
+            name: ref.name,
+            ...(ref.port != null ? { port: ref.port } : {}),
+            kind: 'Service',
+            group: '',
+          };
         }
         if (ref.backendKind === 'Backend') {
           return { name: ref.name, kind: 'Backend', group: 'gateway.kgateway.dev' };
         }
         if (ref.backendKind === 'Hostname') {
-          return { name: ref.name, ...(ref.port != null ? { port: ref.port } : {}), kind: 'Hostname', group: 'networking.istio.io' };
+          return {
+            name: ref.name,
+            ...(ref.port != null ? { port: ref.port } : {}),
+            kind: 'Hostname',
+            group: 'networking.istio.io',
+          };
         }
         return { name: ref.name };
       }),
@@ -145,7 +157,9 @@ export class IngressHttpRouteFeature extends Feature {
         namespace: config.namespace,
       },
       spec: {
-        parentRefs: [{ name: config.gatewayName, namespace: config.gatewayNamespace || config.namespace }],
+        parentRefs: [
+          { name: config.gatewayName, namespace: config.gatewayNamespace || config.namespace },
+        ],
         rules,
       },
     };
@@ -154,32 +168,32 @@ export class IngressHttpRouteFeature extends Feature {
   }
 
   async deploy() {
-    this.validate()
+    this.validate();
 
-    const contextsToDeploy = this.clusterContexts?.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null]
+    const contextsToDeploy =
+      this.clusterContexts?.length > 0 ? this.clusterContexts.map(c => c.context) : [null];
 
     for (const context of contextsToDeploy) {
-      const gatewayClassName = await this.readGatewayClassName(context)
+      const gatewayClassName = await this.readGatewayClassName(context);
 
-      await this.ensureNamespace(this.namespace, context)
+      await this.ensureNamespace(this.namespace, context);
 
-      const route = await this.buildHttpRoute(gatewayClassName)
-      this.log(`Applying HTTPRoute "${this.routeName}" → Gateway "${this.gatewayName}" (${gatewayClassName})`)
-      await this.applyResource(route, context)
-      this.log(`HTTPRoute "${this.routeName}" applied`, 'success')
+      const route = await this.buildHttpRoute(gatewayClassName);
+      this.log(
+        `Applying HTTPRoute "${this.routeName}" → Gateway "${this.gatewayName}" (${gatewayClassName})`
+      );
+      await this.applyResource(route, context);
+      this.log(`HTTPRoute "${this.routeName}" applied`, 'success');
     }
   }
 
   async cleanup() {
-    const contextsToDeploy = this.clusterContexts?.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null]
+    const contextsToDeploy =
+      this.clusterContexts?.length > 0 ? this.clusterContexts.map(c => c.context) : [null];
 
     for (const context of contextsToDeploy) {
-      await this.deleteResource('httproute', this.routeName, this.namespace, context)
+      await this.deleteResource('httproute', this.routeName, this.namespace, context);
     }
-    this.log(`HTTPRoute "${this.routeName}" removed`, 'success')
+    this.log(`HTTPRoute "${this.routeName}" removed`, 'success');
   }
 }

@@ -12,7 +12,7 @@ beforeEach(() => {
   capturedCommand = null;
   execResult = { exitCode: 0, stdout: '', stderr: '' };
   resolveSpy = spyOn(IstioctlHelper, 'resolve').mockResolvedValue('solo-istioctl');
-  execSpy = spyOn(CommandRunner, 'exec').mockImplementation(async (command) => {
+  execSpy = spyOn(CommandRunner, 'exec').mockImplementation(async command => {
     capturedCommand = command;
     return execResult;
   });
@@ -92,23 +92,27 @@ test('vmAddWorkload returns a null bootstrapToken when none is printed', async (
 test('vmAddWorkload throws with command output on non-zero exit', async () => {
   execResult = { exitCode: 1, stdout: '', stderr: 'namespace not found' };
 
-  await expect(IstioctlHelper.vmAddWorkload({
-    name: 'app1',
-    address: '1.2.3.4',
-    namespace: 'vm-apps',
-    ports: 'http:80:8080',
-    outputDir: '/tmp/tokens',
-  })).rejects.toThrow(/namespace not found/);
+  await expect(
+    IstioctlHelper.vmAddWorkload({
+      name: 'app1',
+      address: '1.2.3.4',
+      namespace: 'vm-apps',
+      ports: 'http:80:8080',
+      outputDir: '/tmp/tokens',
+    })
+  ).rejects.toThrow(/namespace not found/);
 });
 
 test('vmAddWorkload throws when istioctl cannot be resolved', async () => {
   resolveSpy.mockResolvedValue(null);
 
-  await expect(IstioctlHelper.vmAddWorkload({
-    name: 'app1',
-    address: '1.2.3.4',
-    namespace: 'vm-apps',
-    ports: 'http:80:8080',
-    outputDir: '/tmp/tokens',
-  })).rejects.toThrow(/Failed to resolve istioctl/);
+  await expect(
+    IstioctlHelper.vmAddWorkload({
+      name: 'app1',
+      address: '1.2.3.4',
+      namespace: 'vm-apps',
+      ports: 'http:80:8080',
+      outputDir: '/tmp/tokens',
+    })
+  ).rejects.toThrow(/Failed to resolve istioctl/);
 });

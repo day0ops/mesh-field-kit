@@ -18,7 +18,9 @@ export function resolveChartVersions({ version, chartVersions } = {}) {
   const overrides = chartVersions || {};
   return {
     'kube-prom-stack':
-      overrides['kube-prom-stack'] || overrides.prometheus || DEFAULT_CHART_VERSIONS['kube-prom-stack'],
+      overrides['kube-prom-stack'] ||
+      overrides.prometheus ||
+      DEFAULT_CHART_VERSIONS['kube-prom-stack'],
     loki: overrides.loki || DEFAULT_CHART_VERSIONS.loki,
     tempo: overrides.tempo || DEFAULT_CHART_VERSIONS.tempo,
     alloy: overrides.alloy || DEFAULT_CHART_VERSIONS.alloy,

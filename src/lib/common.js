@@ -32,11 +32,21 @@ export class Logger {
     }
   }
 
-  static logInfo(message) { return Logger.info(message); }
-  static logSuccess(message) { return Logger.success(message); }
-  static logWarn(message) { return Logger.warn(message); }
-  static logError(message) { return Logger.error(message); }
-  static logDebug(message) { return Logger.debug(message); }
+  static logInfo(message) {
+    return Logger.info(message);
+  }
+  static logSuccess(message) {
+    return Logger.success(message);
+  }
+  static logWarn(message) {
+    return Logger.warn(message);
+  }
+  static logError(message) {
+    return Logger.error(message);
+  }
+  static logDebug(message) {
+    return Logger.debug(message);
+  }
 }
 
 /**
@@ -132,11 +142,21 @@ export class SpinnerLogger {
     return this;
   }
 
-  logInfo(message) { return this.log(message, 'info'); }
-  logSuccess(message) { return this.log(message, 'success'); }
-  logWarn(message) { return this.log(message, 'warn'); }
-  logError(message) { return this.log(message, 'error'); }
-  logDebug(message) { return this.log(message, 'debug'); }
+  logInfo(message) {
+    return this.log(message, 'info');
+  }
+  logSuccess(message) {
+    return this.log(message, 'success');
+  }
+  logWarn(message) {
+    return this.log(message, 'warn');
+  }
+  logError(message) {
+    return this.log(message, 'error');
+  }
+  logDebug(message) {
+    return this.log(message, 'debug');
+  }
 
   clear() {
     if (this.isSpinning) {
@@ -192,25 +212,25 @@ export class BoxedOutput {
    */
   static charWidth(cp) {
     // Zero-width: variation selectors, ZWJ, combining enclosing keycap
-    if (cp === 0xFE0F || cp === 0x200D || cp === 0x20E3 ||
-        (cp >= 0xFE00 && cp <= 0xFE0E)) return 0;
+    if (cp === 0xfe0f || cp === 0x200d || cp === 0x20e3 || (cp >= 0xfe00 && cp <= 0xfe0e)) return 0;
     // Wide: CJK and East-Asian blocks
     if (
-      (cp >= 0x1100 && cp <= 0x115F)  || // Hangul Jamo
-      (cp >= 0x2E80 && cp <= 0x303E)  || // CJK Radicals / Kangxi
-      (cp >= 0x3040 && cp <= 0xA4CF)  || // Kana, Bopomofo, CJK Unified, Yi
-      (cp >= 0xAC00 && cp <= 0xD7A3)  || // Hangul Syllables
-      (cp >= 0xF900 && cp <= 0xFAFF)  || // CJK Compatibility Ideographs
-      (cp >= 0xFE10 && cp <= 0xFE19)  ||
-      (cp >= 0xFE30 && cp <= 0xFE6F)  ||
-      (cp >= 0xFF00 && cp <= 0xFF60)  || // Fullwidth Forms
-      (cp >= 0xFFE0 && cp <= 0xFFE6)  ||
-      (cp >= 0x1F000 && cp <= 0x1FFFF) || // Supplementary emoji (🀀-🿿)
-      (cp >= 0x2300 && cp <= 0x23FF)  || // Misc Technical (⏰ etc.)
-      (cp >= 0x2600 && cp <= 0x27BF)  || // Misc Symbols + Dingbats (✅ ⚠ ❌ ★ etc.)
-      (cp >= 0x20000 && cp <= 0x2FFFD) ||
-      (cp >= 0x30000 && cp <= 0x3FFFD)
-    ) return 2;
+      (cp >= 0x1100 && cp <= 0x115f) || // Hangul Jamo
+      (cp >= 0x2e80 && cp <= 0x303e) || // CJK Radicals / Kangxi
+      (cp >= 0x3040 && cp <= 0xa4cf) || // Kana, Bopomofo, CJK Unified, Yi
+      (cp >= 0xac00 && cp <= 0xd7a3) || // Hangul Syllables
+      (cp >= 0xf900 && cp <= 0xfaff) || // CJK Compatibility Ideographs
+      (cp >= 0xfe10 && cp <= 0xfe19) ||
+      (cp >= 0xfe30 && cp <= 0xfe6f) ||
+      (cp >= 0xff00 && cp <= 0xff60) || // Fullwidth Forms
+      (cp >= 0xffe0 && cp <= 0xffe6) ||
+      (cp >= 0x1f000 && cp <= 0x1ffff) || // Supplementary emoji (🀀-🿿)
+      (cp >= 0x2300 && cp <= 0x23ff) || // Misc Technical (⏰ etc.)
+      (cp >= 0x2600 && cp <= 0x27bf) || // Misc Symbols + Dingbats (✅ ⚠ ❌ ★ etc.)
+      (cp >= 0x20000 && cp <= 0x2fffd) ||
+      (cp >= 0x30000 && cp <= 0x3fffd)
+    )
+      return 2;
     return 1;
   }
 
@@ -220,7 +240,7 @@ export class BoxedOutput {
     let prevCharWidth = 0;
     for (const char of stripped) {
       const cp = char.codePointAt(0);
-      if (cp === 0xFE0F) {
+      if (cp === 0xfe0f) {
         // Variation selector-16: upgrades previous 1-wide char to emoji (2-wide)
         if (prevCharWidth === 1) width += 1;
         prevCharWidth = 0;
@@ -342,7 +362,7 @@ export class BoxedOutput {
       }
 
       let w;
-      if (cp === 0xFE0F) {
+      if (cp === 0xfe0f) {
         // Variation selector-16: upgrades previous 1-wide char to emoji (2-wide)
         w = prevCharWidth === 1 ? 1 : 0;
         prevCharWidth = 0;
@@ -380,7 +400,8 @@ export class BoxedOutput {
 /** Known error patterns that map to actionable hints. */
 const ERROR_HINTS = [
   {
-    pattern: /Token has expired and refresh failed|executable aws failed with exit code 255|getting credentials: exec:/i,
+    pattern:
+      /Token has expired and refresh failed|executable aws failed with exit code 255|getting credentials: exec:/i,
     hint: 'AWS credentials expired — run: aws sso login',
   },
   {
@@ -462,7 +483,7 @@ export class CommandRunner {
       process.on('SIGINT', onSigInt);
       process.on('SIGTERM', onSigTerm);
 
-      const pipeLines = (stream) => {
+      const pipeLines = stream => {
         let buffer = '';
         stream.on('data', chunk => {
           try {
@@ -494,14 +515,14 @@ export class CommandRunner {
       pipeLines(child.stdout);
       pipeLines(child.stderr);
 
-      child.on('error', (err) => {
+      child.on('error', err => {
         process.removeListener('SIGINT', onSigInt);
         process.removeListener('SIGTERM', onSigTerm);
         if (!ignoreError) reject(err);
         else resolve({ exitCode: 1 });
       });
 
-      child.on('close', (code) => {
+      child.on('close', code => {
         process.removeListener('SIGINT', onSigInt);
         process.removeListener('SIGTERM', onSigTerm);
         if (code !== 0 && !ignoreError) {
@@ -589,7 +610,13 @@ export class KubernetesHelper {
     }
   }
 
-  static async waitForDeployment(namespace, deploymentName, timeout = 300, externalSpinner = null, context = null) {
+  static async waitForDeployment(
+    namespace,
+    deploymentName,
+    timeout = 300,
+    externalSpinner = null,
+    context = null
+  ) {
     const spinner = externalSpinner || new SpinnerLogger();
     const ownSpinner = !externalSpinner;
     const ctxArgs = context ? [`--context=${context}`] : [];
@@ -605,10 +632,13 @@ export class KubernetesHelper {
 
     while (Date.now() - startTime < timeoutMs) {
       try {
-        const result = await this.kubectl([...ctxArgs, 'get', 'deployment', deploymentName, '-n', namespace], {
-          ignoreError: true,
-          spinner,
-        });
+        const result = await this.kubectl(
+          [...ctxArgs, 'get', 'deployment', deploymentName, '-n', namespace],
+          {
+            ignoreError: true,
+            spinner,
+          }
+        );
 
         if (result.exitCode === 0) {
           break;
@@ -662,7 +692,9 @@ export class KubernetesHelper {
 
   static async ensureNamespace(namespace, spinner = null, context = null) {
     const ctxArgs = context ? [`--context=${context}`] : [];
-    const result = await this.kubectl([...ctxArgs, 'get', 'namespace', namespace], { ignoreError: true });
+    const result = await this.kubectl([...ctxArgs, 'get', 'namespace', namespace], {
+      ignoreError: true,
+    });
     const exists = result.exitCode === 0;
     if (exists) {
       if (!spinner) {
@@ -755,7 +787,12 @@ export class KubernetesHelper {
    * istio-injection label and sets istio.io/dataplane-mode=ambient in one
    * kubectl invocation; 'sidecar' does the reverse.
    */
-  static async labelNamespaceForDataplaneMode(namespace, mode = 'ambient', context = null, { quiet = false, spinner = null } = {}) {
+  static async labelNamespaceForDataplaneMode(
+    namespace,
+    mode = 'ambient',
+    context = null,
+    { quiet = false, spinner = null } = {}
+  ) {
     if (mode !== 'ambient' && mode !== 'sidecar') {
       throw new Error(`Invalid dataplane mode '${mode}'. Must be 'ambient' or 'sidecar'`);
     }
@@ -765,9 +802,10 @@ export class KubernetesHelper {
       else Logger[level](msg);
     };
     const contextFlag = context ? ['--context', context] : [];
-    const labelArgs = mode === 'sidecar'
-      ? ['istio.io/dataplane-mode-', 'istio-injection=enabled']
-      : ['istio-injection-', 'istio.io/dataplane-mode=ambient'];
+    const labelArgs =
+      mode === 'sidecar'
+        ? ['istio.io/dataplane-mode-', 'istio-injection=enabled']
+        : ['istio-injection-', 'istio.io/dataplane-mode=ambient'];
     try {
       await this.kubectl([
         ...contextFlag,
@@ -828,13 +866,10 @@ export function waitFor(ms) {
  * @param {object}   options.spinner   - SpinnerLogger instance for status text updates
  * @param {Function} options.log       - log(message, level) function; falls back to Logger
  */
-export async function waitForPublicUrl(hostname, {
-  protocol = 'https',
-  path = '/',
-  interval = 10_000,
-  spinner = null,
-  log = null,
-} = {}) {
+export async function waitForPublicUrl(
+  hostname,
+  { protocol = 'https', path = '/', interval = 10_000, spinner = null, log = null } = {}
+) {
   const { promises: dns } = await import('dns');
   const lib = await import(protocol === 'https' ? 'https' : 'http');
 
@@ -871,10 +906,16 @@ export async function waitForPublicUrl(hostname, {
     const reachable = await new Promise(resolve => {
       const req = lib.request(
         { hostname, port, path, method: 'GET', rejectUnauthorized: false, timeout: 8_000 },
-        res => { res.resume(); resolve(res.statusCode < 500); }
+        res => {
+          res.resume();
+          resolve(res.statusCode < 500);
+        }
       );
       req.on('error', () => resolve(false));
-      req.on('timeout', () => { req.destroy(); resolve(false); });
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(false);
+      });
       req.end();
     });
 
@@ -894,10 +935,16 @@ export async function waitForPublicUrl(hostname, {
       const tlsOk = await new Promise(resolve => {
         const req = lib.request(
           { hostname, port, path, method: 'GET', rejectUnauthorized: true, timeout: 8_000 },
-          res => { res.resume(); resolve(res.statusCode < 500); }
+          res => {
+            res.resume();
+            resolve(res.statusCode < 500);
+          }
         );
         req.on('error', () => resolve(false));
-        req.on('timeout', () => { req.destroy(); resolve(false); });
+        req.on('timeout', () => {
+          req.destroy();
+          resolve(false);
+        });
         req.end();
       });
 

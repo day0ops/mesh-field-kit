@@ -1,10 +1,5 @@
 import chalk from 'chalk';
-import {
-  Logger,
-  SpinnerLogger,
-  KubernetesHelper,
-  CommandRunner,
-} from './common.js';
+import { Logger, SpinnerLogger, KubernetesHelper, CommandRunner } from './common.js';
 import { InfraStateManager } from './infra-state.js';
 import { IstioctlHelper } from './istioctl.js';
 
@@ -23,8 +18,6 @@ export class UseCaseTestRunner {
     const { metadata, spec } = usecase;
 
     try {
-
-
       if (!spec.tests || spec.tests.length === 0) {
         Logger.warn(`No tests defined for use case '${metadata.name}'`);
         return;
@@ -161,12 +154,7 @@ export class UseCaseTestRunner {
               spec.features?.find(f => f.name === 'gateway')?.config?.gatewayName ||
               null;
             spinner.setText(`Detecting gateway address (namespace: ${namespace})...`);
-            cachedGwAddress = await this.detectGatewayAddress(
-              namespace,
-              gwName,
-              context,
-              120
-            );
+            cachedGwAddress = await this.detectGatewayAddress(namespace, gwName, context, 120);
             if (!cachedGwAddress) {
               throw new Error('Could not detect gateway address within timeout');
             }
@@ -175,9 +163,7 @@ export class UseCaseTestRunner {
 
           const address = step.address || cachedGwAddress;
           if (!address) {
-            throw new Error(
-              'send-request requires "address" or auto-detected gateway address'
-            );
+            throw new Error('send-request requires "address" or auto-detected gateway address');
           }
 
           const timeout = this.parseTimeoutSecs(step.timeout || defaultTimeout);
@@ -196,8 +182,7 @@ export class UseCaseTestRunner {
 
           let bodyArg = [];
           if (step.body) {
-            const bodyStr =
-              typeof step.body === 'string' ? step.body : JSON.stringify(step.body);
+            const bodyStr = typeof step.body === 'string' ? step.body : JSON.stringify(step.body);
             bodyArg = ['-d', bodyStr];
           }
 
@@ -226,9 +211,7 @@ export class UseCaseTestRunner {
 
           for (let attempt = 0; attempt <= maxRetries; attempt++) {
             if (attempt > 0) {
-              spinner.setText(
-                `Retrying request (attempt ${attempt + 1}/${maxRetries + 1})...`
-              );
+              spinner.setText(`Retrying request (attempt ${attempt + 1}/${maxRetries + 1})...`);
               await new Promise(r => setTimeout(r, retryDelay));
             }
 
@@ -290,9 +273,7 @@ export class UseCaseTestRunner {
 
           for (let attempt = 0; attempt <= maxRetries; attempt++) {
             if (attempt > 0) {
-              spinner.setText(
-                `Retrying exec (attempt ${attempt + 1}/${maxRetries + 1})...`
-              );
+              spinner.setText(`Retrying exec (attempt ${attempt + 1}/${maxRetries + 1})...`);
               await new Promise(r => setTimeout(r, retryDelay));
             }
 
@@ -330,9 +311,7 @@ export class UseCaseTestRunner {
           spinner.setText('Verifying response...');
 
           if (!lastResponse) {
-            throw new Error(
-              'No response to verify - send-request or exec must come before verify'
-            );
+            throw new Error('No response to verify - send-request or exec must come before verify');
           }
 
           await this.verifyResponse(
@@ -346,12 +325,7 @@ export class UseCaseTestRunner {
         }
 
         case 'verify-resource': {
-          const {
-            kind,
-            name: resName,
-            namespace: resNs,
-            expect: resExpect,
-          } = step;
+          const { kind, name: resName, namespace: resNs, expect: resExpect } = step;
           const ns = resNs || 'default';
           const context = await this.resolveClusterContext(step, test, spec);
           const contextArgs = context ? ['--context', context] : [];
@@ -487,9 +461,7 @@ export class UseCaseTestRunner {
 
     if (expect.notContains) {
       const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
-      const items = Array.isArray(expect.notContains)
-        ? expect.notContains
-        : [expect.notContains];
+      const items = Array.isArray(expect.notContains) ? expect.notContains : [expect.notContains];
       const lowerBody = bodyStr.toLowerCase();
       for (const item of items) {
         if (lowerBody.includes(String(item).toLowerCase())) {
@@ -513,9 +485,7 @@ export class UseCaseTestRunner {
           throw new Error(`Expected header '${key}' not found in response`);
         }
         if (expectedValue !== '*' && actualValue !== expectedValue) {
-          throw new Error(
-            `Header '${key}': expected '${expectedValue}', got '${actualValue}'`
-          );
+          throw new Error(`Header '${key}': expected '${expectedValue}', got '${actualValue}'`);
         }
       }
     }

@@ -10,8 +10,11 @@ export class AddonAdapter {
     const seen = new Set();
     for (const { addon, clusterName, sidecar } of await this._iterateAddons(selection)) {
       if (!sidecar?.envVarsFor) continue;
-      for (const v of (sidecar.envVarsFor(addon, clusterName) || [])) {
-        if (!seen.has(v.name)) { seen.add(v.name); results.push(v); }
+      for (const v of sidecar.envVarsFor(addon, clusterName) || []) {
+        if (!seen.has(v.name)) {
+          seen.add(v.name);
+          results.push(v);
+        }
       }
     }
     return results;
@@ -23,8 +26,11 @@ export class AddonAdapter {
     const { profile, environment } = selection;
     for (const { addon, clusterName, sidecar } of await this._iterateAddons(selection)) {
       if (!sidecar?.envExportsFor) continue;
-      for (const e of (sidecar.envExportsFor(addon, profile, environment) || [])) {
-        if (!seen.has(e.name)) { seen.add(e.name); results.push(e); }
+      for (const e of sidecar.envExportsFor(addon, profile, environment) || []) {
+        if (!seen.has(e.name)) {
+          seen.add(e.name);
+          results.push(e);
+        }
       }
     }
     return results;
@@ -41,7 +47,9 @@ export class AddonAdapter {
       const heading = `### Lab ${labNum}.${subIndex} — ${addon.name} ${label}`;
 
       if (!sidecar?.generate) {
-        sections.push(`${heading}\n\n> _No runbook sidecar found for \`${addon.name}\`. Skipping._`);
+        sections.push(
+          `${heading}\n\n> _No runbook sidecar found for \`${addon.name}\`. Skipping._`
+        );
       } else {
         const content = await sidecar.generate(subIndex, addon, clusterName, profile, environment);
         sections.push(`${heading}\n\n${content}`);
@@ -56,13 +64,13 @@ export class AddonAdapter {
     const { profile } = selection;
     const result = [];
 
-    for (const addon of (profile.spec.addons?.global || [])) {
+    for (const addon of profile.spec.addons?.global || []) {
       const sidecar = await this._loadSidecar(addon.name);
       result.push({ addon, clusterName: 'global', sidecar });
     }
 
-    for (const clusterDef of (profile.spec.addons?.clusters || [])) {
-      for (const addon of (clusterDef.addons || [])) {
+    for (const clusterDef of profile.spec.addons?.clusters || []) {
+      for (const addon of clusterDef.addons || []) {
         const sidecar = await this._loadSidecar(addon.name);
         result.push({ addon, clusterName: clusterDef.name, sidecar });
       }
@@ -84,5 +92,7 @@ export class AddonAdapter {
     }
   }
 
-  cleanup(_selection) { return ''; }
+  cleanup(_selection) {
+    return '';
+  }
 }

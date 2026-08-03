@@ -10,10 +10,10 @@ const __dirname = path.dirname(__filename);
 
 /**
  * Gateway Feature
- * 
+ *
  * Generates Gateway resources dynamically for each application.
  * HTTPRoute resources should be created using the request-routing feature.
- * 
+ *
  * Configuration:
  * {
  *   gatewayName: string,          // Required: Gateway name (or use gwName for backward compatibility)
@@ -55,35 +55,37 @@ export class GatewayFeature extends Feature {
   async deploy() {
     const namespace = this.config.namespace;
     const gatewayName = this.config.gatewayName || this.config.gwName;
-    
+
     // Determine which clusters to deploy to
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null]; // null means current context
-    
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null]; // null means current context
+
     this.log(`Deploying Gateway feature: ${gatewayName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
     if (contextsToDeploy.length > 0 && contextsToDeploy[0]) {
       this.log(`  Clusters: ${contextsToDeploy.join(', ')}`, 'info');
     }
-    
+
     // Ensure namespace exists and is labeled for Ambient mode in each cluster
     for (const context of contextsToDeploy) {
       await this.ensureNamespace(namespace, context);
     }
-    
+
     // Load Gateway template from config file or build from config
     const gatewayConfig = this.config.gateway;
     const configGateway = this.loadGatewayFromConfig();
-    
+
     let gateway;
     if (configGateway) {
       // Use config file as base, override with spec config
-      const gatewayClassName = gatewayConfig.gatewayClassName || 
-        this.config.gatewayClassName || 
-        configGateway.spec?.gatewayClassName || 
+      const gatewayClassName =
+        gatewayConfig.gatewayClassName ||
+        this.config.gatewayClassName ||
+        configGateway.spec?.gatewayClassName ||
         'istio';
-      
+
       // Process listeners from config, merging with defaults
       const listeners = gatewayConfig.listeners.map(listener => {
         return {
@@ -99,7 +101,7 @@ export class GatewayFeature extends Feature {
           ...listener,
         };
       });
-      
+
       gateway = {
         ...configGateway,
         metadata: {
@@ -115,10 +117,9 @@ export class GatewayFeature extends Feature {
       };
     } else {
       // Build from spec config if no config file exists
-      const gatewayClassName = gatewayConfig.gatewayClassName || 
-        this.config.gatewayClassName || 
-        'istio';
-      
+      const gatewayClassName =
+        gatewayConfig.gatewayClassName || this.config.gatewayClassName || 'istio';
+
       const listeners = gatewayConfig.listeners.map(listener => {
         return {
           name: listener.name || 'http',
@@ -132,7 +133,7 @@ export class GatewayFeature extends Feature {
           ...listener,
         };
       });
-      
+
       gateway = {
         apiVersion: 'gateway.networking.k8s.io/v1',
         kind: 'Gateway',
@@ -146,24 +147,27 @@ export class GatewayFeature extends Feature {
         },
       };
     }
-    
+
     this.log(`  Gateway: ${gatewayName}`, 'info');
 
     // Deploy to each cluster
     for (const context of contextsToDeploy) {
       const contextInfo = context ? ` (context: ${context})` : '';
-      
+
       // Apply Gateway
       this.log(`Applying Gateway: ${gatewayName}${contextInfo}...`, 'info');
       await this.applyResource(gateway, context);
-      
+
       // Wait for Gateway to be programmed
       await this.waitForGateway(gatewayName, namespace, 60, context);
 
       // Annotate gateway for Istio if service-type is specified
       const serviceType = gatewayConfig.serviceType;
       if (serviceType) {
-        this.log(`Annotating gateway ${gatewayName} with service-type=${serviceType}${contextInfo}...`, 'info');
+        this.log(
+          `Annotating gateway ${gatewayName} with service-type=${serviceType}${contextInfo}...`,
+          'info'
+        );
         try {
           const contextFlag = context ? `--context=${context} ` : '';
           await CommandRunner.exec(
@@ -181,18 +185,19 @@ export class GatewayFeature extends Feature {
   async cleanup() {
     const gatewayName = this.config.gatewayName || this.config.gwName;
     const namespace = this.config.namespace;
-    
+
     // Determine which clusters to clean up
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null]; // null means current context
-    
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null]; // null means current context
+
     this.log(`Cleaning up Gateway feature: ${gatewayName}`, 'info');
 
     // Clean up from each cluster
     for (const context of contextsToDeploy) {
       const contextInfo = context ? ` (context: ${context})` : '';
-      
+
       // Delete Gateway
       this.log(`Deleting Gateway: ${gatewayName}${contextInfo}...`, 'info');
       await this.deleteResource('gateway', gatewayName, namespace, context);
@@ -206,4 +211,3 @@ export class GatewayFeature extends Feature {
 export function createGatewayFeature(config) {
   return new GatewayFeature('gateway', config);
 }
-

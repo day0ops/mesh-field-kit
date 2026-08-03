@@ -37,21 +37,23 @@ export class GlooMigrateCheckFeature extends Feature {
 
   async deploy() {
     if (this.kubeContext) {
-      await CommandRunner.exec(`kubectl config use-context ${this.kubeContext}`, { ignoreError: true });
+      await CommandRunner.exec(`kubectl config use-context ${this.kubeContext}`, {
+        ignoreError: true,
+      });
     }
 
     const glooBin = await GlooHelper.resolve({ spinner: this.spinner });
     if (!glooBin) {
       throw new Error(
         'gloo CLI could not be resolved or downloaded — install manually: ' +
-        'curl -fsSL https://storage.googleapis.com/gloo-cli/install.sh | sh -'
+          'curl -fsSL https://storage.googleapis.com/gloo-cli/install.sh | sh -'
       );
     }
 
     const command = this.buildCommand(glooBin);
     this.log(`Running: ${command}`, 'info');
     const result = await CommandRunner.exec(command, { ignoreError: true });
-    const output = [(result.stdout || ''), (result.stderr || '')].filter(Boolean).join('\n');
+    const output = [result.stdout || '', result.stderr || ''].filter(Boolean).join('\n');
     this.log(output || '(no output)', 'info');
 
     if (result.exitCode !== 0) {

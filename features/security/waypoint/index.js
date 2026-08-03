@@ -51,9 +51,10 @@ export class WaypointFeature extends Feature {
     const namespace = this.config.namespace;
     const waypointName = this.config.waypointName;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying Waypoint feature: ${waypointName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -71,9 +72,8 @@ export class WaypointFeature extends Feature {
 
     const configWaypoint = this.loadWaypointFromConfig();
 
-    const listeners = this.config.listeners || configWaypoint?.spec?.listeners || [
-      { name: 'mesh', port: 15008, protocol: 'HBONE' },
-    ];
+    const listeners = this.config.listeners ||
+      configWaypoint?.spec?.listeners || [{ name: 'mesh', port: 15008, protocol: 'HBONE' }];
 
     const gateway = {
       apiVersion: 'gateway.networking.k8s.io/v1',
@@ -98,7 +98,10 @@ export class WaypointFeature extends Feature {
 
         await this.waitForGateway(waypointName, namespace, 60, context);
       } else {
-        this.log(`Skipping manual Gateway creation for '${waypointName}' — istiod auto-provisions it once labeled${contextInfo}`, 'info');
+        this.log(
+          `Skipping manual Gateway creation for '${waypointName}' — istiod auto-provisions it once labeled${contextInfo}`,
+          'info'
+        );
       }
 
       // Label namespace or service to use this waypoint
@@ -107,7 +110,10 @@ export class WaypointFeature extends Feature {
         const contextFlag = context ? `--context=${context} ` : '';
 
         if (target === 'namespace') {
-          this.log(`Labeling namespace ${namespace} to use waypoint ${waypointName}${contextInfo}...`, 'info');
+          this.log(
+            `Labeling namespace ${namespace} to use waypoint ${waypointName}${contextInfo}...`,
+            'info'
+          );
           try {
             await CommandRunner.exec(
               `kubectl ${contextFlag}label namespace ${namespace} istio.io/use-waypoint=${waypointName} --overwrite`
@@ -117,7 +123,10 @@ export class WaypointFeature extends Feature {
           }
         } else if (target === 'service' && this.config.labels.serviceName) {
           const svcName = this.config.labels.serviceName;
-          this.log(`Labeling service ${svcName} to use waypoint ${waypointName}${contextInfo}...`, 'info');
+          this.log(
+            `Labeling service ${svcName} to use waypoint ${waypointName}${contextInfo}...`,
+            'info'
+          );
           try {
             await CommandRunner.exec(
               `kubectl ${contextFlag}label service ${svcName} -n ${namespace} istio.io/use-waypoint=${waypointName} --overwrite`
@@ -134,9 +143,10 @@ export class WaypointFeature extends Feature {
     const waypointName = this.config.waypointName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up Waypoint feature: ${waypointName}`, 'info');
 
@@ -152,13 +162,17 @@ export class WaypointFeature extends Feature {
             await CommandRunner.exec(
               `kubectl ${contextFlag}label namespace ${namespace} istio.io/use-waypoint- --ignore-not-found=true`
             );
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         } else if (target === 'service' && this.config.labels.serviceName) {
           try {
             await CommandRunner.exec(
               `kubectl ${contextFlag}label service ${this.config.labels.serviceName} -n ${namespace} istio.io/use-waypoint- --ignore-not-found=true`
             );
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
       }
 

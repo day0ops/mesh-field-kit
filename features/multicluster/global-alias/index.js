@@ -36,9 +36,10 @@ export class GlobalAliasFeature extends Feature {
     const segmentName = this.config.segmentName;
     const aliases = this.config.aliases;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying GlobalAlias feature: ${segmentName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -76,9 +77,10 @@ export class GlobalAliasFeature extends Feature {
     const namespace = this.config.namespace || 'gloo-mesh';
     const segmentName = this.config.segmentName;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up GlobalAlias feature: ${segmentName}`, 'info');
 
@@ -92,7 +94,9 @@ export class GlobalAliasFeature extends Feature {
         await CommandRunner.exec(
           `kubectl ${contextFlag} patch segment ${segmentName} -n ${namespace} --type=merge -p '${patch}'`
         );
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
 }

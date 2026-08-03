@@ -74,9 +74,7 @@ export class EnvironmentManager {
    */
   static validate(env, name) {
     if (!env.apiVersion || env.apiVersion !== 'mesh.demo/v1') {
-      throw new Error(
-        `Environment '${name}' has invalid apiVersion (expected 'mesh.demo/v1')`
-      );
+      throw new Error(`Environment '${name}' has invalid apiVersion (expected 'mesh.demo/v1')`);
     }
 
     if (!env.kind || env.kind !== 'Environment') {

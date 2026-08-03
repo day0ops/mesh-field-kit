@@ -28,12 +28,14 @@ const mockUsecase = {
   spec: {
     diagram: 'sequenceDiagram\n  Client->>Waypoint: request\n  Waypoint->>Ztunnel: authz check',
     features: [
-      { name: 'deny-all-policy', description: 'Deny all traffic by default', config: { namespace: 'demo' } },
+      {
+        name: 'deny-all-policy',
+        description: 'Deny all traffic by default',
+        config: { namespace: 'demo' },
+      },
       { name: 'authorization-policy', description: 'Allow specific workloads', config: {} },
     ],
-    tests: [
-      { name: 'auth-enforced', description: 'Verify unauthenticated request is rejected' },
-    ],
+    tests: [{ name: 'auth-enforced', description: 'Verify unauthenticated request is rejected' }],
   },
 };
 
@@ -83,8 +85,30 @@ const fullSelection = {
       addons: {
         global: [{ name: 'cilium', version: '1.19.4', description: 'eBPF CNI' }],
         clusters: [
-          { name: 'east', addons: [{ name: 'kgateway', description: 'ingress', config: { enterprise: true }, version: 'v2.2.0', namespace: 'kgateway-system' }] },
-          { name: 'west', addons: [{ name: 'kgateway', description: 'ingress', config: { enterprise: true }, version: 'v2.2.0', namespace: 'kgateway-system' }] },
+          {
+            name: 'east',
+            addons: [
+              {
+                name: 'kgateway',
+                description: 'ingress',
+                config: { enterprise: true },
+                version: 'v2.2.0',
+                namespace: 'kgateway-system',
+              },
+            ],
+          },
+          {
+            name: 'west',
+            addons: [
+              {
+                name: 'kgateway',
+                description: 'ingress',
+                config: { enterprise: true },
+                version: 'v2.2.0',
+                namespace: 'kgateway-system',
+              },
+            ],
+          },
         ],
       },
     },

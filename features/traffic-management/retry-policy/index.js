@@ -48,9 +48,10 @@ export class RetryPolicyFeature extends Feature {
     const routeName = this.config.routeName;
     const host = this.config.host;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Deploying RetryPolicy feature: ${routeName}`, 'info');
     this.log(`  Namespace: ${namespace}`, 'info');
@@ -81,10 +82,12 @@ export class RetryPolicyFeature extends Feature {
       },
       spec: {
         hosts: [host],
-        http: [{
-          retries: retries,
-          route: route,
-        }],
+        http: [
+          {
+            retries: retries,
+            route: route,
+          },
+        ],
       },
     };
 
@@ -99,9 +102,10 @@ export class RetryPolicyFeature extends Feature {
     const routeName = this.config.routeName;
     const namespace = this.config.namespace;
 
-    const contextsToDeploy = this.clusterContexts && this.clusterContexts.length > 0
-      ? this.clusterContexts.map(c => c.context)
-      : [null];
+    const contextsToDeploy =
+      this.clusterContexts && this.clusterContexts.length > 0
+        ? this.clusterContexts.map(c => c.context)
+        : [null];
 
     this.log(`Cleaning up RetryPolicy feature: ${routeName}`, 'info');
 

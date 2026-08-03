@@ -26,8 +26,9 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, _env)
   const spireVersion = addonCfg.spireVersion || '0.24.2';
   const spireCrdsVersion = addonCfg.spireCrdsVersion || '0.5.0';
 
-  const certSection = certMode === 'self-signed'
-    ? `
+  const certSection =
+    certMode === 'self-signed'
+      ? `
 Generate SPIRE upstream CA certificates using openssl:
 
 \`\`\`bash
@@ -59,8 +60,8 @@ kubectl create secret generic spiffe-upstream-ca -n ${ns} \\
   --from-file=tls.key=/tmp/spire-certs/${trustDomain}/ca.key \\
   --from-file=bundle.crt=/tmp/spire-certs/${trustDomain}/ca-chain.pem
 \`\`\``
-    : certMode === 'cert-manager'
-    ? `
+      : certMode === 'cert-manager'
+        ? `
 Create the SPIRE upstream CA certificate using cert-manager:
 
 \`\`\`bash
@@ -89,7 +90,7 @@ Wait for the secret to be created:
 \`\`\`bash
 kubectl wait --for=jsonpath='{.data.tls\\.crt}' secret/spire-upstream-ca-cm -n ${ns} --timeout=60s
 \`\`\``
-    : `
+        : `
 Copy your pre-existing CA cert files and create the \`spiffe-upstream-ca\` secret:
 
 \`\`\`bash

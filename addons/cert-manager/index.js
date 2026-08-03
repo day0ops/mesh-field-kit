@@ -70,7 +70,11 @@ export class CertManagerFeature extends AddonFeature {
     }
 
     // Step 2: Create cert-manager namespace
-    await KubernetesHelper.ensureNamespace(this.certManagerNamespace, this.spinner, this.kubeContext);
+    await KubernetesHelper.ensureNamespace(
+      this.certManagerNamespace,
+      this.spinner,
+      this.kubeContext
+    );
     this.log(`Namespace '${this.certManagerNamespace}' ready`, 'info');
 
     // Step 3: Add Jetstack Helm repository
@@ -102,7 +106,9 @@ export class CertManagerFeature extends AddonFeature {
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
 
     try {
-      await KubernetesHelper.kubectl([...ctxArgs, 'apply', '-f', crdUrl], { spinner: this.spinner });
+      await KubernetesHelper.kubectl([...ctxArgs, 'apply', '-f', crdUrl], {
+        spinner: this.spinner,
+      });
       this.log('cert-manager CRDs installed', 'info');
     } catch (error) {
       throw new Error(`Failed to install cert-manager CRDs: ${error.message}`);
@@ -174,7 +180,11 @@ export class CertManagerFeature extends AddonFeature {
     }
 
     await KubernetesHelper.helm(helmArgs, this.spinner);
-    await KubernetesHelper.assertHelmDeployed('cert-manager', this.certManagerNamespace, this.kubeContext);
+    await KubernetesHelper.assertHelmDeployed(
+      'cert-manager',
+      this.certManagerNamespace,
+      this.kubeContext
+    );
     this.log('cert-manager Helm chart installed', 'info');
   }
 
@@ -281,22 +291,46 @@ export class CertManagerFeature extends AddonFeature {
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
 
     try {
-      await CommandRunner.run('helm', [...helmCtxArgs, 'uninstall', 'cert-manager', '-n', this.certManagerNamespace]);
+      await CommandRunner.run('helm', [
+        ...helmCtxArgs,
+        'uninstall',
+        'cert-manager',
+        '-n',
+        this.certManagerNamespace,
+      ]);
       this.log('cert-manager Helm chart uninstalled', 'info');
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) throw error;
     }
 
     try {
-      await KubernetesHelper.kubectl([...ctxArgs, 'delete', 'clusterissuer', 'selfsigned-issuer', '--ignore-not-found=true']);
+      await KubernetesHelper.kubectl([
+        ...ctxArgs,
+        'delete',
+        'clusterissuer',
+        'selfsigned-issuer',
+        '--ignore-not-found=true',
+      ]);
       if (this.letsencryptEnabled) {
-        await KubernetesHelper.kubectl([...ctxArgs, 'delete', 'clusterissuer', 'letsencrypt-dns', '--ignore-not-found=true']);
+        await KubernetesHelper.kubectl([
+          ...ctxArgs,
+          'delete',
+          'clusterissuer',
+          'letsencrypt-dns',
+          '--ignore-not-found=true',
+        ]);
       }
     } catch (error) {
       if (!/doesn't have a resource type|no kind is registered/i.test(error.message)) throw error;
     }
 
-    await KubernetesHelper.kubectl([...ctxArgs, 'delete', 'namespace', this.certManagerNamespace, '--ignore-not-found=true']);
+    await KubernetesHelper.kubectl([
+      ...ctxArgs,
+      'delete',
+      'namespace',
+      this.certManagerNamespace,
+      '--ignore-not-found=true',
+    ]);
 
     this.log('cert-manager cleaned up', 'success');
   }

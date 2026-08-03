@@ -57,7 +57,9 @@ export class VmIntegrationFeature extends Feature {
         throw new Error('Each VM workload requires a name');
       }
       if (!workload.ports || workload.ports.length === 0) {
-        throw new Error(`VM workload '${workload.name}' requires at least one port (e.g. 'http:80:8080')`);
+        throw new Error(
+          `VM workload '${workload.name}' requires at least one port (e.g. 'http:80:8080')`
+        );
       }
     }
     return true;
@@ -79,7 +81,9 @@ export class VmIntegrationFeature extends Feature {
     } = this.config;
 
     if (!istioImage) {
-      throw new Error('istioImage is required (set feature config.istioImage or ISTIO_VERSION/ISTIO_IMAGE env)');
+      throw new Error(
+        'istioImage is required (set feature config.istioImage or ISTIO_VERSION/ISTIO_IMAGE env)'
+      );
     }
 
     const ssh = new SshRunner(sshKeyPath, sshUser);
@@ -132,7 +136,11 @@ export class VmIntegrationFeature extends Feature {
         const remoteDir = `/etc/ztunnel/tokens/${namespace}/${workload.name}`;
         this.log(`Copying token for '${workload.name}' to the VM...`, 'info');
         await ssh.exec(vmIp, `sudo mkdir -p ${remoteDir}`);
-        await ssh.copyFile(join(tokenDir, `${workload.name}.token`), vmIp, `/tmp/${workload.name}.token`);
+        await ssh.copyFile(
+          join(tokenDir, `${workload.name}.token`),
+          vmIp,
+          `/tmp/${workload.name}.token`
+        );
         await ssh.exec(vmIp, `sudo mv /tmp/${workload.name}.token ${remoteDir}/token`);
         // ztunnel runs as a non-root distroless user; the token must be world-readable for it to load.
         await ssh.exec(vmIp, `sudo chmod 644 ${remoteDir}/token`);
@@ -176,7 +184,10 @@ export class VmIntegrationFeature extends Feature {
     for (const port of targetPorts) {
       this.log(`Starting demo HTTP responder on VM port ${port}...`, 'info');
       await ssh.exec(vmIp, `pkill -f "http.server ${port}"`, { ignoreError: true });
-      await ssh.exec(vmIp, `nohup python3 -m http.server ${port} --bind 127.0.0.1 > /tmp/mesh-demo-${port}.log 2>&1 &`);
+      await ssh.exec(
+        vmIp,
+        `nohup python3 -m http.server ${port} --bind 127.0.0.1 > /tmp/mesh-demo-${port}.log 2>&1 &`
+      );
     }
   }
 
@@ -187,7 +198,10 @@ export class VmIntegrationFeature extends Feature {
       return;
     }
     this.log('Installing Docker on VM...', 'info');
-    await ssh.exec(vmIp, 'sudo amazon-linux-extras install docker -y && sudo systemctl enable --now docker');
+    await ssh.exec(
+      vmIp,
+      'sudo amazon-linux-extras install docker -y && sudo systemctl enable --now docker'
+    );
   }
 
   async cleanup() {
@@ -201,7 +215,9 @@ export class VmIntegrationFeature extends Feature {
     // isn't documented, so delete the whole (dedicated) namespace instead of
     // guessing individual resource names. VM-side ztunnel is left running — it
     // goes away when `infra destroy` tears down the VM instance.
-    await CommandRunner.exec(`kubectl ${contextFlag} delete namespace ${namespace} --ignore-not-found=true`);
+    await CommandRunner.exec(
+      `kubectl ${contextFlag} delete namespace ${namespace} --ignore-not-found=true`
+    );
 
     this.log(`Namespace '${namespace}' deleted`, 'success');
   }
