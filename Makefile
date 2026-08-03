@@ -19,7 +19,6 @@ PROFILE ?=
 
 # Environment variables that can be overridden
 ENTERPRISE_ISTIO_LICENSE ?= $(shell if [ -n "$$ENTERPRISE_ISTIO_LICENSE" ]; then echo "$$ENTERPRISE_ISTIO_LICENSE"; fi)
-SOLO_ISTIO_REPO_KEY ?= $(shell if [ -n "$$SOLO_ISTIO_REPO_KEY" ]; then echo "$$SOLO_ISTIO_REPO_KEY"; fi)
 KUBE_CONTEXT ?= $(shell if [ -n "$$KUBE_CONTEXT" ]; then echo "$$KUBE_CONTEXT"; fi)
 ISTIO_VERSION ?= 1.30.3
 ISTIO_IMAGE ?= $(ISTIO_VERSION)-solo
@@ -33,7 +32,6 @@ help: ## Display this help message
 	@echo ""
 	@echo "$(YELLOW)Environment Variables:$(NC)"
 	@echo "  ENTERPRISE_ISTIO_LICENSE - Required for installation"
-	@echo "  SOLO_ISTIO_REPO_KEY   - Required for installation (image repo key)"
 	@echo "  PROFILE             - Infra/installation profile name (interactive if not set)"
 	@echo "  KUBE_CONTEXT        - Kubernetes context to use (optional, overrides PROFILE)"
 	@echo "  ISTIO_VERSION       - Istio version (default: $(ISTIO_VERSION))"
@@ -44,11 +42,6 @@ check-env:
 	@if [ -z "$(ENTERPRISE_ISTIO_LICENSE)" ]; then \
 		echo "$(YELLOW)Warning: ENTERPRISE_ISTIO_LICENSE is not set$(NC)"; \
 		echo "  Set it with: export ENTERPRISE_ISTIO_LICENSE=<your-key>"; \
-		exit 1; \
-	fi
-	@if [ -z "$(SOLO_ISTIO_REPO_KEY)" ]; then \
-		echo "$(YELLOW)Warning: SOLO_ISTIO_REPO_KEY is not set$(NC)"; \
-		echo "  Set it with: export SOLO_ISTIO_REPO_KEY=<your-key>"; \
 		exit 1; \
 	fi
 	@command -v kubectl >/dev/null 2>&1 || { echo "$(RED)Error: kubectl is not installed$(NC)"; exit 1; }
@@ -92,7 +85,6 @@ infra-env: ## Print path to env.sh (interactive, or PROFILE=name)
 
 install-mesh: check-env ## Install Istio mesh (auto-detects provisioned infra, or INFRA=name / KUBE_CONTEXT=ctx)
 	@ENTERPRISE_ISTIO_LICENSE=$(ENTERPRISE_ISTIO_LICENSE) \
-	SOLO_ISTIO_REPO_KEY=$(SOLO_ISTIO_REPO_KEY) \
 	$(CLI) base install \
 		$(if $(MESH_PROFILE),--profile $(MESH_PROFILE)) \
 		$(if $(INFRA),--infra $(INFRA)) \
@@ -110,7 +102,7 @@ uninstall-mesh-with-addons: ## Uninstall Istio mesh and all addons
 		$(if $(INFRA),--infra $(INFRA)) \
 		$(if $(KUBE_CONTEXT),--context $(KUBE_CONTEXT))
 
-clean-addons: ## Clean up all profile-based addons (cert-manager, external-dns, keycloak, solo-ui, cilium)
+clean-addons: ## Clean up all profile-based addons (cert-manager, external-dns, keycloak, solo-ui, cilium, calico, kgateway, spire, telemetry)
 	@$(CLI) base clean-addons
 
 verify-mesh: ## Verify Istio mesh installation on current context
@@ -118,9 +110,9 @@ verify-mesh: ## Verify Istio mesh installation on current context
 
 ##@ Complete Workflows
 
-all: ## Complete setup: provision + install Istio mesh (requires INFRA=name, optional MESH_PROFILE=default)
+all: ## Complete setup: provision + install Istio mesh (requires INFRA=name, optional MESH_PROFILE=name, prompts if omitted)
 	@if [ -z "$(INFRA)" ]; then \
-		echo "$(RED)Error: INFRA is required for 'all'. Usage: make all INFRA=production MESH_PROFILE=default$(NC)"; \
+		echo "$(RED)Error: INFRA is required for 'all'. Usage: make all INFRA=eks-single-cluster MESH_PROFILE=eks-single-cluster-mesh-with-cilium$(NC)"; \
 		exit 1; \
 	fi
 	@echo "$(BLUE)=== Complete Setup for infra: $(INFRA) ===$(NC)"
@@ -128,7 +120,7 @@ all: ## Complete setup: provision + install Istio mesh (requires INFRA=name, opt
 	@echo ""
 	@echo "$(BLUE)Waiting for clusters to be ready...$(NC)"
 	@sleep 10
-	@$(MAKE) install-mesh INFRA=$(INFRA) MESH_PROFILE=$(or $(MESH_PROFILE),default)
+	@$(MAKE) install-mesh INFRA=$(INFRA) MESH_PROFILE=$(MESH_PROFILE)
 	@echo ""
 	@echo "$(GREEN)✓ Complete setup finished!$(NC)"
 

@@ -8,7 +8,6 @@ Ensure you have the following installed:
 
 - **Node.js** >= 24.14.0
 - **[bun](https://bun.sh)** - JavaScript runtime and package manager
-- **Docker Desktop** - for building and pushing images
 - **kubectl** - Kubernetes CLI
 - **helm** - Kubernetes package manager
 - **[Terraform](https://www.terraform.io/) or [OpenTofu](https://opentofu.org/)** - for cloud cluster provisioning
@@ -20,15 +19,20 @@ Ensure you have the following installed:
 bun install
 ```
 
+To use the `mesh` command directly instead of `bun run src/cli.js`, link it globally:
+
+```bash
+bun link
+```
+
 ## Quick Start
 
 ```bash
 export ENTERPRISE_ISTIO_LICENSE=<your-license-key>
-export SOLO_ISTIO_REPO_KEY=<your-repo-key>
 export AWS_PROFILE=<your-aws-profile>
 
 # Provision infra + install Istio mesh in one shot
-make all INFRA=eks-single-cluster MESH_PROFILE=single
+make all INFRA=eks-single-cluster MESH_PROFILE=eks-single-cluster-mesh-with-cilium
 ```
 
 ## CLI Reference
@@ -58,7 +62,7 @@ mesh base verify [-c|--context <context>]
 mesh base clean [--profile <name>] [--infra <name>] [--context <ctx...>] [-a|--addons]
 #   -a, --addons  Also clean up all profile-based addons
 
-# Clean up all profile-based addons (cert-manager, external-dns, keycloak, solo-ui, cilium)
+# Clean up all profile-based addons (cert-manager, external-dns, keycloak, solo-ui, cilium, calico, kgateway, spire, telemetry)
 mesh base clean-addons
 ```
 
@@ -163,20 +167,28 @@ Profiles reference an infra profile via `spec.infra` and an environment via `spe
 
 | Profile | Provider | Clusters |
 |---------|----------|---------|
-| `eks-single-cluster` | EKS | 1 (management) |
-| `eks-single-cluster-ipv6` | EKS IPv6 | 1 (management) |
-| `eks-multi-cluster` | EKS | 3 (mgmt, east, west) |
-| `eks-multi-cluster-ipv6` | EKS IPv6 | 3 (mgmt, east, west) |
+| `eks-single-cluster` | EKS | 1 (demo) |
+| `eks-single-cluster-ipv6` | EKS IPv6 | 1 (demo) |
+| `eks-multi-cluster` | EKS | 2 (east, west) |
+| `eks-multi-cluster-ipv6` | EKS IPv6 | 2 (east, west) |
+| `gke-single-cluster` | GKE | 1 (demo) |
+| `gke-multi-cluster` | GKE | 2 (east, west) |
+| `aks-single-cluster` | AKS | 1 (demo) |
+| `aks-multi-cluster` | AKS | 2 (east, west) |
+| `hybrid-multi-cloud` | EKS + GKE + AKS | 3 (mgmt on EKS, workload on GKE + AKS) |
 
 ### Available installation profiles
 
 | Profile | Description |
 |---------|-------------|
-| `single` | Single-cluster ambient mesh |
-| `multicluster` | Multi-cluster with east-west peering (helm) |
-| `multicluster-auto` | Multi-cluster with auto-peering (operator) |
-| `eks-single-cluster-mesh-with-cilium` | Single-cluster with Cilium CNI chaining |
+| `eks-single-cluster-mesh-with-cilium` | Single-cluster ambient mesh with Cilium CNI chaining |
+| `eks-single-cluster-mesh-with-calico` | Single-cluster ambient mesh with Calico |
+| `eks-single-cluster-mesh-with-spire` | Single-cluster ambient mesh with SPIRE workload identity attestation |
+| `eks-single-cluster-mesh-with-crl` | Single-cluster ambient mesh with a plugged-in CA and certificate revocation list (CRL) enforcement |
 | `eks-single-cluster-mesh-sidecar` | Single-cluster classic sidecar mesh (no ambient components) |
+| `eks-multi-cluster-peering-with-istio-ingress` | Multi-cluster ambient mesh, helm-based peering, Istio ingress |
+| `eks-multi-cluster-peering-with-kgateway` | Multi-cluster ambient mesh, helm-based peering, kgateway ingress |
+| `eks-multi-cluster-auto-peering-operator` | Multi-cluster ambient mesh, operator-managed auto-peering, kgateway ingress |
 
 ## Step-by-Step Workflow
 
@@ -199,9 +211,8 @@ make load-env PROFILE=eks-single-cluster
 
 ```bash
 export ENTERPRISE_ISTIO_LICENSE=<key>
-export SOLO_ISTIO_REPO_KEY=<key>
 
-make install-mesh INFRA=eks-single-cluster MESH_PROFILE=single
+make install-mesh INFRA=eks-single-cluster MESH_PROFILE=eks-single-cluster-mesh-with-cilium
 ```
 
 ### 4. Verify Istio mesh installation
@@ -213,7 +224,7 @@ make verify-mesh
 ### 5. Deploy a use case
 
 ```bash
-make deploy-usecase USECASE=security/authorization-policy
+make deploy-usecase USECASE=single-cluster/traffic-management/canary-deployment
 ```
 
 ### 6. Clean up
@@ -231,8 +242,10 @@ make infra-destroy PROFILE=eks-single-cluster
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `ENTERPRISE_ISTIO_LICENSE` | Yes (install) | Solo Istio enterprise license key |
-| `SOLO_ISTIO_REPO_KEY` | Yes (install) | Image repository key |
 | `AWS_PROFILE` | Yes (EKS) | AWS SSO profile name |
+| `GCP_PROJECT` | Yes (GKE) | GCP project ID |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Yes (GKE) | Path to GCP service account credentials |
+| `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_OBJECT_ID`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID` | Yes (AKS) | Azure service principal credentials |
 
 ## Project Structure
 
@@ -252,13 +265,18 @@ make infra-destroy PROFILE=eks-single-cluster
 │   ├── security/
 │   ├── multicluster/
 │   ├── observability/
-│   └── migration/
+│   ├── migration/
+│   └── hybrid/
 ├── addons/                     # Addon implementations
 │   ├── cert-manager/
 │   ├── external-dns/
 │   ├── keycloak/
 │   ├── solo-ui/
-│   └── cilium/
+│   ├── cilium/
+│   ├── calico/
+│   ├── kgateway/
+│   ├── spire/
+│   └── telemetry/
 ├── config/
 │   ├── infra/                  # InfraProfile YAMLs
 │   ├── profiles/               # Installation Profile YAMLs

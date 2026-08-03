@@ -339,10 +339,23 @@ export class CiliumFeature extends AddonFeature {
         '5m',
       ]);
     } catch (error) {
-      this.log(
-        `CNI cleanup prep step failed (${error.message}) — nodes may retain stale Cilium interfaces/BPF state`,
-        'warn'
-      );
+      // `cilium uninstall` runs its own helm uninstall when it detects a
+      // Helm-managed install, so a non-zero exit from it doesn't mean the
+      // release survived — this step failing with "no deployed releases"
+      // just confirms cilium CLI already removed it, node-level cleanup
+      // included. Only warn when the release is still there but the upgrade
+      // itself failed, since that's the case that can leave nodes dirty.
+      if (/not found|no deployed releases/i.test(error.message)) {
+        this.log(
+          'Cilium Helm release already removed by cilium CLI — skipping CNI cleanup prep',
+          'info'
+        );
+      } else {
+        this.log(
+          `CNI cleanup prep step failed (${error.message}) — nodes may retain stale Cilium interfaces/BPF state`,
+          'warn'
+        );
+      }
     }
 
     try {
