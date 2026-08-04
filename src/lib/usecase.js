@@ -63,23 +63,28 @@ export class UseCaseManager {
     try {
       const yamlFiles = await this.findYamlFiles(this.USECASES_DIR);
 
-      return yamlFiles.map(({ file, relativePath }) => {
-        // e.g. single-cluster/traffic-management/request-routing.yaml
-        //      → category = "single-cluster/traffic-management", name = "request-routing"
-        const name = basename(file, '.yaml');
-        const categoryPath = dirname(relativePath);
-        const category = categoryPath !== '.' ? categoryPath : undefined;
-        const displayName = category
-          ? `${category}/${name}`.replace(/-/g, ' ')
-          : name.replace(/-/g, ' ');
+      return await Promise.all(
+        yamlFiles.map(async ({ file, relativePath }) => {
+          // e.g. single-cluster/traffic-management/request-routing.yaml
+          //      → category = "single-cluster/traffic-management", name = "request-routing"
+          const name = basename(file, '.yaml');
+          const categoryPath = dirname(relativePath);
+          const category = categoryPath !== '.' ? categoryPath : undefined;
+          const displayName = category
+            ? `${category}/${name}`.replace(/-/g, ' ')
+            : name.replace(/-/g, ' ');
+          const usecase = await this.parse(file);
+          const deprecated = usecase?.spec?.deprecated ?? null;
 
-        return {
-          name,
-          file,
-          displayName,
-          category,
-        };
-      });
+          return {
+            name,
+            file,
+            displayName,
+            category,
+            deprecated,
+          };
+        })
+      );
     } catch (error) {
       throw new Error(`Failed to list use cases: ${error.message}`);
     }
@@ -510,6 +515,12 @@ export class UseCaseManager {
 
       const usecase = await this.parse(filePath);
       const { metadata, spec } = usecase;
+
+      if (spec.deprecated) {
+        Logger.warn(
+          `Use case '${metadata.name}' is deprecated: ${spec.deprecated.reason} Use '${spec.deprecated.replacedBy}' instead.`
+        );
+      }
 
       // Load kubeconfig files from infra state so cluster contexts are resolvable.
       // Must happen before getCurrentUseCase/setCurrentUseCase below, since those

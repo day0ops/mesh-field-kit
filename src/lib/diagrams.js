@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import logSymbols from 'log-symbols';
 import { formatDescription, BoxedOutput } from './common.js';
 
 const DIM = chalk.dim;
@@ -70,6 +71,16 @@ export async function showUseCaseOverview(metadata, spec, steps, mermaidText) {
     CYAN(BOLD('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'))
   );
   console.log('');
+
+  if (spec.deprecated) {
+    console.log(
+      `${logSymbols.warning} ` +
+        chalk.bgYellow.black.bold(' DEPRECATED ') +
+        ' ' +
+        chalk.yellow(`${spec.deprecated.reason} Use '${spec.deprecated.replacedBy}' instead.`)
+    );
+    console.log('');
+  }
 
   if (metadata.description) {
     console.log(WHITE(formatDescription(metadata.description, '')));

@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import figlet from 'figlet';
+import logSymbols from 'log-symbols';
 import { Logger, KubernetesHelper, checkDependencies } from './lib/common.js';
 import { ProfileManager } from './lib/profiles.js';
 import { ProfileSchema } from './lib/profile-schema.js';
@@ -770,7 +771,10 @@ usecase
             .sort((a, b) => a.name.localeCompare(b.name))
             .forEach(u => {
               const name = u.category ? `${u.category}/${u.name}` : u.name;
-              console.log(`    ${chalk.cyan('•')} ${name}`);
+              const deprecatedTag = u.deprecated
+                ? chalk.yellow(` ${logSymbols.warning} [DEPRECATED → ${u.deprecated.replacedBy}]`)
+                : '';
+              console.log(`    ${chalk.cyan('•')} ${name}${deprecatedTag}`);
             });
         });
       console.log('');

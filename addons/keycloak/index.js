@@ -607,7 +607,14 @@ export class KeycloakFeature extends AddonFeature {
 
       if (id) {
         if (realm.customAttributes?.length) {
+          const existingMapperNames = await this.listProtocolMapperNames(
+            baseUrl,
+            token,
+            id,
+            realm.realm
+          );
           for (const attrName of realm.customAttributes) {
+            if (existingMapperNames.has(attrName)) continue;
             await this.addAttributeMapper(baseUrl, token, id, realm.realm, attrName);
           }
         }
@@ -741,7 +748,14 @@ export class KeycloakFeature extends AddonFeature {
       if (!id) id = await this.lookupClientId(baseUrl, token, team.clientId, realm.realm);
 
       if (id) {
+        const existingMapperNames = await this.listProtocolMapperNames(
+          baseUrl,
+          token,
+          id,
+          realm.realm
+        );
         for (const attrName of orgAttrs) {
+          if (existingMapperNames.has(attrName)) continue;
           await this.addAttributeMapper(baseUrl, token, id, realm.realm, attrName);
         }
         await this.setServiceAccountAttributes(baseUrl, token, id, realm.realm, {
@@ -951,6 +965,10 @@ export class KeycloakFeature extends AddonFeature {
   // ---------------------------------------------------------------------------
 
   async createSoloUIRealm(baseUrl, token) {
+    if (await this.realmExists(baseUrl, token, this.soloUIRealm)) {
+      this.log(`Realm '${this.soloUIRealm}' already exists, skipping creation`, 'info');
+      return;
+    }
     this.log(`Creating Solo UI realm '${this.soloUIRealm}'...`, 'info');
     await this.kcApi('POST', `${baseUrl}/admin/realms`, token, {
       realm: this.soloUIRealm,
@@ -1122,6 +1140,46 @@ export class KeycloakFeature extends AddonFeature {
   // Keycloak Admin REST API helpers
   // ---------------------------------------------------------------------------
 
+  /**
+   * Check whether a realm already exists. Uses a plain status-code check rather than kcApi()
+   * so the expected "not found" case on a fresh install doesn't spend a failed request.
+   */
+  async realmExists(baseUrl, token, realmName) {
+    const result = await CommandRunner.run(
+      'curl',
+      [
+        '-sSk',
+        '-o',
+        '/dev/null',
+        '-w',
+        '%{http_code}',
+        ...(this.curlResolveArgs || []),
+        '-H',
+        `Authorization: Bearer ${token}`,
+        `${baseUrl}/admin/realms/${realmName}`,
+      ],
+      { ignoreError: true }
+    );
+    return result.stdout?.trim() === '200';
+  }
+
+  /**
+   * Names of protocol mappers already configured on a client, so callers can skip
+   * re-creating ones that already exist instead of hitting a 409 on rerun.
+   */
+  async listProtocolMapperNames(baseUrl, token, clientInternalId, realm) {
+    const result = await this.kcApi(
+      'GET',
+      `${baseUrl}/admin/realms/${realm}/clients/${clientInternalId}/protocol-mappers/models`,
+      token
+    );
+    try {
+      return new Set(JSON.parse(result.stdout || '[]').map(m => m.name));
+    } catch {
+      return new Set();
+    }
+  }
+
   async kcApi(method, url, token, body) {
     const args = [
       '-sSfk',
@@ -1173,6 +1231,10 @@ export class KeycloakFeature extends AddonFeature {
   }
 
   async createRealm(baseUrl, token) {
+    if (await this.realmExists(baseUrl, token, this.realm)) {
+      this.log(`Realm '${this.realm}' already exists, skipping creation`, 'info');
+      return;
+    }
     this.log(`Creating realm '${this.realm}'...`, 'info');
     await this.kcApi('POST', `${baseUrl}/admin/realms`, token, {
       realm: this.realm,
@@ -1191,6 +1253,10 @@ export class KeycloakFeature extends AddonFeature {
   }
 
   async createNamedRealm(baseUrl, token, realmName) {
+    if (await this.realmExists(baseUrl, token, realmName)) {
+      this.log(`Realm '${realmName}' already exists, skipping creation`, 'info');
+      return;
+    }
     this.log(`Creating realm '${realmName}'...`, 'info');
     await this.kcApi('POST', `${baseUrl}/admin/realms`, token, {
       realm: realmName,

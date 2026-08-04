@@ -981,28 +981,53 @@ export function formatDescription(text, indent = '  ') {
   const lines = text.split('\n');
   const result = [];
 
+  // Pending bullet/numbered item being accumulated across wrapped continuation lines
+  // (source lines indented deeper than the marker line, with no marker of their own).
+  let pendingList = null; // { prefix, lineIndent, content }
+
+  const flushList = () => {
+    if (!pendingList) return;
+    const { prefix, lineIndent, content } = pendingList;
+    const wrapped = wrapText(content, width - prefix.length, '');
+    const wrappedLines = wrapped.split('\n');
+    result.push(prefix + wrappedLines[0]);
+    for (let i = 1; i < wrappedLines.length; i++) {
+      result.push(lineIndent + wrappedLines[i]);
+    }
+    pendingList = null;
+  };
+
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) {
+      flushList();
       result.push('');
       continue;
     }
-    const isBullet = /^[-*]/.test(trimmed);
-    const isNumbered = /^\d+[.)]/.test(trimmed);
-    const lineIndent = isBullet || isNumbered ? indent + '  ' : indent;
-    const prefix = isBullet ? indent + '• ' : isNumbered ? indent + trimmed.slice(0, 2) : '';
+    const isBullet = /^[-*]\s/.test(trimmed);
+    const isNumbered = /^\d+[.)]\s/.test(trimmed);
+    const hasContinuationIndent = /^\s/.test(line);
 
     if (isBullet || isNumbered) {
-      const content = trimmed.slice(2).trim();
-      const wrapped = wrapText(content, width - lineIndent.length, '');
-      const wrappedLines = wrapped.split('\n');
-      result.push(prefix + wrappedLines[0]);
-      for (let i = 1; i < wrappedLines.length; i++) {
-        result.push(lineIndent + wrappedLines[i]);
-      }
+      flushList();
+      const lineIndent = indent + '  ';
+      const markerLen = isBullet
+        ? trimmed.match(/^[-*]\s+/)[0].length
+        : trimmed.match(/^\d+[.)]\s+/)[0].length;
+      const prefix = isBullet
+        ? indent + '• '
+        : indent + trimmed.slice(0, markerLen).trimEnd() + ' ';
+      const content = trimmed.slice(markerLen).trim();
+      pendingList = { prefix, lineIndent, content };
+    } else if (hasContinuationIndent && pendingList) {
+      // Indented continuation line - append to the current bullet/numbered item
+      // instead of rendering it as its own paragraph.
+      pendingList.content += ' ' + trimmed;
     } else {
+      flushList();
       result.push(wrapText(trimmed, width, indent));
     }
   }
+  flushList();
   return result.join('\n');
 }
