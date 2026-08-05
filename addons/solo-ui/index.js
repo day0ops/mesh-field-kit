@@ -308,11 +308,6 @@ export class SoloUIFeature extends AddonFeature {
       '--create-namespace',
       '--set',
       'management-crds.enabled=false',
-      // Use in-cluster K8s API JWKS endpoint instead of the external EKS OIDC endpoint.
-      // The EKS OIDC endpoint (oidc.eks.*.amazonaws.com) uses a cert not trusted by in-cluster
-      // pods → "x509: certificate signed by unknown authority" → k8s token validator fails to start.
-      '--set',
-      'kubernetes.jwksUrl=https://kubernetes.default.svc/openid/v1/jwks',
       ...(this.clusterName ? ['--set', `cluster=${this.clusterName}`] : []),
       ...(process.env.ENTERPRISE_ISTIO_LICENSE
         ? ['--set', `licensing.licenseKey=${process.env.ENTERPRISE_ISTIO_LICENSE}`]

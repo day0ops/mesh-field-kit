@@ -967,6 +967,7 @@ export class KeycloakFeature extends AddonFeature {
   async createSoloUIRealm(baseUrl, token) {
     if (await this.realmExists(baseUrl, token, this.soloUIRealm)) {
       this.log(`Realm '${this.soloUIRealm}' already exists, skipping creation`, 'info');
+      await this.ensureRealmLoginTheme(baseUrl, token, this.soloUIRealm);
       return;
     }
     this.log(`Creating Solo UI realm '${this.soloUIRealm}'...`, 'info');
@@ -1164,6 +1165,18 @@ export class KeycloakFeature extends AddonFeature {
   }
 
   /**
+   * Set the realm's login theme. Keycloak's realm PUT only applies fields present in
+   * the body, so this is safe to call on realms that already existed before this addon
+   * ran - without it, a realm created before the loginTheme default was added would
+   * never pick it up.
+   */
+  async ensureRealmLoginTheme(baseUrl, token, realmName) {
+    await this.kcApi('PUT', `${baseUrl}/admin/realms/${realmName}`, token, {
+      loginTheme: 'keycloak-soloio-login-theme',
+    });
+  }
+
+  /**
    * Names of protocol mappers already configured on a client, so callers can skip
    * re-creating ones that already exist instead of hitting a 409 on rerun.
    */
@@ -1233,6 +1246,7 @@ export class KeycloakFeature extends AddonFeature {
   async createRealm(baseUrl, token) {
     if (await this.realmExists(baseUrl, token, this.realm)) {
       this.log(`Realm '${this.realm}' already exists, skipping creation`, 'info');
+      await this.ensureRealmLoginTheme(baseUrl, token, this.realm);
       return;
     }
     this.log(`Creating realm '${this.realm}'...`, 'info');
@@ -1255,6 +1269,7 @@ export class KeycloakFeature extends AddonFeature {
   async createNamedRealm(baseUrl, token, realmName) {
     if (await this.realmExists(baseUrl, token, realmName)) {
       this.log(`Realm '${realmName}' already exists, skipping creation`, 'info');
+      await this.ensureRealmLoginTheme(baseUrl, token, realmName);
       return;
     }
     this.log(`Creating realm '${realmName}'...`, 'info');

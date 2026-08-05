@@ -133,6 +133,7 @@ export class SpireFeature extends AddonFeature {
 
     await this.#createUpstreamCaSecret(caCert, caKey, caBundle, context);
     this.log('SPIRE upstream CA secret created via cert-manager', 'success');
+    return caBundle;
   }
 
   /**
@@ -145,6 +146,7 @@ export class SpireFeature extends AddonFeature {
     const caBundle = readFileSync(this.certs.caChain, 'utf8');
     await this.#createUpstreamCaSecret(caCert, caKey, caBundle, context);
     this.log('SPIRE upstream CA secret created from manual certs', 'success');
+    return caBundle;
   }
 
   /**
@@ -206,19 +208,18 @@ export class SpireFeature extends AddonFeature {
     );
 
     // Build chain: intermediate + root
-    writeFileSync(
-      caBundlePath,
-      readFileSync(caCertPath, 'utf8') + readFileSync(rootCertPath, 'utf8')
-    );
+    const caBundle = readFileSync(caCertPath, 'utf8') + readFileSync(rootCertPath, 'utf8');
+    writeFileSync(caBundlePath, caBundle);
 
     await this.#createUpstreamCaSecret(
       readFileSync(caCertPath, 'utf8'),
       readFileSync(caKeyPath, 'utf8'),
-      readFileSync(caBundlePath, 'utf8'),
+      caBundle,
       context
     );
 
     this.log('SPIRE upstream CA secret created', 'success');
+    return caBundle;
   }
 
   /**
@@ -291,6 +292,73 @@ export class SpireFeature extends AddonFeature {
     }
   }
 
+  /**
+   * SPIRE issues its own separate CA chain for ambient dataplane workloads (via ztunnel),
+   * independent of istiod's CA. When a profile also sets spec.mesh.certificates (a shared
+   * cacerts secret managed by CertificateManager, e.g. for multi-cluster trust), istiod-issued
+   * proxies - such as Gateway resources, which aren't part of the ambient dataplane - only
+   * trust that cacerts root and have no way to verify a SPIRE-signed peer, so a Gateway
+   * terminating TLS and re-originating an HBONE connection to an ambient backend fails with
+   * "unable to get issuer certificate". Merging SPIRE's CA chain into cacerts' root-cert.pem
+   * closes that gap. No-op if cacerts doesn't exist - profiles relying on SPIRE alone (or
+   * istiod's own ephemeral CA) never hit this cross-CA gap in the first place.
+   */
+  async #federateWithIstioCA(context, caBundle) {
+    const ctxFlag = context ? `--context=${context}` : '';
+    const existing = await CommandRunner.exec(
+      `kubectl ${ctxFlag} get secret cacerts -n istio-system -o jsonpath='{.data.root-cert\\.pem}'`,
+      { ignoreError: true }
+    );
+    if (existing.exitCode || !existing.stdout) return;
+
+    const currentRootPem = Buffer.from(existing.stdout, 'base64').toString('utf8');
+    if (currentRootPem.includes(caBundle.trim())) {
+      this.log('Istio cacerts already trusts the SPIRE CA, skipping federation', 'info');
+      return;
+    }
+
+    this.log('Federating SPIRE CA into Istio cacerts trust bundle...', 'info');
+    const mergedPem = `${currentRootPem.trimEnd()}\n${caBundle}`;
+    const mergedB64 = Buffer.from(mergedPem, 'utf8').toString('base64');
+
+    await KubernetesHelper.kubectl(
+      [
+        ...(context ? [`--context=${context}`] : []),
+        'patch',
+        'secret',
+        'cacerts',
+        '-n',
+        'istio-system',
+        '--type=merge',
+        '-p',
+        JSON.stringify({ data: { 'root-cert.pem': mergedB64 } }),
+      ],
+      { spinner: this.spinner }
+    );
+    this.log('Istio cacerts now trusts the SPIRE CA', 'success');
+
+    const istiod = await CommandRunner.exec(
+      `kubectl ${ctxFlag} get deployment istiod -n istio-system`,
+      {
+        ignoreError: true,
+      }
+    );
+    if (!istiod.exitCode) {
+      this.log('Restarting istiod to pick up the federated trust bundle...', 'info');
+      await KubernetesHelper.kubectl(
+        [
+          ...(context ? [`--context=${context}`] : []),
+          'rollout',
+          'restart',
+          'deployment/istiod',
+          '-n',
+          'istio-system',
+        ],
+        { spinner: this.spinner }
+      );
+    }
+  }
+
   async #waitForSecret(name, namespace, context, timeoutMs = 120000) {
     const ctxFlag = context ? `--context=${context}` : '';
     const start = Date.now();
@@ -327,7 +395,20 @@ export class SpireFeature extends AddonFeature {
         upstreamAuthority: {
           disk: {
             enabled: true,
-            secret: { create: false, name: 'spiffe-upstream-ca' },
+            // secret.create is false - the spiffe-upstream-ca secret already exists
+            // (we create it ourselves with tls.crt/tls.key/bundle.crt). The chart only
+            // decides whether to render bundle_file_path (and thus publish the upstream
+            // root as part of SPIRE's own trust bundle) based on secret.data.bundle being
+            // non-empty here, regardless of secret.create - so this placeholder is required
+            // even though the chart never uses it to create anything. Without it, SPIRE's
+            // published bundle contains only the intermediate, which downstream verifiers
+            // (that trust chain to a real root, not a bare intermediate) reject with
+            // "unable to get issuer certificate".
+            secret: {
+              create: false,
+              name: 'spiffe-upstream-ca',
+              data: { bundle: 'externally-managed' },
+            },
           },
         },
       },
@@ -345,7 +426,10 @@ export class SpireFeature extends AddonFeature {
     this.log(`Namespace '${this.spireNamespace}' ready`, 'info');
 
     // 2. Prepare upstream CA secret
-    await this.#prepareCerts(this.kubeContext);
+    const caBundle = await this.#prepareCerts(this.kubeContext);
+
+    // 2b. Trust SPIRE's CA from istiod's side too, if a shared cacerts secret is in play
+    await this.#federateWithIstioCA(this.kubeContext, caBundle);
 
     // 3. Add SPIRE Helm repo
     await this.#addHelmRepo();
