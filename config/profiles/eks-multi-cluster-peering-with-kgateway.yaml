@@ -6,6 +6,7 @@ metadata:
     Multicluster ambient mesh with helm-based peering
     - kgateway enabled
     - Cilium addon enabled
+    - SPIRE addon enabled
 
 spec:
   infra: eks-multi-cluster
@@ -132,6 +133,27 @@ spec:
               domainFilter: "{{env.dns.childZone}}.{{env.dns.parentZone.domain}}"
               region: "{{env.aws.region}}"
 
+          - name: keycloak
+            description: Keycloak OIDC Identity Provider
+            namespace: keycloak
+            keycloakNamespace: keycloak
+            keycloakVersion: 26.7.0
+            keycloakImage: "{{env.images.keycloak}}"
+            hostname: "{{env.domains.keycloak}}"
+            protocol: "{{env.keycloak.scheme}}"
+            tls:
+              enabled: true
+              secretName: keycloak-tls
+              createCertificate: true
+              clusterIssuerName: letsencrypt-dns
+            soloUIClients:
+              enabled: true
+              realm: solo-ui
+              hostname: "https://{{env.domains.soloUI}}"
+              backendClientId: solo-ui-backend
+              backendClientSecret: solo-ui-backend-secret
+              frontendClientId: solo-ui-frontend
+
           - name: telemetry
             description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
             phase: post
@@ -159,6 +181,17 @@ spec:
             namespace: solo-enterprise
             serviceType: LoadBalancer
             telemetryNamespace: telemetry
+            hostname: "{{env.domains.soloUI}}"
+            tls:
+              enabled: true
+              secretName: solo-ui-tls
+              issuer: letsencrypt-dns
+            oidc:
+              enabled: true
+              issuerUrl: "https://{{env.domains.keycloak}}/realms/solo-ui"
+              backendClientId: solo-ui-backend
+              backendClientSecret: solo-ui-backend-secret
+              frontendClientId: solo-ui-frontend
 
           - name: kgateway
             description: Kubernetes Gateway API ingress controller
