@@ -367,9 +367,6 @@ export class Prompts {
         const selectedNode = nodes.find(n => (n.value ?? n.label) === selected);
 
         if (selectedNode && isBranch(selectedNode)) {
-          if (selectedNode.children.length === 1 && !isBranch(selectedNode.children[0])) {
-            return selectedNode.children[0].value;
-          }
           const result = await navigate(
             selectedNode.children,
             `Select from ${chalk.cyan(selectedNode.label)}:`,

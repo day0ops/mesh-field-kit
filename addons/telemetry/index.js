@@ -33,6 +33,11 @@ const SOLO_COP_DASHBOARDS = [
   'istio-global-services-dashboard',
 ];
 
+// Escape a value for Helm's --set-string: its strvals parser treats an unescaped
+// comma as a key=value separator and a backslash as an escape character, either of
+// which would corrupt a credential that contains them.
+const helmSetEscape = value => String(value).replace(/\\/g, '\\\\').replace(/,/g, '\\,');
+
 /**
  * Telemetry Feature
  *
@@ -92,6 +97,11 @@ const SOLO_COP_DASHBOARDS = [
  *   otelGatewayEndpoint: string,         // Required: east OTel gateway gRPC endpoint (e.g. opentelemetry-collector-gateway.telemetry.mesh.internal:4317)
  *   lokiPushUrl: string,                 // Required: east Loki push URL for Alloy (e.g. http://loki.telemetry.mesh.internal:3100/loki/api/v1/push)
  * }
+ *
+ * In full mode, requires the following environment variables (no defaults -
+ * deploy fails cleanly via validate() if either is unset):
+ *   GRAFANA_ADMIN_USERNAME - Grafana admin login username
+ *   GRAFANA_ADMIN_PASSWORD - Grafana admin login password
  */
 export class TelemetryFeature extends AddonFeature {
   constructor(name, config) {
@@ -130,6 +140,8 @@ export class TelemetryFeature extends AddonFeature {
       this.grafanaOidc = config.grafanaOidc || null;
       this.globalExport = config.globalExport === true;
       this.shouldInstallOtelCollectors = config.installOtelCollectors !== false;
+      this.grafanaAdminUsername = process.env.GRAFANA_ADMIN_USERNAME || '';
+      this.grafanaAdminPassword = process.env.GRAFANA_ADMIN_PASSWORD || '';
     }
   }
 
@@ -139,6 +151,19 @@ export class TelemetryFeature extends AddonFeature {
       if (missing.length) {
         throw new Error(`telemetry agent mode requires: ${missing.join(', ')}`);
       }
+      return true;
+    }
+    const missing = [
+      !this.grafanaAdminUsername && 'GRAFANA_ADMIN_USERNAME',
+      !this.grafanaAdminPassword && 'GRAFANA_ADMIN_PASSWORD',
+    ].filter(Boolean);
+    if (missing.length > 0) {
+      throw new Error(
+        `Telemetry requires the following environment variable(s) to be set: ${missing.join(', ')}.\n` +
+          'Set them before deploying, e.g.:\n' +
+          '  export GRAFANA_ADMIN_USERNAME="admin"\n' +
+          '  export GRAFANA_ADMIN_PASSWORD="<your-password>"'
+      );
     }
     return true;
   }
@@ -374,7 +399,7 @@ export class TelemetryFeature extends AddonFeature {
     } else if (this.grafanaServiceType === 'LoadBalancer') {
       accessHint = `kubectl get svc kube-prometheus-stack-grafana -n ${this.namespace}`;
     } else {
-      accessHint = `kubectl port-forward svc/kube-prometheus-stack-grafana -n ${this.namespace} 3000:80 then open http://localhost:3000/ (admin/prom-operator)`;
+      accessHint = `kubectl port-forward svc/kube-prometheus-stack-grafana -n ${this.namespace} 3000:80 then open http://localhost:3000/ (login: ${this.grafanaAdminUsername} / $GRAFANA_ADMIN_PASSWORD)`;
     }
     this.log(`Telemetry stack installed. ${accessHint}`, 'success');
   }
@@ -813,6 +838,13 @@ export class TelemetryFeature extends AddonFeature {
       ignoreError: true,
     });
 
+    // The datasources sidecar reloads Grafana via its admin-only API, so the reload
+    // URL must carry the same admin credentials. Credentials are URL-encoded because
+    // they are operator-supplied and embedded in the userinfo section of a URL.
+    const reloadUser = encodeURIComponent(this.grafanaAdminUsername);
+    const reloadPass = encodeURIComponent(this.grafanaAdminPassword);
+    const grafanaReloadURL = `http://${reloadUser}:${reloadPass}@localhost:3000/api/admin/provisioning/datasources/reload`;
+
     const helmArgs = [
       'upgrade',
       '-i',
@@ -832,6 +864,12 @@ export class TelemetryFeature extends AddonFeature {
       `prometheus.prometheusSpec.retention=${this.retention}`,
       '--set',
       `grafana.service.type=${this.grafanaServiceType}`,
+      '--set-string',
+      `grafana.adminUser=${helmSetEscape(this.grafanaAdminUsername)}`,
+      '--set-string',
+      `grafana.adminPassword=${helmSetEscape(this.grafanaAdminPassword)}`,
+      '--set-string',
+      `grafana.sidecar.datasources.reloadURL=${grafanaReloadURL}`,
       ...this.buildNodeSelectorArgs('prometheus.prometheusSpec'),
       ...this.buildNodeSelectorArgs('grafana'),
     ];

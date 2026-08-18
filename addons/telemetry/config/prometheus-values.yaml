@@ -50,7 +50,6 @@ prometheus:
 
 grafana:
   enabled: true
-  adminPassword: prom-operator
   defaultDashboardsEnabled: false
   sidecar:
     dashboards:
@@ -62,8 +61,8 @@ grafana:
       enabled: true
       defaultDatasourceEnabled: false
       # Sidecar watches for ConfigMaps with grafana_datasource=1 and reloads Grafana when found.
-      # Credentials required — Grafana's reload API is admin-only.
+      # Grafana's reload API is admin-only, so reloadURL (carrying the admin credentials) is
+      # injected at deploy time via --set-string by TelemetryFeature.installPrometheusStack.
       skipReload: false
-      reloadURL: "http://admin:prom-operator@localhost:3000/api/admin/provisioning/datasources/reload"
       label: grafana_datasource
       labelValue: '1'

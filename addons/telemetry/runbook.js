@@ -20,8 +20,13 @@ function chartVersionsFromAddon(addonCfg) {
   });
 }
 
-export function envVarsFor(_addonCfg, _clusterName) {
-  return [];
+export function envVarsFor(addonCfg, _clusterName) {
+  // Grafana is only installed in full mode; agent-mode clusters need no admin creds.
+  if ((addonCfg?.config || {}).mode === 'agent') return [];
+  return [
+    { name: 'GRAFANA_ADMIN_USERNAME', required: true, description: 'Grafana admin login username' },
+    { name: 'GRAFANA_ADMIN_PASSWORD', required: true, description: 'Grafana admin login password' },
+  ];
 }
 
 export function envExportsFor(addonCfg, _profile, env) {
@@ -341,6 +346,9 @@ helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheu
   --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=${storageClass} \\
   --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=${storageSize} \\
   --set "grafana.service.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname=${grafanaHostname}" \\
+  --set-string grafana.adminUser=$GRAFANA_ADMIN_USERNAME \\
+  --set-string grafana.adminPassword=$GRAFANA_ADMIN_PASSWORD \\
+  --set-string grafana.sidecar.datasources.reloadURL=http://$GRAFANA_ADMIN_USERNAME:$GRAFANA_ADMIN_PASSWORD@localhost:3000/api/admin/provisioning/datasources/reload \\
   --create-namespace \\
   --wait \\
   --timeout 10m \\

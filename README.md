@@ -67,30 +67,30 @@ Profiles reference an infra profile via `spec.infra` and an environment via `spe
 
 ### Available infra profiles
 
-| Profile | Provider | Clusters |
-|---------|----------|-----|
-| `eks-single-cluster` | EKS | 1 |
-| `eks-single-cluster-ipv6` | EKS IPv6 | 1 |
-| `eks-multi-cluster` | EKS | 2 (east, west) |
-| `eks-multi-cluster-ipv6` | EKS IPv6 | 2 (east, west) |
-| `gke-single-cluster` | GKE | 1 |
-| `gke-multi-cluster` | GKE | 2 (east, west) |
-| `aks-single-cluster` | AKS | 1 |
-| `aks-multi-cluster` | AKS | 2 (east, west) |
-| `hybrid-multi-cloud` | EKS + GKE + AKS | 3 (mgmt on EKS, workload on GKE + AKS) |
+| Profile                   | Provider        | Clusters                               |
+| ------------------------- | --------------- | -------------------------------------- |
+| `eks-single-cluster`      | EKS             | 1                                      |
+| `eks-single-cluster-ipv6` | EKS IPv6        | 1                                      |
+| `eks-multi-cluster`       | EKS             | 2 (east, west)                         |
+| `eks-multi-cluster-ipv6`  | EKS IPv6        | 2 (east, west)                         |
+| `gke-single-cluster`      | GKE             | 1                                      |
+| `gke-multi-cluster`       | GKE             | 2 (east, west)                         |
+| `aks-single-cluster`      | AKS             | 1                                      |
+| `aks-multi-cluster`       | AKS             | 2 (east, west)                         |
+| `hybrid-multi-cloud`      | EKS + GKE + AKS | 3 (mgmt on EKS, workload on GKE + AKS) |
 
 ### Available installation profiles
 
-| Profile | Description |
-|---------|-------------|
-| `eks-single-cluster-mesh-with-cilium` | Single-cluster ambient mesh with Cilium CNI chaining |
-| `eks-single-cluster-mesh-with-calico` | Single-cluster ambient mesh with Calico |
-| `eks-single-cluster-mesh-with-spire` | Single-cluster ambient mesh with SPIRE workload identity attestation |
-| `eks-single-cluster-mesh-with-crl` | Single-cluster ambient mesh with a plugged-in CA and certificate revocation list (CRL) enforcement |
-| `eks-single-cluster-mesh-sidecar` | Single-cluster classic sidecar mesh (no ambient components) |
-| `eks-multi-cluster-peering-with-istio-ingress` | Multi-cluster ambient mesh, helm-based peering, Istio ingress |
-| `eks-multi-cluster-peering-with-kgateway` | Multi-cluster ambient mesh, helm-based peering, kgateway ingress |
-| `eks-multi-cluster-auto-peering-operator` | Multi-cluster ambient mesh, operator-managed auto-peering, kgateway ingress |
+| Profile                                        | Description                                                                                        |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `eks-single-cluster-mesh-with-cilium`          | Single-cluster ambient mesh with Cilium CNI chaining                                               |
+| `eks-single-cluster-mesh-with-calico`          | Single-cluster ambient mesh with Calico                                                            |
+| `eks-single-cluster-mesh-with-spire`           | Single-cluster ambient mesh with SPIRE workload identity attestation                               |
+| `eks-single-cluster-mesh-with-crl`             | Single-cluster ambient mesh with a plugged-in CA and certificate revocation list (CRL) enforcement |
+| `eks-single-cluster-mesh-sidecar`              | Single-cluster classic sidecar mesh (no ambient components)                                        |
+| `eks-multi-cluster-peering-with-istio-ingress` | Multi-cluster ambient mesh, helm-based peering, Istio ingress                                      |
+| `eks-multi-cluster-peering-with-kgateway`      | Multi-cluster ambient mesh, helm-based peering, kgateway ingress                                   |
+| `eks-multi-cluster-auto-peering-operator`      | Multi-cluster ambient mesh, operator-managed auto-peering, kgateway ingress                        |
 
 ## Step-by-Step Workflow
 
@@ -153,13 +153,19 @@ make infra-destroy PROFILE=eks-single-cluster
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ENTERPRISE_ISTIO_LICENSE` | Yes (install) | Solo Istio enterprise license key |
-| `AWS_PROFILE` | Yes (EKS) | AWS SSO profile name |
-| `GCP_PROJECT` | Yes (GKE) | GCP project ID |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Yes (GKE) | Path to GCP service account credentials |
-| `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_OBJECT_ID`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID` | Yes (AKS) | Azure service principal credentials |
+| Variable                                                                                      | Required                         | Description                                    |
+| --------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------- |
+| `ENTERPRISE_ISTIO_LICENSE`                                                                    | Yes (install)                    | Solo Istio enterprise license key              |
+| `AWS_PROFILE`                                                                                 | Yes (EKS)                        | AWS SSO profile name                           |
+| `GCP_PROJECT`                                                                                 | Yes (GKE)                        | GCP project ID                                 |
+| `GOOGLE_APPLICATION_CREDENTIALS`                                                              | Yes (GKE)                        | Path to GCP service account credentials        |
+| `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_OBJECT_ID`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID` | Yes (AKS)                        | Azure service principal credentials            |
+| `KEYCLOAK_ADMIN_USERNAME`                                                                     | Yes (keycloak addon)             | Keycloak master realm bootstrap admin username |
+| `KEYCLOAK_ADMIN_PASSWORD`                                                                     | Yes (keycloak addon)             | Keycloak master realm bootstrap admin password |
+| `KEYCLOAK_POSTGRES_USER`                                                                      | Yes (keycloak addon)             | Postgres superuser backing Keycloak's DB       |
+| `KEYCLOAK_POSTGRES_PASSWORD`                                                                  | Yes (keycloak addon)             | Postgres superuser password                    |
+| `GRAFANA_ADMIN_USERNAME`                                                                      | Yes (telemetry addon, full mode) | Grafana admin login username                   |
+| `GRAFANA_ADMIN_PASSWORD`                                                                      | Yes (telemetry addon, full mode) | Grafana admin login password                   |
 
 ## Project Structure
 

@@ -18,7 +18,7 @@ spec:
     scheme: https
 
   images:
-    keycloak: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/keycloak
+    keycloak: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/keycloak:26.7.0
 
   domains:
     keycloak: keycloak.ambient-demo-aks.kasunt.apac.fe.solo.io

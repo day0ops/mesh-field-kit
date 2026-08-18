@@ -2,17 +2,17 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: keycloak-secrets
-  namespace: "{{NAMESPACE}}"
+  namespace: '{{NAMESPACE}}'
 type: Opaque
 stringData:
-  KC_BOOTSTRAP_ADMIN_USERNAME: admin
-  KC_BOOTSTRAP_ADMIN_PASSWORD: "{{ADMIN_PASSWORD}}"
+  KC_BOOTSTRAP_ADMIN_USERNAME: '{{ADMIN_USERNAME}}'
+  KC_BOOTSTRAP_ADMIN_PASSWORD: '{{ADMIN_PASSWORD}}'
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: keycloak
-  namespace: "{{NAMESPACE}}"
+  namespace: '{{NAMESPACE}}'
   labels:
     app: keycloak
 spec:
@@ -31,7 +31,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: keycloak
-  namespace: "{{NAMESPACE}}"
+  namespace: '{{NAMESPACE}}'
   labels:
     app: keycloak
 spec:
@@ -46,7 +46,7 @@ spec:
     spec:
       containers:
         - name: keycloak
-          image: "{{KEYCLOAK_IMAGE}}"
+          image: '{{KEYCLOAK_IMAGE}}'
           args:
             - start
             - --spi-theme-default-login-theme=keycloak-soloio-login-theme
@@ -62,9 +62,9 @@ spec:
                   key: KC_BOOTSTRAP_ADMIN_PASSWORD
                   name: keycloak-secrets
             - name: KC_HEALTH_ENABLED
-              value: "true"
+              value: 'true'
             - name: KC_METRICS_ENABLED
-              value: "true"
+              value: 'true'
             - name: KC_LOG_LEVEL
               value: INFO
             - name: KC_DB
@@ -87,19 +87,19 @@ spec:
                   name: postgres-credentials
                   key: POSTGRES_PASSWORD
             - name: KC_HOSTNAME
-              value: "{{HOSTNAME}}"
+              value: '{{HOSTNAME}}'
             - name: KC_HOSTNAME_STRICT
-              value: "false"
+              value: 'false'
             - name: KC_HTTPS_CERTIFICATE_FILE
               value: /etc/keycloak/tls/tls.crt
             - name: KC_HTTPS_CERTIFICATE_KEY_FILE
               value: /etc/keycloak/tls/tls.key
             - name: KC_HTTPS_PORT
-              value: "8443"
+              value: '8443'
             - name: KC_HTTP_ENABLED
-              value: "true"
+              value: 'true'
             - name: KC_HTTPS_ENABLED
-              value: "true"
+              value: 'true'
             - name: KC_HTTP_MANAGEMENT_SCHEME
               value: http
 
@@ -127,11 +127,11 @@ spec:
           resources:
             limits:
               memory: 1Gi
-              cpu: "1"
+              cpu: '1'
             requests:
               memory: 512Mi
-              cpu: "0.5"
+              cpu: '0.5'
       volumes:
         - name: tls-cert
           secret:
-            secretName: "{{TLS_SECRET_NAME}}"
+            secretName: '{{TLS_SECRET_NAME}}'

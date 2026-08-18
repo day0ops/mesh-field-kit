@@ -40,6 +40,16 @@ bun run src/cli.js check-deps
 ```bash
 export ENTERPRISE_ISTIO_LICENSE=<key>    # Required for install
 export ISTIO_VERSION=1.30.3              # Optional, defaults to profile spec.mesh.istioVersion
+
+# keycloak addon (required when the profile installs it)
+export KEYCLOAK_ADMIN_USERNAME=          # Keycloak master realm bootstrap admin username
+export KEYCLOAK_ADMIN_PASSWORD=          # Keycloak master realm bootstrap admin password
+export KEYCLOAK_POSTGRES_USER=           # Postgres superuser backing Keycloak's DB
+export KEYCLOAK_POSTGRES_PASSWORD=       # Postgres superuser password
+
+# telemetry addon, full mode (required when the profile installs it)
+export GRAFANA_ADMIN_USERNAME=           # Grafana admin login username
+export GRAFANA_ADMIN_PASSWORD=           # Grafana admin login password
 ```
 
 ## Architecture
@@ -84,6 +94,7 @@ Each feature directory contains `index.js` (the Feature subclass) and optionally
 ### Adding a new use case
 
 Create `config/usecases/<single-cluster|multi-cluster>/<category>/<use-case-name>.yaml` with:
+
 ```yaml
 apiVersion: mesh.demo/v1
 kind: UseCase
@@ -93,7 +104,7 @@ metadata:
 spec:
   requires:
     applications:
-      - name: bookinfo       # from extras/applications/
+      - name: bookinfo # from extras/applications/
         namespace: bookinfo
   features:
     - name: <registered-feature-name>
