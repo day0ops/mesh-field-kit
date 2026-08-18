@@ -12,6 +12,11 @@ const CONFIG_DIR = join(__dirname, 'config');
 const KEYCLOAK_VERSION = '26.6.3';
 const POSTGRES_VERSION = '18.2-alpine';
 
+// Double any single quote so a value stays parseable when substituted into a
+// single-quoted YAML scalar (YAML escapes a literal ' as ''). Used for the
+// operator-supplied credentials that land in keycloak.yaml / postgres.yaml.
+const yamlSingleQuote = value => String(value).replaceAll("'", "''");
+
 /**
  * Keycloak Feature (manifest-based, no Helm)
  *
@@ -53,18 +58,30 @@ const POSTGRES_VERSION = '18.2-alpine';
  *     frontendClientId: string,
  *     defaultPassword: string,      // Default: 'Passwd00' (solo-admin, solo-reader, solo-writer)
  *   },
- *   adminPassword: string,          // Default: 'admin' (Keycloak master realm bootstrap admin)
  *   realms: [],                   // Optional: config-driven realm setup (overrides legacy path)
  *   externalDns: boolean,         // Optional: explicit override; auto-detected when external-dns addon is present
  * }
+ *
+ * Requires the following environment variables (no defaults - deploy fails
+ * cleanly via validate() if any are unset):
+ *   KEYCLOAK_ADMIN_USERNAME    - Keycloak master realm bootstrap admin username
+ *   KEYCLOAK_ADMIN_PASSWORD    - Keycloak master realm bootstrap admin password
+ *   KEYCLOAK_POSTGRES_USER     - Postgres superuser backing Keycloak's DB
+ *   KEYCLOAK_POSTGRES_PASSWORD - Postgres superuser password
  */
 export class KeycloakFeature extends AddonFeature {
   constructor(name, config) {
     super(name, config);
     this.keycloakNamespace = config.keycloakNamespace || 'keycloak';
     this.keycloakVersion = config.keycloakVersion || config.version || KEYCLOAK_VERSION;
+    // config.keycloakImage may be a bare repo (append keycloakVersion) or already a full
+    // repo:tag reference - only append when there's no tag after the last '/', so a
+    // registry:port prefix isn't mistaken for a tag.
+    const hasExplicitTag = /:[^/]+$/.test(config.keycloakImage || '');
     this.keycloakImage = config.keycloakImage
-      ? `${config.keycloakImage}:${this.keycloakVersion}`
+      ? hasExplicitTag
+        ? config.keycloakImage
+        : `${config.keycloakImage}:${this.keycloakVersion}`
       : `quay.io/keycloak/keycloak:${this.keycloakVersion}`;
     this.postgresVersion = config.postgresVersion || POSTGRES_VERSION;
     this.hostname = config.hostname || 'keycloak.keycloak.svc.cluster.local';
@@ -89,12 +106,31 @@ export class KeycloakFeature extends AddonFeature {
     this.workloadClients = config.workloadClients || [];
     this.soloUIClients = config.soloUIClients || null;
     this.soloUIRealm = config.soloUIClients?.realm || 'solo-ui';
-    this.adminPassword = config.adminPassword || 'admin';
+    this.adminUsername = process.env.KEYCLOAK_ADMIN_USERNAME || '';
+    this.adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || '';
+    this.postgresUser = process.env.KEYCLOAK_POSTGRES_USER || '';
+    this.postgresPassword = process.env.KEYCLOAK_POSTGRES_PASSWORD || '';
     const clusterAddons = config.clusterAddons || [];
     this.externalDns = config.externalDns === true || clusterAddons.includes('external-dns');
   }
 
   validate() {
+    const missing = [
+      !this.adminUsername && 'KEYCLOAK_ADMIN_USERNAME',
+      !this.adminPassword && 'KEYCLOAK_ADMIN_PASSWORD',
+      !this.postgresUser && 'KEYCLOAK_POSTGRES_USER',
+      !this.postgresPassword && 'KEYCLOAK_POSTGRES_PASSWORD',
+    ].filter(Boolean);
+    if (missing.length > 0) {
+      throw new Error(
+        `Keycloak requires the following environment variable(s) to be set: ${missing.join(', ')}.\n` +
+          'Set them before deploying, e.g.:\n' +
+          '  export KEYCLOAK_ADMIN_USERNAME="admin"\n' +
+          '  export KEYCLOAK_ADMIN_PASSWORD="<your-password>"\n' +
+          '  export KEYCLOAK_POSTGRES_USER="postgres"\n' +
+          '  export KEYCLOAK_POSTGRES_PASSWORD="<your-password>"'
+      );
+    }
     return true;
   }
 
@@ -148,7 +184,10 @@ export class KeycloakFeature extends AddonFeature {
       `Keycloak installed successfully. Access at ${this.protocol}://${this.hostname}/`,
       'success'
     );
-    this.log(`Keycloak admin login: admin / ${this.adminPassword}`, 'info');
+    this.log(
+      `Keycloak admin login: ${this.adminUsername} (password: $KEYCLOAK_ADMIN_PASSWORD)`,
+      'info'
+    );
     if (this.soloUIClients?.enabled) {
       const soloPassword = this.soloUIClients.defaultPassword || 'Passwd00';
       this.log(`Solo UI login: solo-admin / ${soloPassword}`, 'info');
@@ -169,7 +208,10 @@ export class KeycloakFeature extends AddonFeature {
       TLS_SECRET_NAME: this.tlsSecretName,
       CLUSTER_ISSUER_NAME: this.tlsClusterIssuerName,
       CERT_ORGANIZATION: this.tlsOrganization,
-      ADMIN_PASSWORD: this.adminPassword,
+      ADMIN_USERNAME: yamlSingleQuote(this.adminUsername),
+      ADMIN_PASSWORD: yamlSingleQuote(this.adminPassword),
+      POSTGRES_USER: yamlSingleQuote(this.postgresUser),
+      POSTGRES_PASSWORD: yamlSingleQuote(this.postgresPassword),
       CERT_INTERNAL_DNS_NAMES: this.tlsIncludeInternalDns
         ? `    - 'keycloak.${this.keycloakNamespace}.svc.cluster.local'\n    - 'keycloak.${this.keycloakNamespace}.svc'\n    - keycloak`
         : '',
@@ -264,7 +306,7 @@ export class KeycloakFeature extends AddonFeature {
             '--',
             'psql',
             '-U',
-            'postgres',
+            this.postgresUser,
             '-d',
             'postgres',
             '-c',
@@ -1224,7 +1266,7 @@ export class KeycloakFeature extends AddonFeature {
           '-H',
           'Content-Type: application/x-www-form-urlencoded',
           '-d',
-          `username=admin&password=${this.adminPassword}&grant_type=password&client_id=admin-cli`,
+          `username=${encodeURIComponent(this.adminUsername)}&password=${encodeURIComponent(this.adminPassword)}&grant_type=password&client_id=admin-cli`,
         ];
         this.log(`getAdminToken attempt ${i + 1}`, 'debug');
 

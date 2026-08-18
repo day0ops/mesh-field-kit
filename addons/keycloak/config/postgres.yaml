@@ -11,8 +11,8 @@ metadata:
   namespace: '{{NAMESPACE}}'
 type: Opaque
 stringData:
-  POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: 'aab++112'
+  POSTGRES_USER: '{{POSTGRES_USER}}'
+  POSTGRES_PASSWORD: '{{POSTGRES_PASSWORD}}'
   POSTGRES_DB: keycloak
 ---
 apiVersion: v1

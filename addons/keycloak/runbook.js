@@ -9,13 +9,32 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
 
 export function envVarsFor(_addonCfg, _clusterName) {
-  return [];
+  return [
+    {
+      name: 'KEYCLOAK_ADMIN_USERNAME',
+      required: true,
+      description: 'Keycloak master realm bootstrap admin username',
+    },
+    {
+      name: 'KEYCLOAK_ADMIN_PASSWORD',
+      required: true,
+      description: 'Keycloak master realm bootstrap admin password',
+    },
+    {
+      name: 'KEYCLOAK_POSTGRES_USER',
+      required: true,
+      description: "Postgres superuser backing Keycloak's DB",
+    },
+    {
+      name: 'KEYCLOAK_POSTGRES_PASSWORD',
+      required: true,
+      description: 'Postgres superuser password',
+    },
+  ];
 }
 
-const DEFAULT_KEYCLOAK_VERSION = '26.5.3';
+const DEFAULT_KEYCLOAK_VERSION = '26.7.0';
 const DEFAULT_POSTGRES_VERSION = '18.2-alpine';
-
-const DEFAULT_KEYCLOAK_ADMIN_PASSWORD = 'admin';
 
 export function envExportsFor(addonCfg, _profile, env) {
   const cfg = addonCfg.config || {};
@@ -37,11 +56,6 @@ export function envExportsFor(addonCfg, _profile, env) {
     },
     { name: 'KEYCLOAK_VERSION', value: keycloakVersion, comment: 'Keycloak container image tag' },
     { name: 'POSTGRES_VERSION', value: postgresVersion, comment: 'PostgreSQL container image tag' },
-    {
-      name: 'KEYCLOAK_ADMIN_PASSWORD',
-      value: cfg.adminPassword || DEFAULT_KEYCLOAK_ADMIN_PASSWORD,
-      comment: 'Keycloak master realm admin password (username: admin)',
-    },
   ];
 
   const soloUIClients = cfg.soloUIClients;
@@ -87,9 +101,10 @@ export async function generate(_subIndex, addonCfg, clusterName, profile, env) {
     DEFAULT_KEYCLOAK_VERSION;
   const postgresVersion =
     addonCfg.postgresVersion || cfg.postgresVersion || DEFAULT_POSTGRES_VERSION;
-  const adminPassword = cfg.adminPassword || DEFAULT_KEYCLOAK_ADMIN_PASSWORD;
 
-  // Substitute template vars in embedded YAML files
+  // Substitute template vars in embedded YAML files. Credentials render as the
+  // operator-facing shell variables (not literal values) so the runbook never
+  // prints a real secret and mirrors what the deploy reads from the environment.
   const fillYaml = s =>
     s
       .replaceAll("'{{NAMESPACE}}'", ns)
@@ -107,9 +122,10 @@ export async function generate(_subIndex, addonCfg, clusterName, profile, env) {
       .replaceAll("'{{KEYCLOAK_VERSION}}'", keycloakVersion)
       .replaceAll('"{{KEYCLOAK_VERSION}}"', keycloakVersion)
       .replaceAll('{{KEYCLOAK_VERSION}}', keycloakVersion)
-      .replaceAll("'{{ADMIN_PASSWORD}}'", adminPassword)
-      .replaceAll('"{{ADMIN_PASSWORD}}"', adminPassword)
-      .replaceAll('{{ADMIN_PASSWORD}}', adminPassword);
+      .replaceAll('{{ADMIN_USERNAME}}', '$KEYCLOAK_ADMIN_USERNAME')
+      .replaceAll('{{ADMIN_PASSWORD}}', '$KEYCLOAK_ADMIN_PASSWORD')
+      .replaceAll('{{POSTGRES_USER}}', '$KEYCLOAK_POSTGRES_USER')
+      .replaceAll('{{POSTGRES_PASSWORD}}', '$KEYCLOAK_POSTGRES_PASSWORD');
 
   const postgresYaml = fillYaml(postgresYamlRaw);
   const keycloakYaml = fillYaml(keycloakYamlRaw);
@@ -217,7 +233,7 @@ kubectl wait certificate/${tlsSecretName} -n ${ns} \\
 \`\`\`bash
 KEYCLOAK_URL="${baseUrl}"
 ACCESS_TOKEN=$(curl -s -X POST "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" \\
-  -d "client_id=admin-cli&grant_type=password&username=admin&password=$KEYCLOAK_ADMIN_PASSWORD" \\
+  -d "client_id=admin-cli&grant_type=password&username=$KEYCLOAK_ADMIN_USERNAME&password=$KEYCLOAK_ADMIN_PASSWORD" \\
   | jq -r '.access_token')
 
 # Create realm
@@ -271,7 +287,7 @@ ${userLines}`
 \`\`\`bash
 KEYCLOAK_URL="${baseUrl}"
 ACCESS_TOKEN=$(curl -s -X POST "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" \\
-  -d "client_id=admin-cli&grant_type=password&username=admin&password=$KEYCLOAK_ADMIN_PASSWORD" \\
+  -d "client_id=admin-cli&grant_type=password&username=$KEYCLOAK_ADMIN_USERNAME&password=$KEYCLOAK_ADMIN_PASSWORD" \\
   | jq -r '.access_token')
 
 curl -s -X POST "$KEYCLOAK_URL/admin/realms" \\
@@ -306,7 +322,7 @@ ${tlsSection}
 Apply PostgreSQL (ServiceAccount, Secret, PVC, Service, Deployment):
 
 \`\`\`bash
-kubectl apply -n ${ns} -f - <<'EOF'
+kubectl apply -n ${ns} -f - <<EOF
 ${postgresYaml.trimEnd()}
 EOF
 \`\`\`
@@ -320,15 +336,15 @@ kubectl wait --for=condition=Ready pod -l app=postgres -n ${ns} --timeout=300s
 Initialize the Keycloak database:
 
 \`\`\`bash
-kubectl exec -n ${ns} deploy/postgres -- psql -U postgres -d postgres -c "CREATE DATABASE keycloak;"
-kubectl exec -n ${ns} deploy/postgres -- psql -U postgres -d postgres -c "CREATE USER keycloak WITH PASSWORD 'password';"
-kubectl exec -n ${ns} deploy/postgres -- psql -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;"
+kubectl exec -n ${ns} deploy/postgres -- psql -U $KEYCLOAK_POSTGRES_USER -d postgres -c "CREATE DATABASE keycloak;"
+kubectl exec -n ${ns} deploy/postgres -- psql -U $KEYCLOAK_POSTGRES_USER -d postgres -c "CREATE USER keycloak WITH PASSWORD 'password';"
+kubectl exec -n ${ns} deploy/postgres -- psql -U $KEYCLOAK_POSTGRES_USER -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;"
 \`\`\`
 
 Apply Keycloak (Deployment + Service):
 
 \`\`\`bash
-kubectl apply -n ${ns} -f - <<'EOF'
+kubectl apply -n ${ns} -f - <<EOF
 ${keycloakYaml.trimEnd()}
 EOF
 \`\`\`
