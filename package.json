@@ -11,8 +11,8 @@
     "test": "bun test",
     "format": "prettier --write \"**/*.js\"",
     "format:check": "prettier --check \"**/*.js\"",
-    "lint": "eslint . --ext .js --max-warnings 0",
-    "lint:fix": "eslint . --ext .js --fix",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
     "start": "bun run src/cli.js",
     "app:deploy": "bun run src/cli.js app deploy",
     "app:list": "bun run src/cli.js app list",
@@ -44,8 +44,11 @@
     "node": ">=24.14.0"
   },
   "devDependencies": {
-    "eslint": "^8",
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "eslint": "^10",
     "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.4.0",
     "prettier": "^3.9.6"
   }
 }

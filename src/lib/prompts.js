@@ -341,7 +341,6 @@ export class Prompts {
     };
 
     const navigate = async (nodes, prompt, allowBack) => {
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const choices = nodes.map(node => {
           if (isBranch(node)) {

@@ -267,7 +267,7 @@ export class UseCaseTestRunner {
           Logger.debug(`exec: ${finalCmd}`);
 
           let execResult;
-          let execOutput = '';
+          let execOutput;
 
           for (let attempt = 0; attempt <= maxRetries; attempt++) {
             if (attempt > 0) {
@@ -373,7 +373,7 @@ export class UseCaseTestRunner {
             `Running istioctl zc endpoints for ${hostname || `${serviceNamespace}/${service}`}...`
           );
 
-          let output = '';
+          let output;
           for (let attempt = 0; attempt <= maxRetries; attempt++) {
             if (attempt > 0) {
               spinner.setText(
