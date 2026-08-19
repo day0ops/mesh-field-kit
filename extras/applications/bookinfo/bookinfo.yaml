@@ -201,7 +201,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: LOG_DIR
-              value: "/tmp/logs"
+              value: '/tmp/logs'
           ports:
             - containerPort: 9080
           volumeMounts:
@@ -242,7 +242,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: LOG_DIR
-              value: "/tmp/logs"
+              value: '/tmp/logs'
           ports:
             - containerPort: 9080
           volumeMounts:
@@ -283,7 +283,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: LOG_DIR
-              value: "/tmp/logs"
+              value: '/tmp/logs'
           ports:
             - containerPort: 9080
           volumeMounts:
@@ -337,9 +337,9 @@ spec:
   template:
     metadata:
       annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "9080"
-        prometheus.io/path: "/metrics"
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '9080'
+        prometheus.io/path: '/metrics'
       labels:
         app: productpage
         version: v1

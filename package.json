@@ -9,8 +9,8 @@
   },
   "scripts": {
     "test": "bun test",
-    "format": "prettier --write \"**/*.js\"",
-    "format:check": "prettier --check \"**/*.js\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "start": "bun run src/cli.js",

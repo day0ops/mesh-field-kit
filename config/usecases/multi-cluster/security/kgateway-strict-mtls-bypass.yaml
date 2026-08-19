@@ -48,7 +48,7 @@ spec:
         gatewayName: bookinfo-gateway
         gatewayNamespace: kgateway-system
         namespace: bookinfo
-        hostname: "{{env.domains.app}}"
+        hostname: '{{env.domains.app}}'
         rules:
           - matches:
               - path:
@@ -67,7 +67,7 @@ spec:
         - name: east
       steps:
         - action: send-request
-          hostname: "{{env.domains.app}}"
+          hostname: '{{env.domains.app}}'
           autoDetectGwAddress: true
           path: /productpage
           timeout: 30s
@@ -127,7 +127,7 @@ spec:
           timeout: 20s
         - action: verify
           expect:
-            contains: "000"
+            contains: '000'
 
     # With the addon's default parametersRef restored, the bypass annotation
     # is back on the gateway pod, so the same STRICT mTLS policy no longer
@@ -158,7 +158,7 @@ spec:
           timeout: 20s
       steps:
         - action: send-request
-          hostname: "{{env.domains.app}}"
+          hostname: '{{env.domains.app}}'
           autoDetectGwAddress: true
           path: /productpage
           timeout: 20s

@@ -31,16 +31,16 @@ spec:
       description: Onboard the VM's app1 workload into the ambient mesh
       config:
         namespace: vm-apps
-        context: "{{infra.clusters.east.context}}"
-        vmIp: "{{infra.vms.vm1.publicIp}}"
-        meshAddress: "{{infra.vms.vm1.privateIp}}"
-        sshKeyPath: "{{infra.vms.vm1.sshPrivateKeyPath}}"
+        context: '{{infra.clusters.east.context}}'
+        vmIp: '{{infra.vms.vm1.publicIp}}'
+        meshAddress: '{{infra.vms.vm1.privateIp}}'
+        sshKeyPath: '{{infra.vms.vm1.sshPrivateKeyPath}}'
         workloads:
           - name: app1
             ports:
-              - "http:80:8080"
+              - 'http:80:8080'
       notes:
-        - "VM -> cluster (outbound) connectivity is not covered by the automated test. To verify manually, SSH into the VM and run: ALL_PROXY=socks5h://app1.vm-apps:pass@127.0.0.1:15080 curl productpage.bookinfo:9080"
+        - 'VM -> cluster (outbound) connectivity is not covered by the automated test. To verify manually, SSH into the VM and run: ALL_PROXY=socks5h://app1.vm-apps:pass@127.0.0.1:15080 curl productpage.bookinfo:9080'
 
   tests:
     - name: cluster-to-vm-connectivity
@@ -55,4 +55,4 @@ spec:
           retryDelay: 6000
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'

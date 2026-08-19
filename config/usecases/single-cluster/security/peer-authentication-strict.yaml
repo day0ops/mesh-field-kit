@@ -11,7 +11,6 @@ metadata:
       healthy, not just "allowed".
     No waypoint is required - PeerAuthentication is enforced by ztunnel at L4.
 spec:
-
   requires:
     applications:
       - name: httpbin
@@ -40,7 +39,7 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'
 
     - name: mtls-verified-via-ztunnel
       description: Confirm the httpbin endpoint is served over ztunnel, not just reachable
@@ -86,7 +85,7 @@ spec:
           retryDelay: 3000
         - action: verify
           expect:
-            contains: "000"
+            contains: '000'
       teardown:
         - action: exec
           command: kubectl delete namespace no-mesh --ignore-not-found

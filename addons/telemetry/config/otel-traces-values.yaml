@@ -14,11 +14,11 @@ config:
 
   exporters:
     otlp/tempo:
-      endpoint: "tempo-distributor.{{TELEMETRY_NAMESPACE}}.svc.cluster.local:4317"
+      endpoint: 'tempo-distributor.{{TELEMETRY_NAMESPACE}}.svc.cluster.local:4317'
       tls:
         insecure: true
     otlp/solo-ui:
-      endpoint: "solo-enterprise-telemetry-collector.{{SOLO_UI_NAMESPACE}}.svc.cluster.local:4317"
+      endpoint: 'solo-enterprise-telemetry-collector.{{SOLO_UI_NAMESPACE}}.svc.cluster.local:4317'
       tls:
         insecure: true
 

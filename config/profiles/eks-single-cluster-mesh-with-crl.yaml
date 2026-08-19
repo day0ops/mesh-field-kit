@@ -23,16 +23,16 @@ spec:
       - name: istiod
         values:
           global:
-            network: "{{cluster.name}}"
+            network: '{{cluster.name}}'
           meshConfig:
             accessLogFile: /dev/stdout
             defaultConfig:
               proxyMetadata:
-                ISTIO_META_DNS_CAPTURE: "true"
+                ISTIO_META_DNS_CAPTURE: 'true'
           env:
-            PILOT_ENABLE_IP_AUTOALLOCATE: "true"
+            PILOT_ENABLE_IP_AUTOALLOCATE: 'true'
             # propagates the cacerts secret's ca-crl.pem entry to a ConfigMap in every namespace
-            PILOT_ENABLE_CA_CRL: "true"
+            PILOT_ENABLE_CA_CRL: 'true'
           pilot:
             cni:
               namespace: istio-system
@@ -41,11 +41,11 @@ spec:
       - name: ztunnel
         values:
           env:
-            ISTIO_META_DNS_CAPTURE: "true"
+            ISTIO_META_DNS_CAPTURE: 'true'
           # rejects peers whose cert serial number appears in the propagated CRL
           peerCaCrl:
             enabled: true
-          network: "{{cluster.name}}"
+          network: '{{cluster.name}}'
 
     certificates:
       mode: self-signed

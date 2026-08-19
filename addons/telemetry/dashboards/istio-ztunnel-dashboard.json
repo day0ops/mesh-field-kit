@@ -40,10 +40,7 @@
       "interval": "5s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -87,10 +84,7 @@
       "interval": "5s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -133,10 +127,7 @@
       "interval": "5s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -193,10 +184,7 @@
       "interval": "5s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -248,10 +236,7 @@
       "interval": "5s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -303,10 +288,7 @@
       "interval": "5s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -362,10 +344,7 @@
       "interval": "5s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -589,10 +568,7 @@
       "interval": "5s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -658,10 +634,7 @@
       "interval": "5s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -716,8 +689,5 @@
   "uid": "istio-ztunnel",
   "gnetId": 21306,
   "version": 1,
-  "tags": [
-    "istio",
-    "ztunnel"
-  ]
+  "tags": ["istio", "ztunnel"]
 }

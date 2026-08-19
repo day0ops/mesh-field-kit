@@ -14,7 +14,7 @@ spec:
           responseHeaderModifier:
             set:
               - name: x-fault-injected
-                value: "true"
+                value: 'true'
       backendRefs:
         - name: httpbin
           port: 8080

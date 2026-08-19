@@ -20,7 +20,6 @@ metadata:
     unexpectedly passing.
 
 spec:
-
   requires:
     applications:
       - name: curl
@@ -83,7 +82,7 @@ spec:
           retries: 0
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'
 
     - name: client-to-public-denied
       description: netpol-client -> netpol-public should be blocked by netpol-client's egress policy, even though netpol-public itself allows ingress from anyone
@@ -94,7 +93,7 @@ spec:
           retries: 0
         - action: verify
           expect:
-            notContains: "200"
+            notContains: '200'
 
     - name: backend-to-public-allowed-control
       description: netpol-backend -> netpol-public should succeed, proving netpol-public's own policy is permissive and the denial above is caused by netpol-client's egress restriction, not netpol-public's ingress rule
@@ -105,7 +104,7 @@ spec:
           retries: 0
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'
 
     # These two tests temporarily narrow the already-declared
     # ingress-only-from-client policy to add a ports restriction, then
@@ -164,7 +163,7 @@ spec:
           retries: 0
         - action: verify
           expect:
-            notContains: "200"
+            notContains: '200'
 
     - name: adding-hbone-port-restores-traffic
       description: Adding port 15008 alongside the app port fixes connectivity, without widening any other access
@@ -220,4 +219,4 @@ spec:
           retries: 0
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'

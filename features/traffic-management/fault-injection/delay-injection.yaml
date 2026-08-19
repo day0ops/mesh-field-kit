@@ -15,5 +15,3 @@ spec:
       route:
         - destination:
             host: httpbin
-
-

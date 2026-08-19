@@ -6,7 +6,6 @@ metadata:
     Enforce zero-trust L4 security with a deny-all policy and explicit allow
     rules.
 spec:
-
   requires:
     applications:
       - name: bookinfo
@@ -65,7 +64,7 @@ spec:
             to:
               - operation:
                   ports:
-                    - "9080"
+                    - '9080'
 
     - name: authorization-policy
       description: Allow productpage to reviews
@@ -81,7 +80,7 @@ spec:
             to:
               - operation:
                   ports:
-                    - "9080"
+                    - '9080'
 
   tests:
     - name: bookinfo-accessible

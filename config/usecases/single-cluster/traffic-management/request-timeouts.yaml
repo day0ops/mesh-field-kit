@@ -6,7 +6,6 @@ metadata:
     Cap how long a client waits for a response using an HTTPRoute request
     timeout enforced by a waypoint proxy.
 spec:
-
   requires:
     applications:
       - name: httpbin
@@ -32,7 +31,7 @@ spec:
         # Mesh (east/west) routes attach to the Service, not the waypoint Gateway -
         # see https://docs.solo.io/istio/1.30.x/ambient/traffic-management/overview/
         parentRefs:
-          - group: ""
+          - group: ''
             kind: Service
             name: httpbin
             port: 8000
@@ -55,7 +54,7 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'
 
     - name: slow-request-times-out
       description: A request slower than the 500ms timeout is cut off by the waypoint
@@ -68,4 +67,4 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "504"
+            contains: '504'

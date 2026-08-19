@@ -67,7 +67,7 @@ spec:
           retryDelay: 6000
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'
         - action: exec
           clusters:
             - name: east
@@ -77,4 +77,4 @@ spec:
           retryDelay: 6000
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'

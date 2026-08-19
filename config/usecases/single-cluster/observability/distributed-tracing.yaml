@@ -13,7 +13,6 @@ metadata:
       Tempo directly through its query-frontend service
 
 spec:
-
   requires:
     applications:
       - name: bookinfo

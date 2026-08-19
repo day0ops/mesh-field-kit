@@ -13,7 +13,6 @@ metadata:
     intermediate CA with the matching trust-domain SAN and sets this
     ztunnel env var.
 spec:
-
   requires:
     applications:
       - name: httpbin
@@ -36,7 +35,7 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'
 
     - name: mtls-verified-via-ztunnel
       description: Confirm the httpbin endpoint is served over ztunnel, not just reachable

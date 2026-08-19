@@ -10,7 +10,6 @@ metadata:
     ENABLE_WORKLOAD_CLAIMS=true on ztunnel (already set on the
     eks-single-cluster-mesh-with-cilium profile).
 spec:
-
   requires:
     applications:
       - name: httpbin
@@ -29,7 +28,7 @@ spec:
           - when:
               - key: "source.claims['solo.io.security-claims.zone']"
                 values:
-                  - "PCI-DSS"
+                  - 'PCI-DSS'
 
   tests:
     - name: unclaimed-client-denied
@@ -47,7 +46,7 @@ spec:
           retryDelay: 3000
         - action: verify
           expect:
-            contains: "000"
+            contains: '000'
 
     - name: claimed-client-allowed
       description: >-
@@ -73,4 +72,4 @@ spec:
           retryDelay: 5000
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'

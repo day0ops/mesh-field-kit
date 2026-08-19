@@ -73,51 +73,52 @@ mesh profile show [-n|--name <name>]   # Show details of an installation profile
 
 ### Infrastructure
 
-| Target | Description |
-|--------|-------------|
-| `make infra-list` | List available infra profiles |
+| Target                                | Description                                    |
+| ------------------------------------- | ---------------------------------------------- |
+| `make infra-list`                     | List available infra profiles                  |
 | `make infra-provision [PROFILE=name]` | Provision infrastructure from an infra profile |
-| `make infra-destroy [PROFILE=name]` | Destroy provisioned infrastructure |
-| `make infra-status [PROFILE=name]` | Show infrastructure provisioning status |
-| `make infra-env [PROFILE=name]` | Print path to env.sh |
+| `make infra-destroy [PROFILE=name]`   | Destroy provisioned infrastructure             |
+| `make infra-status [PROFILE=name]`    | Show infrastructure provisioning status        |
+| `make infra-env [PROFILE=name]`       | Print path to env.sh                           |
 
 ### Mesh installation
 
-| Target | Description |
-|--------|-------------|
-| `make install-mesh [INFRA=name] [MESH_PROFILE=name]` | Install Istio mesh on clusters |
-| `make uninstall-mesh [INFRA=name]` | Uninstall Istio mesh from cluster(s) |
-| `make uninstall-mesh-with-addons [INFRA=name]` | Uninstall Istio mesh and all profile-based addons |
-| `make clean-addons` | Clean up all profile-based addons |
-| `make verify-mesh` | Verify Istio mesh installation |
+| Target                                               | Description                                       |
+| ---------------------------------------------------- | ------------------------------------------------- |
+| `make install-mesh [INFRA=name] [MESH_PROFILE=name]` | Install Istio mesh on clusters                    |
+| `make uninstall-mesh [INFRA=name]`                   | Uninstall Istio mesh from cluster(s)              |
+| `make uninstall-mesh-with-addons [INFRA=name]`       | Uninstall Istio mesh and all profile-based addons |
+| `make clean-addons`                                  | Clean up all profile-based addons                 |
+| `make verify-mesh`                                   | Verify Istio mesh installation                    |
 
 ### Workflows
 
-| Target | Description |
-|--------|-------------|
+| Target                                    | Description                                   |
+| ----------------------------------------- | --------------------------------------------- |
 | `make all INFRA=name [MESH_PROFILE=name]` | Provision infrastructure + install Istio mesh |
-| `make clean PROFILE=name` | Destroy provisioned infrastructure |
+| `make clean PROFILE=name`                 | Destroy provisioned infrastructure            |
 
 ### Use cases
 
-| Target | Description |
-|--------|-------------|
-| `make list-usecases` | List available use cases |
-| `make deploy-usecase [USECASE=name]` | Deploy a use case |
-| `make test-usecase [USECASE=name]` | Test a deployed use case |
+| Target                               | Description              |
+| ------------------------------------ | ------------------------ |
+| `make list-usecases`                 | List available use cases |
+| `make deploy-usecase [USECASE=name]` | Deploy a use case        |
+| `make test-usecase [USECASE=name]`   | Test a deployed use case |
 
 ### Utilities
 
-| Target | Description |
-|--------|-------------|
-| `make load-env [PROFILE=name]` | Show command to source env.sh |
-| `make kubeconfig [PROFILE=name]` | Print env.sh contents (kubeconfig paths) |
-| `make check-env` | Validate required tools and license env vars |
-| `mesh check-deps` | Check if required dependencies are installed |
+| Target                           | Description                                  |
+| -------------------------------- | -------------------------------------------- |
+| `make load-env [PROFILE=name]`   | Show command to source env.sh                |
+| `make kubeconfig [PROFILE=name]` | Print env.sh contents (kubeconfig paths)     |
+| `make check-env`                 | Validate required tools and license env vars |
+| `mesh check-deps`                | Check if required dependencies are installed |
 
 ## Troubleshooting
 
 **AWS credentials error during provision**
+
 ```bash
 # Re-authenticate SSO
 aws sso login --profile <your-profile>
@@ -125,11 +126,13 @@ export AWS_PROFILE=<your-profile>
 ```
 
 **Check all dependencies**
+
 ```bash
 mesh check-deps
 ```
 
 **View infra state**
+
 ```bash
 make infra-status PROFILE=<name>
 ```

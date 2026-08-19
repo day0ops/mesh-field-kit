@@ -20,7 +20,6 @@ metadata:
     feature, or a plain ambient profile).
 
 spec:
-
   requires:
     applications:
       - name: httpbin
@@ -45,7 +44,7 @@ spec:
         labels:
           target: namespace
         annotations:
-          ambient.istio.io/xfcc-include-client-identity: "true"
+          ambient.istio.io/xfcc-include-client-identity: 'true'
 
   tests:
     - name: ambient-to-sidecar-xfcc
@@ -61,7 +60,7 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            notContains: "x-forwarded-client-cert"
+            notContains: 'x-forwarded-client-cert'
 
     - name: ambient-to-ambient-xfcc
       description: >
@@ -74,7 +73,7 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "x-forwarded-client-cert"
+            contains: 'x-forwarded-client-cert'
 
     - name: sidecar-to-ambient-xfcc
       description: Sidecar client -> ambient backend behind a waypoint with xfcc-include-client-identity enabled (Solo's sidecar-to-waypoint interop)
@@ -84,4 +83,4 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "x-forwarded-client-cert"
+            contains: 'x-forwarded-client-cert'

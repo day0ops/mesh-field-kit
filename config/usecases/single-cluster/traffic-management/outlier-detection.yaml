@@ -6,7 +6,6 @@ metadata:
     Passively eject an unhealthy endpoint from the load-balancing pool after
     consecutive 5xx errors, via a waypoint-enforced DestinationRule.
 spec:
-
   requires:
     applications:
       - name: httpbin
@@ -64,5 +63,5 @@ spec:
         - action: verify
           expect:
             contains:
-              - "500"
-              - "503"
+              - '500'
+              - '503'
