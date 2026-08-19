@@ -28,28 +28,28 @@ spec:
     components:
       - name: base
         values:
-          defaultRevision: ""
+          defaultRevision: ''
 
       - name: istiod
         values:
           env:
             # disables trust domain validation when generating xDS config, set when different domains (false)
-            PILOT_SKIP_VALIDATE_TRUST_DOMAIN: "true"
+            PILOT_SKIP_VALIDATE_TRUST_DOMAIN: 'true'
             # enables new IP autoallocation controller for ServiceEntry resources lacking user-supplied addresses (true)
-            PILOT_ENABLE_IP_AUTOALLOCATE: "true"
+            PILOT_ENABLE_IP_AUTOALLOCATE: 'true'
             # disables legacy remote-secrets-based multicluster entirely (true)
-            DISABLE_LEGACY_MULTICLUSTER: "true"
+            DISABLE_LEGACY_MULTICLUSTER: 'true'
             # ----- optional -----
             # gate for entire debug endpoint auth system. When false: all /debug/* endpoints open to any caller, no SPIFFE check, no namespace restriction. related to DEBUG_ENDPOINT_AUTH_ALLOWED_NAMESPACES (true)
-            ENABLE_DEBUG_ENDPOINT_AUTH: "true"
+            ENABLE_DEBUG_ENDPOINT_AUTH: 'true'
             # needs full access to istiod debug endpoints to function
-            DEBUG_ENDPOINT_AUTH_ALLOWED_NAMESPACES: "gloo-mesh"
+            DEBUG_ENDPOINT_AUTH_ALLOWED_NAMESPACES: 'gloo-mesh'
             # allows Kubernetes Service selectors to match WorkloadEntry resources (not just pods) (true)
-            PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: "true"
+            PILOT_ENABLE_K8S_SELECT_WORKLOAD_ENTRIES: 'true'
           global:
             multiCluster:
-              clusterName: "{{cluster.name}}"
-            network: "{{cluster.name}}"
+              clusterName: '{{cluster.name}}'
+            network: '{{cluster.name}}'
             proxy:
               clusterDomain: cluster.local
           gateways:
@@ -57,11 +57,11 @@ spec:
               workloads: true
           meshConfig:
             accessLogFile: /dev/stdout
-            trustDomain: "{{cluster.name}}.local"
+            trustDomain: '{{cluster.name}}.local'
             defaultConfig:
               proxyMetadata:
                 # tells the sidecar/agent to intercept DNS queries
-                ISTIO_META_DNS_CAPTURE: "true"
+                ISTIO_META_DNS_CAPTURE: 'true'
           pilot:
             cni:
               namespace: istio-system
@@ -83,19 +83,19 @@ spec:
         values:
           env:
             # enables L7 observability feature (false)
-            L7_ENABLED: "true"
+            L7_ENABLED: 'true'
             # start DNS proxy
-            ISTIO_META_DNS_CAPTURE: "true"
+            ISTIO_META_DNS_CAPTURE: 'true'
             # required when a unique trust domain is set for each cluster
-            SKIP_VALIDATE_TRUST_DOMAIN: "true"
+            SKIP_VALIDATE_TRUST_DOMAIN: 'true'
           spire:
             enabled: true
           configValidation: true
           istioNamespace: istio-system
           namespace: istio-system
           multiCluster:
-            clusterName: "{{cluster.name}}"
-          network: "{{cluster.name}}"
+            clusterName: '{{cluster.name}}'
+          network: '{{cluster.name}}'
           proxy:
             clusterDomain: cluster.local
           terminationGracePeriodSeconds: 29
@@ -105,13 +105,13 @@ spec:
       - name: peering-eastwest
         values:
           eastwest:
-            cluster: "{{cluster.name}}"
-            network: "{{cluster.name}}"
+            cluster: '{{cluster.name}}'
+            network: '{{cluster.name}}'
 
       # peering remote
       - name: peering-remote
         values:
-          trustDomain: "{{cluster.name}}.local"
+          trustDomain: '{{cluster.name}}.local'
           addressType: Hostname
           preferredDataplaneServiceType: LoadBalancer
 
@@ -123,7 +123,7 @@ spec:
               gateway:
                 name: httpbin-gateway
                 namespace: istio-ingress
-                hostname: "{{env.domains.app}}"
+                hostname: '{{env.domains.app}}'
                 port: 80
                 protocol: HTTP
                 allowedRoutes:
@@ -137,15 +137,15 @@ spec:
           - name: spire
             phase: pre
             certMode: self-signed
-            trustDomain: "{{cluster.name}}.local"
+            trustDomain: '{{cluster.name}}.local'
 
           - name: external-dns
             description: Automatic DNS record management via Route53
             namespace: external-dns
             config:
               provider: route53
-              domainFilter: "{{env.dns.childZone}}.{{env.dns.parentZone.domain}}"
-              region: "{{env.aws.region}}"
+              domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
+              region: '{{env.aws.region}}'
 
           - name: telemetry
             description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
@@ -178,7 +178,7 @@ spec:
           - name: spire
             phase: pre
             certMode: self-signed
-            trustDomain: "{{cluster.name}}.local"
+            trustDomain: '{{cluster.name}}.local'
 
           - name: solo-ui
             mode: relay
@@ -206,5 +206,5 @@ spec:
         config:
           letsencrypt:
             enabled: true
-            email: "{{env.acme.email}}"
-            region: "{{env.aws.region}}"
+            email: '{{env.acme.email}}'
+            region: '{{env.aws.region}}'

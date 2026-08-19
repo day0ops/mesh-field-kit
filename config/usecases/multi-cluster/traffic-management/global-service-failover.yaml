@@ -74,7 +74,7 @@ spec:
           retryDelay: 6000
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'
 
     - name: failover-to-peer-cluster
       description: Verify calls keep succeeding when west's own productpage is scaled to zero, by failing over to east's waypoint-fronted productpage
@@ -100,7 +100,7 @@ spec:
           retryDelay: 6000
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'
 
     - name: recovery-after-restore
       description: Verify calls still succeed once west's own productpage is back
@@ -114,4 +114,4 @@ spec:
           retryDelay: 6000
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'

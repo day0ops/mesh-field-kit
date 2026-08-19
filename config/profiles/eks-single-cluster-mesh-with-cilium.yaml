@@ -23,14 +23,14 @@ spec:
       - name: istiod
         values:
           global:
-            network: "{{cluster.name}}"
+            network: '{{cluster.name}}'
           meshConfig:
             accessLogFile: /dev/stdout
             defaultConfig:
               proxyMetadata:
-                ISTIO_META_DNS_CAPTURE: "true"
+                ISTIO_META_DNS_CAPTURE: 'true'
           env:
-            PILOT_ENABLE_IP_AUTOALLOCATE: "true"
+            PILOT_ENABLE_IP_AUTOALLOCATE: 'true'
           pilot:
             cni:
               namespace: istio-system
@@ -39,10 +39,10 @@ spec:
       - name: ztunnel
         values:
           env:
-            ISTIO_META_DNS_CAPTURE: "true"
+            ISTIO_META_DNS_CAPTURE: 'true'
             # embeds pod annotation claims (solo.io.security-claims/*) into workload certs for CEL-based L4 authorization
-            ENABLE_WORKLOAD_CLAIMS: "true"
-          network: "{{cluster.name}}"
+            ENABLE_WORKLOAD_CLAIMS: 'true'
+          network: '{{cluster.name}}'
 
   addons:
     - name: cilium

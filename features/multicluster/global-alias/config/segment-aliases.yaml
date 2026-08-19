@@ -8,4 +8,4 @@ spec:
     dns:
       domain: segment.global
       aliases:
-        - pattern: "{name}.{namespace}.svc.cluster.local"
+        - pattern: '{name}.{namespace}.svc.cluster.local'

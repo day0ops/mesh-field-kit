@@ -615,7 +615,7 @@ export class SoloUIFeature extends AddonFeature {
         ],
         { ignoreError: true, spinner: this.spinner }
       );
-    } catch (error) {
+    } catch (_error) {
       this.log('ClickHouse pods may use different labels; continuing', 'warn');
     }
 

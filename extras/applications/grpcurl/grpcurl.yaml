@@ -25,4 +25,4 @@ spec:
         - name: grpcurl
           image: docker.io/fullstorydev/grpcurl:v1.9.3-alpine
           imagePullPolicy: IfNotPresent
-          command: ["sleep", "infinity"]
+          command: ['sleep', 'infinity']

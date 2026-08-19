@@ -6,7 +6,6 @@ metadata:
     Protect httpbin from overload by capping concurrent connections and
     pending requests via a waypoint-enforced DestinationRule connection pool.
 spec:
-
   requires:
     applications:
       - name: httpbin
@@ -50,7 +49,7 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'
 
     - name: concurrent-requests-trip-breaker
       description: >-
@@ -67,4 +66,4 @@ spec:
           timeout: 60s
         - action: verify
           expect:
-            contains: "503"
+            contains: '503'

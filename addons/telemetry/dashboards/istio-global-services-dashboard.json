@@ -63,9 +63,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -132,9 +130,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -201,9 +197,7 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -263,10 +257,7 @@
       "interval": "15s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -310,10 +301,7 @@
       "interval": "15s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -357,10 +345,7 @@
       "interval": "15s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -418,10 +403,7 @@
       "interval": "15s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -485,10 +467,7 @@
       "interval": "15s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -554,10 +533,7 @@
       "interval": "15s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -615,10 +591,7 @@
       "interval": "15s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -662,10 +635,7 @@
       "interval": "15s",
       "options": {
         "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
+          "calcs": ["last", "max"],
           "displayMode": "table"
         }
       },
@@ -873,8 +843,5 @@
   "timezone": "utc",
   "title": "Istio Global Services",
   "uid": "istio-global-services-dashboard",
-  "tags": [
-    "istio",
-    "global"
-  ]
+  "tags": ["istio", "global"]
 }

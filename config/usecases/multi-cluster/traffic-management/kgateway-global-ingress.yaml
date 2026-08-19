@@ -48,7 +48,7 @@ spec:
         gatewayName: bookinfo-gateway
         gatewayNamespace: kgateway-system
         namespace: bookinfo
-        hostname: "{{env.domains.app}}"
+        hostname: '{{env.domains.app}}'
         rules:
           - matches:
               - path:
@@ -72,7 +72,7 @@ spec:
           timeout: 20s
         - action: verify
           expect:
-            contains: "True"
+            contains: 'True'
 
     - name: ingress-reachable
       description: Verify productpage is reachable through kgateway
@@ -80,7 +80,7 @@ spec:
         - name: east
       steps:
         - action: send-request
-          hostname: "{{env.domains.app}}"
+          hostname: '{{env.domains.app}}'
           autoDetectGwAddress: true
           path: /productpage
           timeout: 30s
@@ -106,7 +106,7 @@ spec:
           timeout: 30s
       steps:
         - action: send-request
-          hostname: "{{env.domains.app}}"
+          hostname: '{{env.domains.app}}'
           autoDetectGwAddress: true
           path: /productpage
           timeout: 30s

@@ -23,14 +23,14 @@ spec:
       - name: istiod
         values:
           global:
-            network: "{{cluster.name}}"
+            network: '{{cluster.name}}'
           meshConfig:
             accessLogFile: /dev/stdout
             defaultConfig:
               proxyMetadata:
-                ISTIO_META_DNS_CAPTURE: "true"
+                ISTIO_META_DNS_CAPTURE: 'true'
           env:
-            PILOT_ENABLE_IP_AUTOALLOCATE: "true"
+            PILOT_ENABLE_IP_AUTOALLOCATE: 'true'
           pilot:
             cni:
               namespace: istio-system
@@ -39,8 +39,8 @@ spec:
       - name: ztunnel
         values:
           env:
-            ISTIO_META_DNS_CAPTURE: "true"
-          network: "{{cluster.name}}"
+            ISTIO_META_DNS_CAPTURE: 'true'
+          network: '{{cluster.name}}'
 
   addons:
     - name: calico

@@ -7,7 +7,6 @@ metadata:
     each internal SPIFFE identity to its own external client certificate per
     service account.
 spec:
-
   requires:
     applications:
       - name: httpbin
@@ -77,4 +76,4 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'

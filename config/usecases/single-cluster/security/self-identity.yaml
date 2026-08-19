@@ -8,7 +8,6 @@ metadata:
     files directly. The metadata server is automatically available to any
     ambient-enrolled workload - no feature config or policy is required.
 spec:
-
   requires:
     applications:
       - name: curl
@@ -27,4 +26,4 @@ spec:
           timeout: 15s
         - action: verify
           expect:
-            contains: "spiffe://"
+            contains: 'spiffe://'

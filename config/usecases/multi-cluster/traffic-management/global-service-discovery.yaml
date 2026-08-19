@@ -55,7 +55,7 @@ spec:
         gatewayName: httpbin-gateway
         gatewayNamespace: istio-ingress
         namespace: bookinfo
-        hostname: "{{env.domains.app}}"
+        hostname: '{{env.domains.app}}'
         rules:
           - matches:
               - path:
@@ -114,7 +114,7 @@ spec:
         - name: east
       steps:
         - action: send-request
-          hostname: "{{env.domains.app}}"
+          hostname: '{{env.domains.app}}'
           autoDetectGwAddress: true
           path: /productpage
           timeout: 30s

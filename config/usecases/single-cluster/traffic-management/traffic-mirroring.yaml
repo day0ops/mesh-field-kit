@@ -6,7 +6,6 @@ metadata:
     Mirror live reviews-v1 traffic to a reviews-v2 shadow service via a
     waypoint, using a Gateway API RequestMirror filter.
 spec:
-
   requires:
     applications:
       - name: bookinfo
@@ -62,7 +61,7 @@ spec:
         # Mesh (east/west) routes attach to the Service, not the waypoint Gateway -
         # see https://docs.solo.io/istio/1.30.x/ambient/traffic-management/overview/
         parentRefs:
-          - group: ""
+          - group: ''
             kind: Service
             name: reviews
             port: 9080

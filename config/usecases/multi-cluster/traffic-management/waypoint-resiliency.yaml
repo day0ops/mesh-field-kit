@@ -83,7 +83,7 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "503"
+            contains: '503'
 
     # west's own local reviews are scaled to zero so the call has no choice
     # but to cross to east's waypoint-governed route.
@@ -119,7 +119,7 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "503"
+            contains: '503'
 
     # Replace the pure-fault VirtualService with one that also retries, for
     # the duration of this test only, then restore the fault-only version.
@@ -207,4 +207,4 @@ spec:
           timeout: 30s
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'

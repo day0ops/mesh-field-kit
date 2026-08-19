@@ -14,11 +14,11 @@ config:
 
   exporters:
     otlphttp/loki:
-      endpoint: "http://loki.{{TELEMETRY_NAMESPACE}}.svc.cluster.local:3100/otlp"
+      endpoint: 'http://loki.{{TELEMETRY_NAMESPACE}}.svc.cluster.local:3100/otlp'
       tls:
         insecure: true
     otlp/solo-ui:
-      endpoint: "solo-enterprise-telemetry-collector.{{SOLO_UI_NAMESPACE}}.svc.cluster.local:4317"
+      endpoint: 'solo-enterprise-telemetry-collector.{{SOLO_UI_NAMESPACE}}.svc.cluster.local:4317'
       tls:
         insecure: true
 

@@ -27,12 +27,12 @@ spec:
 
     ztunnelEnv:
       - name: IPV6_ENABLED
-        value: "false"
+        value: 'false'
 
     serviceMeshController:
-      cluster: "{{cluster.name}}"
-      network: "{{cluster.name}}"
-      trustDomain: "{{cluster.name}}.local"
+      cluster: '{{cluster.name}}'
+      network: '{{cluster.name}}'
+      trustDomain: '{{cluster.name}}.local'
       dataplaneMode: Ambient
       installNamespace: istio-system
       scalingProfile: Demo
@@ -41,13 +41,13 @@ spec:
       - name: peering-eastwest
         values:
           eastwest:
-            cluster: "{{cluster.name}}"
-            network: "{{cluster.name}}"
+            cluster: '{{cluster.name}}'
+            network: '{{cluster.name}}'
 
       # peering remote
       - name: peering-remote
         values:
-          trustDomain: "{{cluster.name}}.local"
+          trustDomain: '{{cluster.name}}.local'
           addressType: Hostname
           preferredDataplaneServiceType: LoadBalancer
 
@@ -60,8 +60,8 @@ spec:
             namespace: external-dns
             config:
               provider: route53
-              domainFilter: "{{env.dns.childZone}}.{{env.dns.parentZone.domain}}"
-              region: "{{env.aws.region}}"
+              domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
+              region: '{{env.aws.region}}'
 
           - name: telemetry
             description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
@@ -101,7 +101,7 @@ spec:
               gateway:
                 name: bookinfo-gateway
                 namespace: kgateway-system
-                hostname: "{{env.domains.app}}"
+                hostname: '{{env.domains.app}}'
                 port: 80
                 protocol: HTTP
                 allowedRoutes:
@@ -135,5 +135,5 @@ spec:
         config:
           letsencrypt:
             enabled: true
-            email: "{{env.acme.email}}"
-            region: "{{env.aws.region}}"
+            email: '{{env.acme.email}}'
+            region: '{{env.aws.region}}'

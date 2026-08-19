@@ -25,4 +25,4 @@ spec:
         - name: curl
           image: docker.io/curlimages/curl:8.11.0
           imagePullPolicy: IfNotPresent
-          command: ["sleep", "infinity"]
+          command: ['sleep', 'infinity']

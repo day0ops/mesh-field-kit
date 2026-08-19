@@ -13,7 +13,7 @@ config:
 
   exporters:
     otlp/east-gateway:
-      endpoint: "{{OTEL_GATEWAY_ENDPOINT}}"
+      endpoint: '{{OTEL_GATEWAY_ENDPOINT}}'
       tls:
         insecure: true
 

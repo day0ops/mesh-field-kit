@@ -76,7 +76,7 @@ spec:
           retryDelay: 6000
         - action: verify
           expect:
-            contains: "200"
+            contains: '200'
 
     - name: non-mesh-client-rejected-on-west
       description: >-
@@ -109,7 +109,7 @@ spec:
           retryDelay: 3000
         - action: verify
           expect:
-            contains: "000"
+            contains: '000'
       teardown:
         - action: exec
           command: kubectl delete namespace no-mesh --ignore-not-found

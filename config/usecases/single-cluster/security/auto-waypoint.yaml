@@ -6,7 +6,6 @@ metadata:
     Automatic waypoint deployment via the istio.io/use-waypoint=auto label -
     istiod creates and owns the waypoint proxy for labeled namespaces itself.
 spec:
-
   requires:
     applications:
       - name: bookinfo
@@ -64,4 +63,4 @@ spec:
           retryDelay: 10000
         - action: verify
           expect:
-            contains: "=true"
+            contains: '=true'
