@@ -38,6 +38,20 @@ export function envVarsFor(addonCfg, _clusterName) {
       description: 'Solo UI demo bootstrap password (solo-admin/solo-reader/solo-writer)',
     });
   }
+  if ((addonCfg?.config?.realms || []).some(r => r.realm === 'grafana')) {
+    vars.push(
+      {
+        name: 'GRAFANA_REALM_ADMIN_USERNAME',
+        required: false,
+        description: "Grafana OIDC demo admin username (default: 'grafana-admin')",
+      },
+      {
+        name: 'GRAFANA_REALM_ADMIN_PASSWORD',
+        required: true,
+        description: 'Grafana OIDC demo admin password',
+      }
+    );
+  }
   return vars;
 }
 
@@ -219,9 +233,15 @@ kubectl wait certificate/${tlsSecretName} -n ${ns} \\
       })
       .join('\n\n');
 
+    const isGrafanaRealm = realm.realm === 'grafana';
     const userLines = users
-      .map(
-        u => `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/users" \\
+      .map(u =>
+        isGrafanaRealm
+          ? `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/users" \\
+        -H "Authorization: Bearer $ACCESS_TOKEN" \\
+        -H "Content-Type: application/json" \\
+        -d '{"username":"'"\${GRAFANA_REALM_ADMIN_USERNAME:-grafana-admin}"'","email":"${u.email || ''}","enabled":true,"credentials":[{"type":"password","value":"'"$GRAFANA_REALM_ADMIN_PASSWORD"'","temporary":false}]}'`
+          : `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/users" \\
         -H "Authorization: Bearer $ACCESS_TOKEN" \\
         -H "Content-Type: application/json" \\
         -d '{"username":"${u.username}","email":"${u.email || ''}","enabled":true,"credentials":[{"type":"password","value":"${realm.defaultPassword || 'Admin1234'}","temporary":false}]}'`

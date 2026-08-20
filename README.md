@@ -165,6 +165,8 @@ make infra-destroy PROFILE=eks-single-cluster
 | `KEYCLOAK_POSTGRES_USER`                                                                      | Yes (keycloak addon)             | Postgres superuser backing Keycloak's DB       |
 | `KEYCLOAK_POSTGRES_PASSWORD`                                                                  | Yes (keycloak addon)             | Postgres superuser password                    |
 | `SOLO_UI_DEFAULT_PASSWORD`                                                                    | Yes (soloUIClients)              | solo-admin/solo-reader/solo-writer bootstrap password |
+| `GRAFANA_REALM_ADMIN_USERNAME`                                                                | No (default: grafana-admin)      | Grafana OIDC demo admin username (keycloak 'grafana' realm) |
+| `GRAFANA_REALM_ADMIN_PASSWORD`                                                                | Yes (when 'grafana' realm configured) | Grafana OIDC demo admin password          |
 | `GRAFANA_ADMIN_USERNAME`                                                                      | Yes (telemetry addon, full mode) | Grafana admin login username                   |
 | `GRAFANA_ADMIN_PASSWORD`                                                                      | Yes (telemetry addon, full mode) | Grafana admin login password                   |
 

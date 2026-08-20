@@ -47,6 +47,8 @@ export KEYCLOAK_ADMIN_PASSWORD=          # Keycloak master realm bootstrap admin
 export KEYCLOAK_POSTGRES_USER=           # Postgres superuser backing Keycloak's DB
 export KEYCLOAK_POSTGRES_PASSWORD=       # Postgres superuser password
 export SOLO_UI_DEFAULT_PASSWORD=         # Required only when soloUIClients.enabled (solo-admin/solo-reader/solo-writer bootstrap password)
+export GRAFANA_REALM_ADMIN_USERNAME=     # Optional, only used when a 'grafana' realm is configured (default: 'grafana-admin')
+export GRAFANA_REALM_ADMIN_PASSWORD=     # Required only when a 'grafana' realm is configured
 
 # telemetry addon, full mode (required when the profile installs it)
 export GRAFANA_ADMIN_USERNAME=           # Grafana admin login username
