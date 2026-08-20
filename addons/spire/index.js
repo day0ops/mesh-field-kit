@@ -584,7 +584,9 @@ export class SpireFeature extends AddonFeature {
       }
     }
 
-    // 2. Uninstall spire Helm chart
+    // 2. Uninstall spire Helm chart. --no-hooks skips the spiffe-oidc-discovery-provider's
+    // pre-delete hook Job, which can stall indefinitely (Helm then aborts the whole uninstall
+    // after its default 5m wait) — the namespace delete in step 4 removes everything anyway.
     try {
       await CommandRunner.run('helm', [
         ...helmCtxArgs,
@@ -592,6 +594,7 @@ export class SpireFeature extends AddonFeature {
         'spire',
         '-n',
         this.spireNamespace,
+        '--no-hooks',
       ]);
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) {
@@ -607,6 +610,7 @@ export class SpireFeature extends AddonFeature {
         'spire-crds',
         '-n',
         this.spireNamespace,
+        '--no-hooks',
       ]);
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) {

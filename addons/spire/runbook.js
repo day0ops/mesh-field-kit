@@ -204,8 +204,8 @@ export function cleanup(addonCfg, _clusterName) {
   const ns = addonCfg.spireNamespace || 'spire-server';
   return `\`\`\`bash
 kubectl delete clusterspiffeid istio-ambient-reg istio-waypoint-reg istio-ztunnel-reg --ignore-not-found=true
-helm uninstall spire -n ${ns} || true
-helm uninstall spire-crds -n ${ns} || true
+helm uninstall spire -n ${ns} --no-hooks || true
+helm uninstall spire-crds -n ${ns} --no-hooks || true
 kubectl delete namespace ${ns} --ignore-not-found=true
 \`\`\``;
 }
