@@ -56,7 +56,8 @@ const yamlSingleQuote = value => String(value).replaceAll("'", "''");
  *     backendClientId: string,
  *     backendClientSecret: string,
  *     frontendClientId: string,
- *     defaultPassword: string,      // Default: 'Passwd00' (solo-admin, solo-reader, solo-writer)
+ *                                   // Bootstrap password for solo-admin/solo-reader/solo-writer
+ *                                   // comes from SOLO_UI_DEFAULT_PASSWORD (see below), not config.
  *   },
  *   realms: [],                   // Optional: config-driven realm setup (overrides legacy path)
  *   externalDns: boolean,         // Optional: explicit override; auto-detected when external-dns addon is present
@@ -68,6 +69,8 @@ const yamlSingleQuote = value => String(value).replaceAll("'", "''");
  *   KEYCLOAK_ADMIN_PASSWORD    - Keycloak master realm bootstrap admin password
  *   KEYCLOAK_POSTGRES_USER     - Postgres superuser backing Keycloak's DB
  *   KEYCLOAK_POSTGRES_PASSWORD - Postgres superuser password
+ *   SOLO_UI_DEFAULT_PASSWORD   - solo-admin/solo-reader/solo-writer bootstrap password
+ *                                (only required when soloUIClients.enabled is true)
  */
 export class KeycloakFeature extends AddonFeature {
   constructor(name, config) {
@@ -110,6 +113,7 @@ export class KeycloakFeature extends AddonFeature {
     this.adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || '';
     this.postgresUser = process.env.KEYCLOAK_POSTGRES_USER || '';
     this.postgresPassword = process.env.KEYCLOAK_POSTGRES_PASSWORD || '';
+    this.soloUiDefaultPassword = process.env.SOLO_UI_DEFAULT_PASSWORD || '';
     const clusterAddons = config.clusterAddons || [];
     this.externalDns = config.externalDns === true || clusterAddons.includes('external-dns');
   }
@@ -120,6 +124,7 @@ export class KeycloakFeature extends AddonFeature {
       !this.adminPassword && 'KEYCLOAK_ADMIN_PASSWORD',
       !this.postgresUser && 'KEYCLOAK_POSTGRES_USER',
       !this.postgresPassword && 'KEYCLOAK_POSTGRES_PASSWORD',
+      this.soloUIClients?.enabled && !this.soloUiDefaultPassword && 'SOLO_UI_DEFAULT_PASSWORD',
     ].filter(Boolean);
     if (missing.length > 0) {
       throw new Error(
@@ -128,7 +133,8 @@ export class KeycloakFeature extends AddonFeature {
           '  export KEYCLOAK_ADMIN_USERNAME="admin"\n' +
           '  export KEYCLOAK_ADMIN_PASSWORD="<your-password>"\n' +
           '  export KEYCLOAK_POSTGRES_USER="postgres"\n' +
-          '  export KEYCLOAK_POSTGRES_PASSWORD="<your-password>"'
+          '  export KEYCLOAK_POSTGRES_PASSWORD="<your-password>"\n' +
+          '  export SOLO_UI_DEFAULT_PASSWORD="<your-password>"'
       );
     }
     return true;
@@ -189,8 +195,7 @@ export class KeycloakFeature extends AddonFeature {
       'info'
     );
     if (this.soloUIClients?.enabled) {
-      const soloPassword = this.soloUIClients.defaultPassword || 'Passwd00';
-      this.log(`Solo UI login: solo-admin / ${soloPassword}`, 'info');
+      this.log('Solo UI login: solo-admin / $SOLO_UI_DEFAULT_PASSWORD', 'info');
     }
   }
 
@@ -1129,7 +1134,7 @@ export class KeycloakFeature extends AddonFeature {
 
   async createSoloUIUsers(baseUrl, token, groupIds) {
     const realm = this.soloUIRealm;
-    const password = this.soloUIClients?.defaultPassword || 'Passwd00';
+    const password = this.soloUiDefaultPassword;
     const users = [
       {
         username: 'solo-admin',

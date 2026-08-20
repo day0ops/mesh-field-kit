@@ -8,8 +8,8 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 // tpl: return v if it's a real value (not an unresolved {{...}} template), otherwise fb
 const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
 
-export function envVarsFor(_addonCfg, _clusterName) {
-  return [
+export function envVarsFor(addonCfg, _clusterName) {
+  const vars = [
     {
       name: 'KEYCLOAK_ADMIN_USERNAME',
       required: true,
@@ -31,6 +31,14 @@ export function envVarsFor(_addonCfg, _clusterName) {
       description: 'Postgres superuser password',
     },
   ];
+  if (addonCfg?.config?.soloUIClients?.enabled) {
+    vars.push({
+      name: 'SOLO_UI_DEFAULT_PASSWORD',
+      required: true,
+      description: 'Solo UI demo bootstrap password (solo-admin/solo-reader/solo-writer)',
+    });
+  }
+  return vars;
 }
 
 const DEFAULT_KEYCLOAK_VERSION = '26.7.0';
@@ -60,18 +68,11 @@ export function envExportsFor(addonCfg, _profile, env) {
 
   const soloUIClients = cfg.soloUIClients;
   if (soloUIClients?.enabled) {
-    exports.push(
-      {
-        name: 'SOLO_UI_ADMIN_USER',
-        value: 'solo-admin',
-        comment: 'Solo UI demo admin username (Keycloak solo-ui realm)',
-      },
-      {
-        name: 'SOLO_UI_ADMIN_PASSWORD',
-        value: soloUIClients.defaultPassword || 'Passwd00',
-        comment: 'Solo UI demo admin password (solo-reader/solo-writer use the same password)',
-      }
-    );
+    exports.push({
+      name: 'SOLO_UI_ADMIN_USER',
+      value: 'solo-admin',
+      comment: 'Solo UI demo admin username (Keycloak solo-ui realm); password is $SOLO_UI_DEFAULT_PASSWORD',
+    });
   }
 
   return exports;
@@ -270,14 +271,14 @@ ${userLines}`
   if (soloUIClients?.enabled) {
     const suiRealm = soloUIClients.realm || 'solo-ui';
     const suiHostname = tpl(soloUIClients.hostname, env.spec.domains?.soloUI) || '';
-    const suiPassword = soloUIClients.defaultPassword || 'Passwd00';
+    const suiPassword = '$SOLO_UI_DEFAULT_PASSWORD';
     const suiUsers = ['solo-admin', 'solo-reader', 'solo-writer'];
     const suiUserLines = suiUsers
       .map(
         u => `curl -s -X POST "$KEYCLOAK_URL/admin/realms/${suiRealm}/users" \\
   -H "Authorization: Bearer $ACCESS_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"username":"${u}","enabled":true,"credentials":[{"type":"password","value":"${suiPassword}","temporary":false}]}'`
+  -d '{"username":"${u}","enabled":true,"credentials":[{"type":"password","value":"'"$SOLO_UI_DEFAULT_PASSWORD"'","temporary":false}]}'`
       )
       .join('\n\n');
     soloUISection = `
