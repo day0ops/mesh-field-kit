@@ -153,22 +153,22 @@ make infra-destroy PROFILE=eks-single-cluster
 
 ## Environment Variables
 
-| Variable                                                                                      | Required                         | Description                                    |
-| --------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------- |
-| `ENTERPRISE_ISTIO_LICENSE`                                                                    | Yes (install)                    | Solo Istio enterprise license key              |
-| `AWS_PROFILE`                                                                                 | Yes (EKS)                        | AWS SSO profile name                           |
-| `GCP_PROJECT`                                                                                 | Yes (GKE)                        | GCP project ID                                 |
-| `GOOGLE_APPLICATION_CREDENTIALS`                                                              | Yes (GKE)                        | Path to GCP service account credentials        |
-| `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_OBJECT_ID`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID` | Yes (AKS)                        | Azure service principal credentials            |
-| `KEYCLOAK_ADMIN_USERNAME`                                                                     | Yes (keycloak addon)             | Keycloak master realm bootstrap admin username |
-| `KEYCLOAK_ADMIN_PASSWORD`                                                                     | Yes (keycloak addon)             | Keycloak master realm bootstrap admin password |
-| `KEYCLOAK_POSTGRES_USER`                                                                      | Yes (keycloak addon)             | Postgres superuser backing Keycloak's DB       |
-| `KEYCLOAK_POSTGRES_PASSWORD`                                                                  | Yes (keycloak addon)             | Postgres superuser password                    |
-| `SOLO_UI_DEFAULT_PASSWORD`                                                                    | Yes (soloUIClients)              | solo-admin/solo-reader/solo-writer bootstrap password |
-| `GRAFANA_REALM_ADMIN_USERNAME`                                                                | No (default: grafana-admin)      | Grafana OIDC demo admin username (keycloak 'grafana' realm) |
-| `GRAFANA_REALM_ADMIN_PASSWORD`                                                                | Yes (when 'grafana' realm configured) | Grafana OIDC demo admin password          |
-| `GRAFANA_ADMIN_USERNAME`                                                                      | Yes (telemetry addon, full mode) | Grafana admin login username                   |
-| `GRAFANA_ADMIN_PASSWORD`                                                                      | Yes (telemetry addon, full mode) | Grafana admin login password                   |
+| Variable                                                                                      | Required                              | Description                                                 |
+| --------------------------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| `ENTERPRISE_ISTIO_LICENSE`                                                                    | Yes (install)                         | Solo Istio enterprise license key                           |
+| `AWS_PROFILE`                                                                                 | Yes (EKS)                             | AWS SSO profile name                                        |
+| `GCP_PROJECT`                                                                                 | Yes (GKE)                             | GCP project ID                                              |
+| `GOOGLE_APPLICATION_CREDENTIALS`                                                              | Yes (GKE)                             | Path to GCP service account credentials                     |
+| `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_OBJECT_ID`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID` | Yes (AKS)                             | Azure service principal credentials                         |
+| `KEYCLOAK_ADMIN_USERNAME`                                                                     | Yes (keycloak addon)                  | Keycloak master realm bootstrap admin username              |
+| `KEYCLOAK_ADMIN_PASSWORD`                                                                     | Yes (keycloak addon)                  | Keycloak master realm bootstrap admin password              |
+| `KEYCLOAK_POSTGRES_USER`                                                                      | Yes (keycloak addon)                  | Postgres superuser backing Keycloak's DB                    |
+| `KEYCLOAK_POSTGRES_PASSWORD`                                                                  | Yes (keycloak addon)                  | Postgres superuser password                                 |
+| `SOLO_UI_DEFAULT_PASSWORD`                                                                    | Yes (soloUIClients)                   | solo-admin/solo-reader/solo-writer bootstrap password       |
+| `GRAFANA_REALM_ADMIN_USERNAME`                                                                | No (default: grafana-admin)           | Grafana OIDC demo admin username (keycloak 'grafana' realm) |
+| `GRAFANA_REALM_ADMIN_PASSWORD`                                                                | Yes (when 'grafana' realm configured) | Grafana OIDC demo admin password                            |
+| `GRAFANA_ADMIN_USERNAME`                                                                      | Yes (telemetry addon, full mode)      | Grafana admin login username                                |
+| `GRAFANA_ADMIN_PASSWORD`                                                                      | Yes (telemetry addon, full mode)      | Grafana admin login password                                |
 
 ## Project Structure
 
