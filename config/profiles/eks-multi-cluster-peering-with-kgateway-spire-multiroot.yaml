@@ -145,6 +145,7 @@ spec:
               provider: route53
               domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
               region: '{{env.aws.region}}'
+              txtOwnerId: '{{env.dns.txtOwnerId}}'
 
           - name: kgateway
             description: Kubernetes Gateway API ingress controller

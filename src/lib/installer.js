@@ -652,7 +652,9 @@ export class InstallerManager {
       spinner.succeed(`${label} installed — installing post-install addons...`);
       await this.#installAddons({ profile, cluster, phase: 'post', templateContext });
 
-      spinner.succeed(`${label} installed on ${cluster.name} (${contextDisplay})`);
+      const installedWhat =
+        resolved.addons && resolved.addons.length > 0 ? `${label} and addons` : label;
+      spinner.succeed(`${installedWhat} installed on ${cluster.name} (${contextDisplay})`);
       return true;
     } catch (error) {
       spinner.fail(`Failed to install on ${cluster.name}: ${error.message}`);
@@ -826,10 +828,14 @@ export class InstallerManager {
     const secs = Math.floor((elapsed % 60000) / 1000);
     const duration = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
     const summaryResolved = ConfigResolver.resolveForCluster(profile, orderedClusters[0]);
+    const anyAddonsInstalled = orderedClusters.some(c => {
+      const r = ConfigResolver.resolveForCluster(profile, c);
+      return r.addons && r.addons.length > 0;
+    });
+    const meshLabel = ConfigResolver.meshModeLabel(summaryResolved.components);
+    const installedWhat = anyAddonsInstalled ? `${meshLabel} and addons` : meshLabel;
     console.log();
-    Logger.success(
-      `${ConfigResolver.meshModeLabel(summaryResolved.components)} installed on all clusters in ${duration}`
-    );
+    Logger.success(`${installedWhat} installed on all clusters in ${duration}`);
   }
 
   /**
@@ -985,9 +991,11 @@ export class InstallerManager {
         );
       }
 
+      let addonsWereCleaned = false;
       if (uninstallAddons && profile && cluster) {
         const resolved = ConfigResolver.resolveForCluster(profile, cluster);
         if (resolved.addons && resolved.addons.length > 0) {
+          addonsWereCleaned = true;
           spinner.succeed('Istio components removed — cleaning up addons...');
 
           // Build template context — mirrors install path so {{env.*}} and {{infra.*}} vars resolve during cleanup
@@ -1043,7 +1051,8 @@ export class InstallerManager {
         await InstallerManager.cleanupAddonCRDs(context, spinner);
       }
 
-      spinner.succeed(`${label} uninstalled from ${cluster?.name || contextDisplay}`);
+      const uninstalledWhat = addonsWereCleaned ? `${label} and addons` : label;
+      spinner.succeed(`${uninstalledWhat} uninstalled from ${cluster?.name || contextDisplay}`);
       return true;
     } catch (error) {
       spinner.fail(`Failed to uninstall from ${cluster?.name || contextDisplay}: ${error.message}`);
@@ -1094,6 +1103,14 @@ export class InstallerManager {
     const otherClusters = clusters.filter(c => c.role !== 'management');
     const orderedClusters = [...otherClusters, ...mgmtClusters];
 
+    const anyAddonsToClean =
+      uninstallAddons &&
+      profile &&
+      orderedClusters.some(c => {
+        const r = ConfigResolver.resolveForCluster(profile, c);
+        return r.addons && r.addons.length > 0;
+      });
+
     if (clusters.length > 1) {
       console.log();
       Logger.info('Cleaning up multicluster connectivity...');
@@ -1143,7 +1160,8 @@ export class InstallerManager {
     const secs = Math.floor((elapsed % 60000) / 1000);
     const duration = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
     console.log();
-    Logger.success(`${label} uninstalled from all clusters in ${duration}`);
+    const uninstalledWhat = anyAddonsToClean ? `${label} and addons` : label;
+    Logger.success(`${uninstalledWhat} uninstalled from all clusters in ${duration}`);
   }
 
   /**

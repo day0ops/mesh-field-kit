@@ -19,6 +19,7 @@ spec:
       domain: kasunt.apac.fe.solo.io
       hostedZoneId: Z08818701HDZ6PBD6LPXU
     childZone: mesh-demo
+    txtOwnerId: mesh-demo
 
   tls:
     issuer: letsencrypt-dns

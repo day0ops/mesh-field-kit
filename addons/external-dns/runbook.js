@@ -28,6 +28,11 @@ export function envExportsFor(addonCfg, _profile, env) {
       value: tpl(cfg.zoneId, env.spec.dns?.parentZone?.hostedZoneId || '<hosted-zone-id>'),
       comment: 'Route53 hosted zone ID for the parent DNS zone',
     },
+    {
+      name: 'EXTERNAL_DNS_TXT_OWNER_ID',
+      value: tpl(cfg.txtOwnerId, env.spec.dns?.txtOwnerId || 'mesh-demo'),
+      comment: 'TXT registry owner ID external-dns uses to claim/garbage-collect its records',
+    },
   ];
 }
 
@@ -41,6 +46,7 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, env) 
     `${env.spec.dns?.childZone || 'demo'}.${env.spec.dns?.parentZone?.domain || 'example.com'}`
   );
   const zoneId = tpl(cfg.zoneId, env.spec.dns?.parentZone?.hostedZoneId || '$DNS_HOSTED_ZONE_ID');
+  const txtOwnerId = tpl(cfg.txtOwnerId, null) || '$EXTERNAL_DNS_TXT_OWNER_ID';
   const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
 
   // external-dns helm chart uses 'aws' for the Route53 provider (not 'route53')
@@ -64,7 +70,7 @@ helm upgrade --install external-dns external-dns/external-dns \\
   --set aws.zoneType=public \\
   --set policy=sync \\
   --set registry=txt \\
-  --set txtOwnerId=${clusterName}-external-dns \\
+  --set txtOwnerId=${txtOwnerId} \\
   --set "sources[0]=service" \\
   --set "sources[1]=ingress" \\
   --set "sources[2]=gateway-httproute" \\
