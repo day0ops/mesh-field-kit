@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: zero-trust-l4
-  description: >
-    Enforce zero-trust L4 security with a deny-all policy and explicit allow
-    rules.
+  description: Enforce zero-trust L4 security with a deny-all policy and explicit allow rules.
 spec:
   requires:
     applications:

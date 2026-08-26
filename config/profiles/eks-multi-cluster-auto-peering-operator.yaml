@@ -1,12 +1,12 @@
 apiVersion: mesh.demo/v1
 kind: Profile
 metadata:
-  name: eks-multi-cluster-peering-operator
+  name: eks-multi-cluster-auto-peering-operator
   description: |
-    Multicluster ambient mesh with helm-based peering
-    - Using Solo operator to install
-    - Use kgateway as ingress controller
-    - Cilium addon enabled
+    Multicluster ambient mesh installed and peered via the Solo operator (CRD-based), instead of the Helm values-based path used by the other multi-cluster profiles.
+    Global: cilium, cert-manager.
+    East: external-dns, telemetry gateway, solo-ui (mgmt), kgateway ingress.
+    West: solo-ui relay.
 
 spec:
   infra: eks-multi-cluster

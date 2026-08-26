@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: zero-trust-canary
-  description: >
-    Combine a deny-all policy, L7 waypoint authorization, and weighted
-    traffic shifting for a secure canary deployment.
+  description: Combine a deny-all policy, L7 waypoint authorization, and weighted traffic shifting for a secure canary deployment.
 spec:
   requires:
     applications:

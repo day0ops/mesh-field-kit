@@ -4,11 +4,9 @@ metadata:
   name: peer-authentication-strict
   description: |
     Enforce STRICT mTLS on a namespace via PeerAuthentication and verify it:
-    - In-mesh traffic is transparently upgraded to mTLS by ztunnel, no
-      workload changes required.
+    - In-mesh traffic is transparently upgraded to mTLS by ztunnel, no workload changes required.
     - A client with no mesh identity is rejected once STRICT is enforced.
-    - istioctl confirms the ztunnel-side endpoint is actually there and
-      healthy, not just "allowed".
+    - istioctl confirms the ztunnel-side endpoint is actually there and healthy, not just "allowed".
     No waypoint is required - PeerAuthentication is enforced by ztunnel at L4.
 spec:
   requires:
@@ -57,10 +55,7 @@ spec:
               - Healthy
 
     - name: non-mesh-client-rejected
-      description: >-
-        A client with no mesh identity cannot reach httpbin once STRICT mTLS
-        is enforced - ztunnel intercepts the inbound connection on the
-        httpbin side and rejects the plaintext handshake.
+      description: A client with no mesh identity cannot reach httpbin once STRICT mTLS is enforced - ztunnel intercepts the inbound connection on the httpbin side and rejects the plaintext handshake.
       setup:
         - action: exec
           command: kubectl create namespace no-mesh --dry-run=client -o yaml | kubectl apply -f -

@@ -3,8 +3,7 @@ kind: UseCase
 metadata:
   name: segment-scoped-services
   description: |
-    Services labeled solo.io/service-scope=segment are visible only within their
-    segment across clusters, demonstrating team-scoped multi-cluster visibility.
+    Services labeled solo.io/service-scope=segment are visible only within their segment across clusters, demonstrating team-scoped multi-cluster visibility.
     - west is assigned to the team-a segment; east remains outside it
     - bookinfo services in west get a team-a.global-scoped hostname
     - east cannot see the team-a-scoped hostname since it isn't in that segment

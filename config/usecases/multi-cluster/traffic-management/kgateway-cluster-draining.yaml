@@ -3,20 +3,11 @@ kind: UseCase
 metadata:
   name: kgateway-cluster-draining
   description: |
-    Demonstrate Solo Enterprise for kgateway's solo.io/draining-weight
-    annotation, which controls how much ingress traffic kgateway sends to a
-    remote cluster through its remote peering gateway.
-    - kgateway routes ingress traffic directly to productpage.bookinfo.mesh.internal
-      (a global hostname aggregating both clusters), same as kgateway-global-ingress
-    - solo.io/draining-weight is applied to the istio-remote-peer-west Gateway
-      in istio-eastwest on east - this is the local Gateway API resource
-      representing west's east-west gateway, as seen from east
-    - weight 100 (full drain) fully excludes west from the ingress path's
-      Envoy endpoint set, so once east's own backend is gone there is
-      nowhere left to route and calls fail
-    - weight 40 (partial drain) only reduces west's share (60% of nominal),
-      it does not exclude it - so calls still succeed by failing over to
-      west once east's own backend is gone
+    Demonstrate Solo Enterprise for kgateway's solo.io/draining-weight annotation, which controls how much ingress traffic kgateway sends to a remote cluster through its remote peering gateway.
+    - kgateway routes ingress traffic directly to productpage.bookinfo.mesh.internal (a global hostname aggregating both clusters), same as kgateway-global-ingress
+    - solo.io/draining-weight is applied to the istio-remote-peer-west Gateway in istio-eastwest on east - this is the local Gateway API resource representing west's east-west gateway, as seen from east
+    - weight 100 (full drain) fully excludes west from the ingress path's Envoy endpoint set, so once east's own backend is gone there is nowhere left to route and calls fail
+    - weight 40 (partial drain) only reduces west's share (60% of nominal), it does not exclude it - so calls still succeed by failing over to west once east's own backend is gone
     - See https://docs.solo.io/kgateway/2.3.x/integrations/istio/ambient/additional-settings/#cluster-draining
 spec:
   diagram: |

@@ -3,11 +3,8 @@ kind: UseCase
 metadata:
   name: locality-failover
   description: |
-    Traffic distribution with the networking.istio.io/traffic-distribution
-    annotation for locality-aware failover across a multicluster mesh.
-    - reviews is globally scoped and annotated traffic-distribution=PreferClose
-      so callers prefer same-locality endpoints before failing over to the
-      other cluster
+    Traffic distribution with the networking.istio.io/traffic-distribution annotation for locality-aware failover across a multicluster mesh.
+    - reviews is globally scoped and annotated traffic-distribution=PreferClose so callers prefer same-locality endpoints before failing over to the other cluster
 spec:
   infra: eks-multi-cluster
 

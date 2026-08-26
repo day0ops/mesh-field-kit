@@ -3,14 +3,9 @@ kind: UseCase
 metadata:
   name: peer-authentication-cross-cluster
   description: |
-    Enforce STRICT mTLS on the bookinfo namespace on the west cluster only,
-    and verify:
-    - Legitimate cross-cluster mesh traffic from east to west (over the
-      east-west gateway) still works - it's still authenticated mTLS even
-      though it crosses a trust domain boundary (each cluster has its own
-      trust domain here: "{{cluster.name}}.local").
-    - A client with no mesh identity on west is still rejected by ztunnel,
-      same as the single-cluster case.
+    Enforce STRICT mTLS on the bookinfo namespace on the west cluster only, and verify:
+    - Legitimate cross-cluster mesh traffic from east to west (over the east-west gateway) still works - it's still authenticated mTLS even though it crosses a trust domain boundary (each cluster has its own trust domain here: "{{cluster.name}}.local").
+    - A client with no mesh identity on west is still rejected by ztunnel, same as the single-cluster case.
     No waypoint is required - PeerAuthentication is enforced by ztunnel at L4.
 spec:
   diagram: |
@@ -57,12 +52,7 @@ spec:
 
   tests:
     - name: cross-cluster-request-succeeds-under-strict-mtls
-      description: >-
-        A workload in bookinfo/east reaches reviews on west over the
-        east-west gateway even though west now requires STRICT mTLS - the
-        connection is genuinely mTLS-authenticated across the trust domain
-        boundary. Uses ratings-v1 (not productpage-v1, whose image has no
-        curl binary) as the client.
+      description: A workload in bookinfo/east reaches reviews on west over the east-west gateway even though west now requires STRICT mTLS - the connection is genuinely mTLS-authenticated across the trust domain boundary. Uses ratings-v1 (not productpage-v1, whose image has no curl binary) as the client.
       clusters:
         - name: east
       steps:
@@ -79,10 +69,7 @@ spec:
             contains: '200'
 
     - name: non-mesh-client-rejected-on-west
-      description: >-
-        A client with no mesh identity on west cannot reach reviews once
-        STRICT mTLS is enforced there - same failure mode as the
-        single-cluster peer-authentication-strict usecase.
+      description: A client with no mesh identity on west cannot reach reviews once STRICT mTLS is enforced there - same failure mode as the single-cluster peer-authentication-strict usecase.
       clusters:
         - name: west
       setup:

@@ -2,7 +2,8 @@ apiVersion: mesh.demo/v1
 kind: Profile
 metadata:
   name: eks-single-cluster-mesh-sidecar
-  description: Single-cluster classic Istio sidecar mesh (no ambient components) — starting point for the sidecar-to-ambient migration demo
+  description: |
+    Single-cluster classic Istio sidecar mesh (no ambient components), the starting point for the sidecar-to-ambient migration demo.
 
 spec:
   infra: eks-single-cluster

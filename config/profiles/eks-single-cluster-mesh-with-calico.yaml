@@ -2,7 +2,7 @@ apiVersion: mesh.demo/v1
 kind: Profile
 metadata:
   name: eks-single-cluster-mesh-with-calico
-  description: Single-cluster ambient mesh with Calico
+  description: Single-cluster ambient mesh with Calico as the CNI in chaining mode (Tigera operator install)
 
 spec:
   infra: eks-single-cluster

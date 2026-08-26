@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: grpc-routing
-  description: >
-    gRPC request routing to a gRPC backend via a GRPCRoute, matching on
-    service and method.
+  description: gRPC request routing to a gRPC backend via a GRPCRoute, matching on service and method.
 spec:
   requires:
     applications:

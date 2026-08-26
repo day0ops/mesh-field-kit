@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: egress-tls-origination
-  description: >
-    Egress waypoint re-encrypts traffic to external HTTPS services via
-    DestinationRule TLS origination, with port mapping (80 -> 443).
+  description: Egress waypoint re-encrypts traffic to external HTTPS services via DestinationRule TLS origination, with port mapping (80 -> 443).
 spec:
   requires:
     applications:

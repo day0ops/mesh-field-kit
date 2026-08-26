@@ -3,16 +3,11 @@ kind: UseCase
 metadata:
   name: waypoint-resiliency
   description: |
-    Fault injection and retries via a waypoint, proven consistent for both
-    local and cross-cluster callers.
+    Fault injection and retries via a waypoint, proven consistent for both local and cross-cluster callers.
     - reviews (east) is globally scoped and bound to a waypoint
     - a VirtualService injects a 50% abort fault on reviews
-    - a second VirtualService combines the same fault with a retry policy,
-      showing retries absorb most of the injected failures
-    - both a local (east) and cross-cluster (west) caller observe the same
-      behavior, since VirtualService targets the global hostname directly
-      rather than relying on HTTPRoute (see waypoint-traffic-shifting
-      investigation notes for why HTTPRoute doesn't work cross-cluster here)
+    - a second VirtualService combines the same fault with a retry policy, showing retries absorb most of the injected failures
+    - both a local (east) and cross-cluster (west) caller observe the same behavior, since VirtualService targets the global hostname directly rather than relying on HTTPRoute (see waypoint-traffic-shifting investigation notes for why HTTPRoute doesn't work cross-cluster here)
 
 spec:
   infra: eks-multi-cluster

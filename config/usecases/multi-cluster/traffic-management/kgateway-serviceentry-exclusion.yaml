@@ -3,19 +3,11 @@ kind: UseCase
 metadata:
   name: kgateway-serviceentry-exclusion
   description: |
-    Demonstrate Solo Enterprise for kgateway's serviceEntriesExclusionLabelSelectors
-    Helm value, which excludes matching Istio ServiceEntry resources from
-    kgateway's backend and endpoint discovery.
+    Demonstrate Solo Enterprise for kgateway's serviceEntriesExclusionLabelSelectors Helm value, which excludes matching Istio ServiceEntry resources from kgateway's backend and endpoint discovery.
     - productpage and httpbin are both globally scoped (global ServiceEntries)
-    - two independent HTTPRoutes route ingress traffic to each, via Hostname
-      backendRefs to their mesh.internal hostnames
-    - excluding httpbin's autogen ServiceEntry (by its solo.io/parent-service
-      label) makes kgateway treat it as having no backend, while productpage's
-      route is unaffected
-    - Gateway API's ResolvedRefs condition does not reflect the exclusion (it
-      stays True either way) - the effect only shows up in the actual
-      ingress response, so these tests check response status codes, not
-      HTTPRoute status
+    - two independent HTTPRoutes route ingress traffic to each, via Hostname backendRefs to their mesh.internal hostnames
+    - excluding httpbin's autogen ServiceEntry (by its solo.io/parent-service label) makes kgateway treat it as having no backend, while productpage's route is unaffected
+    - Gateway API's ResolvedRefs condition does not reflect the exclusion (it stays True either way) - the effect only shows up in the actual ingress response, so these tests check response status codes, not HTTPRoute status
     - See https://docs.solo.io/kgateway/2.3.x/integrations/istio/ambient/additional-settings/#exclude-serviceentries
 spec:
   diagram: |

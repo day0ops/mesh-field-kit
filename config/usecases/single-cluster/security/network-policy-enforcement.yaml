@@ -3,21 +3,13 @@ kind: UseCase
 metadata:
   name: network-policy-enforcement
   description: |
-    Validates that plain Kubernetes NetworkPolicy is still enforced by the
-    CNI when workloads run in ambient mode:
+    Validates that plain Kubernetes NetworkPolicy is still enforced by the CNI when workloads run in ambient mode:
     - netpol-client can only egress to netpol-backend
     - netpol-backend only accepts ingress from netpol-client
     - netpol-public allows ingress from anyone, but netpol-client still can't reach it - proving the denial is netpol-client's egress restriction, not netpol-public's policy
-    - narrowing netpol-backend's ingress policy to the app port alone (no
-      HBONE 15008) blocks mesh traffic entirely, since NetworkPolicy is
-      enforced on the host on the actual wire-level port - for ambient pods
-      that's always 15008, never the app port. Adding 15008 back restores it.
-      See https://ambientmesh.io/docs/security/configure-networkpolicies/
+    - narrowing netpol-backend's ingress policy to the app port alone (no HBONE 15008) blocks mesh traffic entirely, since NetworkPolicy is enforced on the host on the actual wire-level port - for ambient pods that's always 15008, never the app port. Adding 15008 back restores it. See https://ambientmesh.io/docs/security/configure-networkpolicies/
 
-    Requires a CNI that actually enforces NetworkPolicy (e.g. this kit's
-    eks-single-cluster-mesh-with-cilium profile, or Calico/Cilium chaining) -
-    plain aws-vpc-cni does not, which surfaces as the "denied" test
-    unexpectedly passing.
+    Requires a CNI that actually enforces NetworkPolicy (e.g. this kit's eks-single-cluster-mesh-with-cilium profile, or Calico/Cilium chaining) - plain aws-vpc-cni does not, which surfaces as the "denied" test unexpectedly passing.
 
 spec:
   requires:

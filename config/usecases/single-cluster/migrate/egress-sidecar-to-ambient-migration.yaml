@@ -2,16 +2,8 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: egress-sidecar-to-ambient-migration
-  description: >
-    Egress-focused counterpart of sidecar-to-ambient-migration.yaml: migrates
-    outbound access control for an external host from a sidecar-mesh
-    mechanism to ambient's egress waypoint. Before cutover, egress to
-    httpbin.org is controlled purely via a ServiceEntry reachable through the
-    sidecar's own Envoy (REGISTRY_ONLY mesh-wide egress, no dedicated egress
-    gateway). After cutover, an ambient egress-waypoint plus an explicit
-    egress-authorization policy takes over enforcement - a real improvement,
-    trading implicit registry-only allow for explicit per-namespace authz. Run
-    on a cluster installed with the eks-single-cluster-mesh-sidecar profile.
+  description: |
+    Egress-focused counterpart of sidecar-to-ambient-migration.yaml: migrates outbound access control for an external host from a sidecar-mesh mechanism to ambient's egress waypoint. Before cutover, egress to httpbin.org is controlled purely via a ServiceEntry reachable through the sidecar's own Envoy (REGISTRY_ONLY mesh-wide egress, no dedicated egress gateway). After cutover, an ambient egress-waypoint plus an explicit egress-authorization policy takes over enforcement - a real improvement, trading implicit registry-only allow for explicit per-namespace authz. Run on a cluster installed with the eks-single-cluster-mesh-sidecar profile.
 spec:
   requires:
     applications:
@@ -43,7 +35,7 @@ spec:
             protocol: HTTP
 
     - name: enable-ambient
-      description: Upgrade the control plane in place to ambient-capable (Phase 2) — existing sidecar workloads keep running via interop
+      description: Upgrade the control plane in place to ambient-capable (Phase 2) - existing sidecar workloads keep running via interop
       config:
         istioVersion: 1.30.3
         istioRevision: stable # must match eks-single-cluster-mesh-sidecar's mesh.istioRevision

@@ -3,13 +3,10 @@ kind: UseCase
 metadata:
   name: waypoint-l7-authorization
   description: |
-    Enforce an L7 AuthorizationPolicy via a waypoint, and prove it governs
-    traffic regardless of whether the caller is local or arrives from the
-    peer cluster through the global-service hostname.
+    Enforce an L7 AuthorizationPolicy via a waypoint, and prove it governs traffic regardless of whether the caller is local or arrives from the peer cluster through the global-service hostname.
     - reviews (east) is bound to a waypoint and globally scoped
     - an L7 AuthorizationPolicy on the waypoint allows only GET requests
-    - both a local (east) caller and a cross-cluster (west) caller are
-      subject to the same policy
+    - both a local (east) caller and a cross-cluster (west) caller are subject to the same policy
 spec:
   diagram: |
     flowchart LR

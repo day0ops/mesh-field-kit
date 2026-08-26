@@ -2,7 +2,7 @@ apiVersion: mesh.demo/v1
 kind: Profile
 metadata:
   name: eks-single-cluster-mesh-with-cilium
-  description: Single-cluster ambient mesh with Cilium CNI chaining
+  description: Single-cluster ambient mesh with Cilium as the CNI in chaining mode, plus the telemetry stack (Prometheus, Grafana, Loki, Tempo)
 
 spec:
   infra: eks-single-cluster

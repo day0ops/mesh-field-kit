@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: fault-injection
-  description: >
-    Inject faults (delays and errors) into service traffic via a waypoint,
-    for resilience testing.
+  description: Inject faults (delays and errors) into service traffic via a waypoint, for resilience testing.
 spec:
   requires:
     applications:

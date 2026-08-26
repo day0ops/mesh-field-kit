@@ -1,0 +1,67 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: spire-multiroot-reverse-connectivity
+  description: |
+    Reverse-direction counterpart to spire-multiroot-connectivity: forces traffic across the east-west gateway starting from *west* instead of east, closing the direction spire-multiroot-connectivity never exercises. Requires the eks-multi-cluster-peering-with-kgateway-spire-multi-root-ca profile.
+    - ratings-v1 (istiod-cacerts-issued identity) on west calls reviews on east directly, forced across the east-west gateway (SPIRE-issued identity) by scaling west's local reviews replicas to 0
+
+spec:
+  diagram: |
+    flowchart LR
+      RT[ratings-v1\nbookinfo/west] -->|reviews.bookinfo.mesh.internal| ZTw[ztunnel west]
+      ZTw -->|HBONE/mTLS, cacerts root <-> SPIRE root| EWG[east-west gw]
+      EWG --> ZTe[ztunnel east]
+      ZTe --> R[reviews east]
+
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: west
+          - name: east
+
+  features:
+    - name: global-service
+      description: Make reviews reachable across clusters via mesh.internal
+      config:
+        namespace: bookinfo
+        services:
+          - name: reviews
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: Any
+      clusters:
+        - name: west
+        - name: east
+
+  tests:
+    - name: cross-cluster-reviews-reverse-direction
+      description: A workload on west (ratings-v1) reaches reviews on east over the east-west gateway. West's local reviews replicas are scaled to 0 first so the request has no local fallback and must cross the gateway - proving the east-west gateway also works in the direction spire-multiroot-connectivity never sends traffic.
+      clusters:
+        - name: west
+      setup:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 reviews-v2 reviews-v3 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 reviews-v2 reviews-v3 -n bookinfo --replicas=1
+          timeout: 60s
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec -n bookinfo deploy/ratings-v1 --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://reviews.bookinfo.mesh.internal:9080/reviews/1
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: '200'

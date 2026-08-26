@@ -3,8 +3,7 @@ kind: UseCase
 metadata:
   name: segmented-canary
   description: |
-    Combine cluster segments with waypoint-based traffic shifting for a
-    segment-scoped canary deployment.
+    Combine cluster segments with waypoint-based traffic shifting for a segment-scoped canary deployment.
     - west is assigned to the canary-segment
     - reviews traffic in west is canaried 80/20 between v1 and v2 via a waypoint
 spec:

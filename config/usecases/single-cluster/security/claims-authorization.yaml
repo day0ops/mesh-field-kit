@@ -2,13 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: claims-authorization
-  description: |
-    Enforce L4 authorization based on custom workload claims embedded in
-    mTLS certificates via pod annotations (solo.io.security-claims/*),
-    using a CEL "when" clause in an AuthorizationPolicy. Enforced entirely
-    by ztunnel at L4 - no waypoint required. Requires
-    ENABLE_WORKLOAD_CLAIMS=true on ztunnel (already set on the
-    eks-single-cluster-mesh-with-cilium profile).
+  description: Enforce L4 authorization based on custom workload claims embedded in mTLS certificates via pod annotations (solo.io.security-claims/*), using a CEL "when" clause in an AuthorizationPolicy. Enforced entirely by ztunnel at L4 - no waypoint required. Requires ENABLE_WORKLOAD_CLAIMS=true on ztunnel (already set on the eks-single-cluster-mesh-with-cilium profile).
 spec:
   requires:
     applications:
@@ -32,9 +26,7 @@ spec:
 
   tests:
     - name: unclaimed-client-denied
-      description: >-
-        Without the required claim annotation, curl's connection to
-        httpbin is rejected at L4 by ztunnel.
+      description: Without the required claim annotation, curl's connection to httpbin is rejected at L4 by ztunnel.
       steps:
         - action: exec
           command: >-
@@ -49,9 +41,7 @@ spec:
             contains: '000'
 
     - name: claimed-client-allowed
-      description: >-
-        Annotating curl with the required claim and rolling it out embeds
-        the claim in its workload cert, so it can reach httpbin.
+      description: Annotating curl with the required claim and rolling it out embeds the claim in its workload cert, so it can reach httpbin.
       setup:
         - action: exec
           command: >-

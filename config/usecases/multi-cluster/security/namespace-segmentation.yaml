@@ -3,10 +3,8 @@ kind: UseCase
 metadata:
   name: namespace-segmentation
   description: |
-    Assign clusters to independently-addressed segments for DNS domain isolation
-    across a multicluster mesh.
-    - Segments partition the mesh at cluster granularity: west joins team-a,
-      east joins team-b, by labeling each cluster's istio-system namespace
+    Assign clusters to independently-addressed segments for DNS domain isolation across a multicluster mesh.
+    - Segments partition the mesh at cluster granularity: west joins team-a, east joins team-b, by labeling each cluster's istio-system namespace
     - Segment CRs are created in istio-system on every peered cluster
 spec:
   infra: eks-multi-cluster

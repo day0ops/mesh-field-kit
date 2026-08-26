@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: egress-control
-  description: >
-    Control outbound traffic through an egress waypoint with authorization
-    policies.
+  description: Control outbound traffic through an egress waypoint with authorization policies.
 spec:
   requires:
     applications:
