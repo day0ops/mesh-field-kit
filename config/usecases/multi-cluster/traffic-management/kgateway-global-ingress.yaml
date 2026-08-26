@@ -3,14 +3,9 @@ kind: UseCase
 metadata:
   name: kgateway-global-ingress
   description: |
-    Route kgateway ingress traffic directly to a global mesh.internal hostname
-    instead of the local Kubernetes Service, so the ingress keeps serving
-    traffic even if every local backend pod is gone.
-    - kgateway's HTTPRoute targets productpage.bookinfo.mesh.internal (a
-      ServiceEntry-backed Hostname aggregating both clusters), not the local
-      productpage Service
-    - Scaling productpage-v1 to zero on east proves the ingress fails over to
-      west automatically, which a Service-scoped backendRef could not do
+    Route kgateway ingress traffic directly to a global mesh.internal hostname instead of the local Kubernetes Service, so the ingress keeps serving traffic even if every local backend pod is gone.
+    - kgateway's HTTPRoute targets productpage.bookinfo.mesh.internal (a ServiceEntry-backed Hostname aggregating both clusters), not the local productpage Service
+    - Scaling productpage-v1 to zero on east proves the ingress fails over to west automatically, which a Service-scoped backendRef could not do
     - See https://docs.solo.io/kgateway/2.3.x/integrations/istio/ambient/ingress-multi/
 spec:
   diagram: |

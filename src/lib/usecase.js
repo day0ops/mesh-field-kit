@@ -217,6 +217,12 @@ export class UseCaseManager {
    * Get the currently deployed use case
    */
   static async getCurrentUseCase() {
+    if (!(await KubernetesHelper.isClusterAccessible())) {
+      throw new Error(
+        'Cannot reach the Kubernetes API — check your kubeconfig/credentials (e.g. an expired AWS SSO session) before continuing.'
+      );
+    }
+
     try {
       const result = await KubernetesHelper.kubectl(
         [

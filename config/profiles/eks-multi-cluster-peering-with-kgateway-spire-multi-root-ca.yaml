@@ -1,9 +1,12 @@
 apiVersion: mesh.demo/v1
 kind: Profile
 metadata:
-  name: eks-multi-cluster-peering-with-kgateway-spire-multiroot
+  name: eks-multi-cluster-peering-with-kgateway-spire-multi-root-ca
   description: |
-    Minimal profile for testing SPIRE multiRoot: an independent root bidirectionally federated with istiod's cacerts root instead of sharing one. Based on eks-multi-cluster-peering-with-kgateway, stripped of keycloak/solo-ui/telemetry for a small, fast install.
+    Minimal profile for testing SPIRE multi root CA: an independent root bidirectionally federated with istiod's cacerts root instead of sharing one.
+    Global: cilium, cert-manager.
+    East: SPIRE, external-dns, kgateway.
+    West: SPIRE.
 
 spec:
   infra: eks-multi-cluster
@@ -145,6 +148,7 @@ spec:
               provider: route53
               domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
               region: '{{env.aws.region}}'
+              txtOwnerId: '{{env.dns.txtOwnerId}}'
 
           - name: kgateway
             description: Kubernetes Gateway API ingress controller

@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: canary-deployment
-  description: >
-    Canary deployment with weighted traffic splitting between service
-    versions, via a waypoint.
+  description: Canary deployment with weighted traffic splitting between service versions, via a waypoint.
 spec:
   requires:
     applications:

@@ -3,13 +3,9 @@ kind: UseCase
 metadata:
   name: l7-ztunnel-observability
   description: |
-    L7 HTTP metrics and structured access logs from ztunnel without deploying
-    waypoints. Shows istio_requests_total with response_code, method, and
-    path labels.
-    - Also deploys a PodMonitor for persistent Prometheus Operator scraping,
-      alongside the ad-hoc curl-based metrics check
-    - Requires the telemetry addon already installed (kube-prometheus-stack) -
-      without it there's no Prometheus Operator to pick up the PodMonitor
+    L7 HTTP metrics and structured access logs from ztunnel without deploying waypoints. Shows istio_requests_total with response_code, method, and path labels.
+    - Also deploys a PodMonitor for persistent Prometheus Operator scraping, alongside the ad-hoc curl-based metrics check
+    - Requires the telemetry addon already installed (kube-prometheus-stack) - without it there's no Prometheus Operator to pick up the PodMonitor
 spec:
   requires:
     applications:

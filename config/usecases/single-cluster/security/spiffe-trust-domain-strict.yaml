@@ -3,15 +3,7 @@ kind: UseCase
 metadata:
   name: spiffe-trust-domain-strict
   description: |
-    Enable ztunnel's STRICT SPIFFE trust-domain chain verification
-    (VALIDATE_SPIFFE_TRUST_DOMAIN_NAMES=STRICT): during the mTLS handshake,
-    ztunnel walks the peer's certificate chain from parent to trust anchor
-    and requires an ancestor CA cert to carry a SAN matching the trust
-    domain declared in the leaf's SPIFFE URI, rejecting certs from any CA
-    that doesn't carry that SAN. Requires the
-    eks-single-cluster-mesh-with-spire profile, which stamps the SPIRE
-    intermediate CA with the matching trust-domain SAN and sets this
-    ztunnel env var.
+    Enable ztunnel's STRICT SPIFFE trust-domain chain verification (VALIDATE_SPIFFE_TRUST_DOMAIN_NAMES=STRICT): during the mTLS handshake, ztunnel walks the peer's certificate chain from parent to trust anchor and requires an ancestor CA cert to carry a SAN matching the trust domain declared in the leaf's SPIFFE URI, rejecting certs from any CA that doesn't carry that SAN. Requires the eks-single-cluster-mesh-with-spire profile, which stamps the SPIRE intermediate CA with the matching trust-domain SAN and sets this ztunnel env var.
 spec:
   requires:
     applications:
@@ -22,10 +14,7 @@ spec:
 
   tests:
     - name: in-mesh-request-succeeds-under-strict-validation
-      description: >-
-        With STRICT trust-domain validation enabled, legitimate
-        SPIRE-issued workload certs still chain-verify correctly and
-        traffic flows normally.
+      description: With STRICT trust-domain validation enabled, legitimate SPIRE-issued workload certs still chain-verify correctly and traffic flows normally.
       steps:
         - action: exec
           command: >-

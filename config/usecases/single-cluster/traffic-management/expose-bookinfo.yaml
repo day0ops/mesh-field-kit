@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: expose-bookinfo
-  description: >
-    Expose the Bookinfo application via an Istio ingress gateway, routed
-    with an HTTPRoute.
+  description: Expose the Bookinfo application via an Istio ingress gateway, routed with an HTTPRoute.
 spec:
   requires:
     applications:

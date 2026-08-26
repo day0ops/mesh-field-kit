@@ -3,20 +3,10 @@ kind: UseCase
 metadata:
   name: global-service-failover
   description: |
-    Prove cross-cluster failover for a globally-scoped service: when a
-    caller's own local backend disappears, calls to the mesh.internal
-    hostname keep succeeding by failing over to the peer cluster, then
-    recover once the local backend returns.
+    Prove cross-cluster failover for a globally-scoped service: when a caller's own local backend disappears, calls to the mesh.internal hostname keep succeeding by failing over to the peer cluster, then recover once the local backend returns.
     - productpage is globally scoped on both clusters
-    - a waypoint fronts productpage on east - cross-cluster ambient HBONE
-      calls to a mesh.internal hostname currently only succeed when the
-      destination is waypoint-fronted (see project-kgateway-ingress-failover-tls-bug
-      memory: direct, non-waypoint cross-cluster calls hit an intermittent
-      TLS failure in this environment). West's own productpage stays
-      waypoint-less since same-cluster calls never leave via HBONE east-west.
-    - ratings-v1 (an unrelated caller, present on both clusters) calls
-      productpage.bookinfo.mesh.internal directly so the test isn't
-      routing through the app's own call graph.
+    - a waypoint fronts productpage on east - cross-cluster ambient HBONE calls to a mesh.internal hostname currently only succeed when the destination is waypoint-fronted (see project-kgateway-ingress-failover-tls-bug memory: direct, non-waypoint cross-cluster calls hit an intermittent TLS failure in this environment). West's own productpage stays waypoint-less since same-cluster calls never leave via HBONE east-west.
+    - ratings-v1 (an unrelated caller, present on both clusters) calls productpage.bookinfo.mesh.internal directly so the test isn't routing through the app's own call graph.
 spec:
   diagram: |
     flowchart LR

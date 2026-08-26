@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: circuit-breaker
-  description: >
-    Protect httpbin from overload by capping concurrent connections and
-    pending requests via a waypoint-enforced DestinationRule connection pool.
+  description: Protect httpbin from overload by capping concurrent connections and pending requests via a waypoint-enforced DestinationRule connection pool.
 spec:
   requires:
     applications:
@@ -52,9 +50,7 @@ spec:
             contains: '200'
 
     - name: concurrent-requests-trip-breaker
-      description: >-
-        Firing several concurrent requests overflows the connection pool and
-        trips the breaker (503, UO in the access log)
+      description: Firing several concurrent requests overflows the connection pool and trips the breaker (503, UO in the access log)
       steps:
         - action: exec
           command: >-

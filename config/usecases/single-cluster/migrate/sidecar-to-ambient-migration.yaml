@@ -2,12 +2,8 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: sidecar-to-ambient-migration
-  description: >
-    Guided migration of a namespace from classic Istio sidecar mode to ambient
-    mode: gloo ambient migrate for before/after assessment, enable-ambient to
-    upgrade the control plane in place, and this framework's own
-    sidecar-cutover for the actual switch. Run on a cluster installed with the
-    eks-single-cluster-mesh-sidecar profile.
+  description: |
+    Guided migration of a namespace from classic Istio sidecar mode to ambient mode: gloo ambient migrate for before/after assessment, enable-ambient to upgrade the control plane in place, and this framework's own sidecar-cutover for the actual switch. Run on a cluster installed with the eks-single-cluster-mesh-sidecar profile.
 spec:
   requires:
     applications:
@@ -22,7 +18,7 @@ spec:
         strict: false
 
     - name: enable-ambient
-      description: Upgrade the control plane in place to ambient-capable (Phase 2) — existing sidecar workloads keep running via interop
+      description: Upgrade the control plane in place to ambient-capable (Phase 2) - existing sidecar workloads keep running via interop
       config:
         istioVersion: 1.30.3
         istioRevision: stable # must match eks-single-cluster-mesh-sidecar's mesh.istioRevision

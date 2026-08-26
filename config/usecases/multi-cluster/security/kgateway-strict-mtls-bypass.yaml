@@ -3,25 +3,10 @@ kind: UseCase
 metadata:
   name: kgateway-strict-mtls-bypass
   description: |
-    Demonstrate the ambient.istio.io/bypass-inbound-capture annotation, which
-    lets a kgateway ingress gateway accept external (non-mesh) client traffic
-    even when a PeerAuthentication requires STRICT mTLS.
-    - Without the bypass, ztunnel captures inbound connections to the
-      gateway pod too, so once mTLS is STRICT it rejects external clients
-      that have no mesh identity ("explicitly denied by ... istio_converted_static_strict")
-    - The kgateway addon (ambientEnabled: true) now applies this bypass by
-      default for every Gateway it creates, via an EnterpriseKgatewayParameters
-      resource (spec.kube.podTemplate.extraAnnotations) referenced from the
-      Gateway's spec.infrastructure.parametersRef - the only mechanism that
-      actually reaches the gateway pod (spec.infrastructure.annotations looks
-      equivalent but is not propagated to the pod by kgateway at all; that was
-      the addon's original, silently broken approach - see the memory note on
-      this addon gap for how it was found and fixed).
-    - Since the bypass is on by default, the "without bypass" test below
-      temporarily removes the addon's own parametersRef to show what would
-      happen without it, then restores it - it does not delete or own that
-      resource, since it's the addon's persistent configuration, not a
-      per-usecase toggle.
+    Demonstrate the ambient.istio.io/bypass-inbound-capture annotation, which lets a kgateway ingress gateway accept external (non-mesh) client traffic even when a PeerAuthentication requires STRICT mTLS.
+    - Without the bypass, ztunnel captures inbound connections to the gateway pod too, so once mTLS is STRICT it rejects external clients that have no mesh identity ("explicitly denied by ... istio_converted_static_strict")
+    - The kgateway addon (ambientEnabled: true) now applies this bypass by default for every Gateway it creates, via an EnterpriseKgatewayParameters resource (spec.kube.podTemplate.extraAnnotations) referenced from the Gateway's spec.infrastructure.parametersRef - the only mechanism that actually reaches the gateway pod (spec.infrastructure.annotations looks equivalent but is not propagated to the pod by kgateway at all; that was the addon's original, silently broken approach - see the memory note on this addon gap for how it was found and fixed).
+    - Since the bypass is on by default, the "without bypass" test below temporarily removes the addon's own parametersRef to show what would happen without it, then restores it - it does not delete or own that resource, since it's the addon's persistent configuration, not a per-usecase toggle.
     - See https://docs.solo.io/kgateway/2.3.x/integrations/istio/ambient/additional-settings/#strict-mode
 spec:
   diagram: |

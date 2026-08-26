@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: mesh-observability
-  description: >
-    Inspect ztunnel and istiod metrics for mesh-wide observability of L4
-    traffic and control plane health.
+  description: Inspect ztunnel and istiod metrics for mesh-wide observability of L4 traffic and control plane health.
 spec:
   requires:
     applications:

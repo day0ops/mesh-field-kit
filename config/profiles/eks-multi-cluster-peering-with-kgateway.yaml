@@ -3,10 +3,10 @@ kind: Profile
 metadata:
   name: eks-multi-cluster-peering-with-kgateway
   description: |
-    Multicluster ambient mesh with helm-based peering
-    - kgateway enabled
-    - Cilium addon enabled
-    - SPIRE addon enabled
+    Multicluster ambient mesh (helm peering) with kgateway as the ingress controller. Also Keycloak-backed OIDC for Grafana and Solo UI.
+    Global: cilium, cert-manager.
+    East: SPIRE, external-dns, keycloak, telemetry gateway, solo-ui (mgmt), kgateway.
+    West: SPIRE, solo-ui relay.
 
 spec:
   infra: eks-multi-cluster
@@ -134,6 +134,7 @@ spec:
               provider: route53
               domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
               region: '{{env.aws.region}}'
+              txtOwnerId: '{{env.dns.txtOwnerId}}'
 
           - name: keycloak
             description: Keycloak OIDC Identity Provider

@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: header-based-routing
-  description: >
-    Route traffic to different service versions based on HTTP headers, via
-    a waypoint.
+  description: Route traffic to different service versions based on HTTP headers, via a waypoint.
 spec:
   requires:
     applications:

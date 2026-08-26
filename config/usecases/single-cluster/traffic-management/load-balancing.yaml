@@ -2,11 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: load-balancing
-  description: >
-    Explicit L7 load balancing via a DestinationRule, contrasted with the
-    automatic L4 round-robin ztunnel already does with no config. Session
-    affinity by request header is an L7-only capability that requires
-    routing through a waypoint.
+  description: Explicit L7 load balancing via a DestinationRule, contrasted with the automatic L4 round-robin ztunnel already does with no config. Session affinity by request header is an L7-only capability that requires routing through a waypoint.
 spec:
   requires:
     applications:

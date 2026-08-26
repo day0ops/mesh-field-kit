@@ -83,14 +83,14 @@ Profiles reference an infra profile via `spec.infra` and an environment via `spe
 
 | Profile                                        | Description                                                                                        |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `eks-single-cluster-mesh-with-cilium`          | Single-cluster ambient mesh with Cilium CNI chaining                                               |
-| `eks-single-cluster-mesh-with-calico`          | Single-cluster ambient mesh with Calico                                                            |
+| `eks-single-cluster-mesh-with-cilium`          | Single-cluster ambient mesh with Cilium CNI chaining, plus the telemetry stack                     |
+| `eks-single-cluster-mesh-with-calico`          | Single-cluster ambient mesh with Calico CNI chaining (Tigera operator install)                     |
 | `eks-single-cluster-mesh-with-spire`           | Single-cluster ambient mesh with SPIRE workload identity attestation                               |
 | `eks-single-cluster-mesh-with-crl`             | Single-cluster ambient mesh with a plugged-in CA and certificate revocation list (CRL) enforcement |
 | `eks-single-cluster-mesh-sidecar`              | Single-cluster classic sidecar mesh (no ambient components)                                        |
-| `eks-multi-cluster-peering-with-istio-ingress` | Multi-cluster ambient mesh, helm-based peering, Istio ingress                                      |
-| `eks-multi-cluster-peering-with-kgateway`      | Multi-cluster ambient mesh, helm-based peering, kgateway ingress                                   |
-| `eks-multi-cluster-auto-peering-operator`      | Multi-cluster ambient mesh, operator-managed auto-peering, kgateway ingress                        |
+| `eks-multi-cluster-peering-with-istio-ingress` | Multi-cluster ambient mesh, helm-based peering, Istio's built-in ingress gateway                   |
+| `eks-multi-cluster-peering-with-kgateway`      | Multi-cluster ambient mesh, helm-based peering, kgateway ingress, Keycloak OIDC                    |
+| `eks-multi-cluster-auto-peering-operator`      | Multi-cluster ambient mesh installed and peered via the Solo operator, kgateway ingress            |
 
 ## Step-by-Step Workflow
 

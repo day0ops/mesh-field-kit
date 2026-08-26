@@ -3,9 +3,10 @@ kind: Profile
 metadata:
   name: eks-multi-cluster-peering-with-istio-ingress
   description: |
-    Multicluster ambient mesh with helm-based peering
-    - Istio ingress enabled
-    - Cilium addon enabled
+    Multicluster ambient mesh (helm peering) using Istio's built-in ingress gateway instead of kgateway.
+    Global: cilium, cert-manager.
+    East: SPIRE, external-dns, telemetry gateway, solo-ui (mgmt), istio ingress gateway.
+    West: SPIRE, solo-ui relay.
 
 spec:
   infra: eks-multi-cluster
@@ -148,6 +149,7 @@ spec:
               provider: route53
               domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
               region: '{{env.aws.region}}'
+              txtOwnerId: '{{env.dns.txtOwnerId}}'
 
           - name: telemetry
             description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)

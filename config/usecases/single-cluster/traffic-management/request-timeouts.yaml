@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: request-timeouts
-  description: >
-    Cap how long a client waits for a response using an HTTPRoute request
-    timeout enforced by a waypoint proxy.
+  description: Cap how long a client waits for a response using an HTTPRoute request timeout enforced by a waypoint proxy.
 spec:
   requires:
     applications:

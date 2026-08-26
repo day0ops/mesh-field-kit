@@ -3,14 +3,9 @@ kind: UseCase
 metadata:
   name: distributed-tracing
   description: |
-    Distributed tracing for Bookinfo's productpage -> reviews -> ratings call
-    chain, using the Telemetry API to register an OpenTelemetry provider and
-    activate 100% sampling.
-    - Requires the telemetry addon already installed (Tempo + Loki + Grafana +
-      OTel collectors) - this usecase only wires istiod to the existing
-      traces collector, it doesn't install one itself
-    - Explore traces in Grafana via the pre-wired Tempo datasource, or query
-      Tempo directly through its query-frontend service
+    Distributed tracing for Bookinfo's productpage -> reviews -> ratings call chain, using the Telemetry API to register an OpenTelemetry provider and activate 100% sampling.
+    - Requires the telemetry addon already installed (Tempo + Loki + Grafana + OTel collectors) - this usecase only wires istiod to the existing traces collector, it doesn't install one itself
+    - Explore traces in Grafana via the pre-wired Tempo datasource, or query Tempo directly through its query-frontend service
 
 spec:
   requires:

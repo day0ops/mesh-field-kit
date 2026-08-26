@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: auto-waypoint
-  description: >
-    Automatic waypoint deployment via the istio.io/use-waypoint=auto label -
-    istiod creates and owns the waypoint proxy for labeled namespaces itself.
+  description: Automatic waypoint deployment via the istio.io/use-waypoint=auto label - istiod creates and owns the waypoint proxy for labeled namespaces itself.
 spec:
   requires:
     applications:

@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: outlier-detection
-  description: >
-    Passively eject an unhealthy endpoint from the load-balancing pool after
-    consecutive 5xx errors, via a waypoint-enforced DestinationRule.
+  description: Passively eject an unhealthy endpoint from the load-balancing pool after consecutive 5xx errors, via a waypoint-enforced DestinationRule.
 spec:
   requires:
     applications:
@@ -48,10 +46,7 @@ spec:
 
   tests:
     - name: endpoint-ejected-after-failures
-      description: >-
-        First requests surface the injected 500, then the single endpoint is
-        ejected and subsequent requests fail fast with 503 (no healthy
-        upstream) instead of reaching the backend
+      description: First requests surface the injected 500, then the single endpoint is ejected and subsequent requests fail fast with 503 (no healthy upstream) instead of reaching the backend
       steps:
         - action: exec
           command: >-

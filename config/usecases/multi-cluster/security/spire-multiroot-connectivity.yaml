@@ -3,15 +3,9 @@ kind: UseCase
 metadata:
   name: spire-multiroot-connectivity
   description: |
-    Validate cross-cluster mTLS when SPIRE keeps its own independent root instead of
-    sharing istiod's cacerts root (spire.multiRoot: true). SPIRE's root and istiod's
-    cacerts root are bidirectionally federated (each trusts the other) rather than
-    generated from one common root. Requires the
-    eks-multi-cluster-peering-with-kgateway-spire-multiroot profile.
+    Validate cross-cluster mTLS when SPIRE keeps its own independent root instead of sharing istiod's cacerts root (spire.multiRoot: true). SPIRE's root and istiod's cacerts root are bidirectionally federated (each trusts the other) rather than generated from one common root. Requires the eks-multi-cluster-peering-with-kgateway-spire-multi-root-ca profile.
     - kgateway exposes productpage on east (basic ingress smoke test)
-    - ratings-v1 (SPIRE-issued identity) on east calls reviews on west directly,
-      forced across the east-west gateway (istiod-cacerts-issued identity) by
-      scaling east's local reviews replicas to 0
+    - ratings-v1 (SPIRE-issued identity) on east calls reviews on west directly, forced across the east-west gateway (istiod-cacerts-issued identity) by scaling east's local reviews replicas to 0
 
 spec:
   diagram: |
@@ -105,13 +99,7 @@ spec:
             statusCode: 200
 
     - name: cross-cluster-reviews-via-spire-identity
-      description: >-
-        A SPIRE-issued workload on east (ratings-v1, curl-capable unlike
-        productpage-v1) reaches reviews on west over the east-west gateway
-        (istiod-cacerts-issued identity). East's local reviews replicas are
-        scaled to 0 first so the request has no local fallback and must cross
-        the gateway - the definitive proof that SPIRE's independent root and
-        istiod's cacerts root trust each other.
+      description: A SPIRE-issued workload on east (ratings-v1, curl-capable unlike productpage-v1) reaches reviews on west over the east-west gateway (istiod-cacerts-issued identity). East's local reviews replicas are scaled to 0 first so the request has no local fallback and must cross the gateway - the definitive proof that SPIRE's independent root and istiod's cacerts root trust each other.
       clusters:
         - name: east
       setup:

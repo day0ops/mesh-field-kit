@@ -2,10 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: vm-integration
-  description: |
-    Onboard a plain VM's workload into the ambient mesh using the
-    multi-workload istioctl vm add-workload path (each workload gets its
-    own SPIFFE identity), then verify cluster -> VM connectivity.
+  description: Onboard a plain VM's workload into the ambient mesh using the multi-workload istioctl vm add-workload path (each workload gets its own SPIFFE identity), then verify cluster -> VM connectivity.
 spec:
   diagram: |
     flowchart LR
