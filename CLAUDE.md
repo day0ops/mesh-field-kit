@@ -94,6 +94,10 @@ Each feature directory contains `index.js` (the Feature subclass) and optionally
 2. Add static YAML templates to `features/<category>/<feature-name>/config/` if needed.
 3. Register in `features/index.js` via `FeatureManager.register('<name>', FeatureClass)`.
 
+### Keep runbooks in sync
+
+Each addon's `runbook.js` sidecar (next to `index.js`) hand-reconstructs its install/cleanup commands rather than executing the real code, so it silently drifts if not updated alongside the addon. When adding or changing an addon or feature's install steps, add/update its `runbook.js`/`buildRunbook()` in the same change.
+
 ### Adding a new use case
 
 Create `config/usecases/<single-cluster|multi-cluster>/<category>/<use-case-name>.yaml` with:

@@ -64,3 +64,59 @@ test('AddonAdapter.generate includes Lab heading and sub-lab headings', async ()
   expect(md).toContain('### Lab 3.1');
   expect(md).toContain('nonexistent-xyz');
 });
+
+test('AddonAdapter._iterateAddons expands global addons per cluster when infraProfile present', async () => {
+  const adapter = new AddonAdapter();
+  const selection = {
+    profile: { spec: { addons: { global: [{ name: 'cilium' }], clusters: [] } } },
+    infraProfile: { spec: { clusters: [{ name: 'east' }, { name: 'west' }] } },
+    environment: { spec: {} },
+  };
+  const addons = await adapter._iterateAddons(selection);
+  const names = addons.map(a => `${a.addon.name}@${a.clusterName}`);
+  expect(names).toEqual(['cilium@east', 'cilium@west']);
+});
+
+test('AddonAdapter.generatePreambles collects spire distinctRoots preamble', async () => {
+  const adapter = new AddonAdapter();
+  const selection = {
+    profile: {
+      spec: {
+        addons: {
+          global: [],
+          clusters: [
+            { name: 'east', addons: [{ name: 'spire', config: { distinctRoots: true } }] },
+            { name: 'west', addons: [{ name: 'spire', config: { distinctRoots: true } }] },
+          ],
+        },
+      },
+    },
+    environment: { spec: {} },
+  };
+  const preambles = await adapter.generatePreambles(selection);
+  expect(preambles).toHaveLength(1);
+  expect(preambles[0]).toContain('Generate independent SPIRE roots');
+  // No markdown heading — it's a plain paragraph
+  expect(preambles[0].startsWith('#')).toBe(false);
+});
+
+test('AddonAdapter.generateCleanupSections lists addons in reverse order', async () => {
+  const adapter = new AddonAdapter();
+  const selection = {
+    profile: {
+      spec: {
+        addons: {
+          global: [{ name: 'cilium' }],
+          clusters: [{ name: 'east', addons: [{ name: 'cert-manager' }] }],
+        },
+      },
+    },
+    infraProfile: { spec: { clusters: [{ name: 'east' }] } },
+    environment: { spec: {} },
+  };
+  const sections = await adapter.generateCleanupSections(9, selection, 1);
+  expect(sections).toHaveLength(1);
+  expect(sections[0]).toContain('### Lab 9.1 — Uninstall Addons');
+  // cert-manager (per-cluster) appears before cilium (global) after reversing
+  expect(sections[0].indexOf('cert-manager')).toBeLessThan(sections[0].indexOf('cilium'));
+});

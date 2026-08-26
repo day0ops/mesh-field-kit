@@ -31,6 +31,8 @@ spec:
                 ISTIO_META_DNS_CAPTURE: 'true'
           env:
             PILOT_ENABLE_IP_AUTOALLOCATE: 'true'
+            # scopes ambient Address push updates to affected waypoints only, skipping sidecar/gateway proxies entirely (true)
+            AMBIENT_SCOPED_ADDRESS_PUSHES: 'true'
           pilot:
             cni:
               namespace: istio-system

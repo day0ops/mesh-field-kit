@@ -1,0 +1,138 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: spire-multiroot-connectivity
+  description: |
+    Validate cross-cluster mTLS when SPIRE keeps its own independent root instead of
+    sharing istiod's cacerts root (spire.multiRoot: true). SPIRE's root and istiod's
+    cacerts root are bidirectionally federated (each trusts the other) rather than
+    generated from one common root. Requires the
+    eks-multi-cluster-peering-with-kgateway-spire-multiroot profile.
+    - kgateway exposes productpage on east (basic ingress smoke test)
+    - ratings-v1 (SPIRE-issued identity) on east calls reviews on west directly,
+      forced across the east-west gateway (istiod-cacerts-issued identity) by
+      scaling east's local reviews replicas to 0
+
+spec:
+  diagram: |
+    flowchart LR
+      Client -->|HTTP| KGW[kgateway\nkgateway-system/east]
+      KGW -->|HTTPRoute| PP[productpage\nbookinfo/east]
+      RT[ratings-v1\nbookinfo/east] -->|reviews.bookinfo.mesh.internal| ZTe[ztunnel east]
+      ZTe -->|HBONE/mTLS, SPIRE root <-> cacerts root| EWG[east-west gw]
+      EWG --> ZTw[ztunnel west]
+      ZTw --> R[reviews west]
+
+  infra: eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: west
+          - name: east
+
+  features:
+    - name: global-service
+      description: Make reviews reachable across clusters via mesh.internal
+      config:
+        namespace: bookinfo
+        services:
+          - name: reviews
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: Any
+      clusters:
+        - name: west
+        - name: east
+
+    - name: ingress-httproute
+      description: Route external traffic to productpage via kgateway
+      config:
+        gatewayName: bookinfo-gateway
+        gatewayNamespace: kgateway-system
+        namespace: bookinfo
+        hostname: '{{env.domains.app}}'
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: productpage
+                port: 9080
+      clusters:
+        - name: east
+
+  tests:
+    - name: global-service-entries-exist
+      description: Verify the global ServiceEntry for reviews is created on both clusters
+      steps:
+        - action: exec
+          clusters:
+            - name: west
+          command: kubectl get serviceentry -n istio-system -o jsonpath='{.items[*].spec.hosts[*]}'
+          timeout: 20s
+        - action: verify
+          expect:
+            contains:
+              - reviews.bookinfo.mesh.internal
+        - action: exec
+          clusters:
+            - name: east
+          command: kubectl get serviceentry -n istio-system -o jsonpath='{.items[*].spec.hosts[*]}'
+          timeout: 20s
+        - action: verify
+          expect:
+            contains:
+              - reviews.bookinfo.mesh.internal
+
+    - name: productpage-accessible-via-kgateway
+      description: Verify productpage is reachable through the kgateway ingress on east
+      clusters:
+        - name: east
+      steps:
+        - action: send-request
+          hostname: '{{env.domains.app}}'
+          autoDetectGwAddress: true
+          path: /productpage
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            statusCode: 200
+
+    - name: cross-cluster-reviews-via-spire-identity
+      description: >-
+        A SPIRE-issued workload on east (ratings-v1, curl-capable unlike
+        productpage-v1) reaches reviews on west over the east-west gateway
+        (istiod-cacerts-issued identity). East's local reviews replicas are
+        scaled to 0 first so the request has no local fallback and must cross
+        the gateway - the definitive proof that SPIRE's independent root and
+        istiod's cacerts root trust each other.
+      clusters:
+        - name: east
+      setup:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 reviews-v2 reviews-v3 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 reviews-v2 reviews-v3 -n bookinfo --replicas=1
+          timeout: 60s
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec -n bookinfo deploy/ratings-v1 --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://reviews.bookinfo.mesh.internal:9080/reviews/1
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: '200'

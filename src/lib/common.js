@@ -770,10 +770,25 @@ export class KubernetesHelper {
     throw new Error('Timeout waiting for LoadBalancer address');
   }
 
+  /**
+   * Check whether the current (or given) kube context can reach the API server.
+   * Bounds both kubectl's own request and the child process itself, so an unreachable
+   * API server (dead VPN, stale kubeconfig, dropped packets) fails fast instead of hanging
+   * indefinitely with no output.
+   */
   static async isClusterAccessible(contextFlag = '') {
-    const args = contextFlag ? [contextFlag, 'cluster-info'] : ['cluster-info'];
-    const result = await this.kubectl(args, { ignoreError: true });
-    return result?.exitCode === 0;
+    const args = contextFlag
+      ? [contextFlag, 'cluster-info', '--request-timeout=10s']
+      : ['cluster-info', '--request-timeout=10s'];
+    const spinner = new SpinnerLogger().start('Checking cluster accessibility...');
+    const result = await this.kubectl(args, { ignoreError: true, timeout: 15000 });
+    const accessible = result?.exitCode === 0;
+    if (accessible) {
+      spinner.stop();
+    } else {
+      spinner.fail('Cluster is not accessible');
+    }
+    return accessible;
   }
 
   /**

@@ -62,7 +62,6 @@ function buildBaseValues(componentName, { istioRepo, istioTag, meshProfile, ns }
           proxy: { clusterDomain: 'cluster.local' },
         },
         profile: meshProfile,
-        license: { value: '$ENTERPRISE_ISTIO_LICENSE' },
       };
     case 'cni':
       return {
@@ -101,6 +100,34 @@ export class InstallAdapter {
     return [];
   }
 
+  // Cert/trust material must exist before ANY cluster installs anything (addons included) —
+  // mirrors installer.js's real order: CertificateManager + SpireRootManager run once, globally,
+  // before the per-cluster addon/istio install loop even starts. This is what lets SPIRE's addon
+  // (a pre-phase addon, installed before istiod) fold istiod's cacerts root into its own bundle
+  // at first-mint time instead of needing to federate an already-published bundle after the fact
+  // (confirmed empirically: SPIRE's BundlePublisher does not republish a later bundle.crt update).
+  generateCertSetup(labNum, selection, extraSections = []) {
+    const { profile, infraProfile } = selection;
+    const mesh = profile.spec?.mesh || {};
+    const clusters = infraProfile.spec?.clusters || [];
+    const isMultiCluster = clusters.length > 1;
+    const certMode = mesh.certificates?.mode || 'self-signed';
+
+    const sections = [];
+    if (isMultiCluster) {
+      sections.push(this._certSection(certMode, clusters, 'istio-system'));
+    }
+    sections.push(...extraSections);
+
+    if (sections.length === 0) return '';
+
+    return `## Lab ${labNum} — Cluster Bootstrap
+
+Set up shared trust material before installing any addon or mesh component.
+
+${sections.join('\n\n')}`;
+  }
+
   generate(labNum, selection) {
     const { profile, infraProfile } = selection;
     const mesh = profile.spec?.mesh || {};
@@ -114,7 +141,6 @@ export class InstallAdapter {
     const istioTag = mesh.image?.tag || (istioVersion ? `${istioVersion}-solo` : '');
     const gatewayApiVersion = mesh.gatewayApiVersion || 'v1.5.0';
     const meshProfile = mesh.profile || 'ambient';
-    const certMode = mesh.certificates?.mode || 'self-signed';
     const peeringMethod = mesh.peering || 'helm';
 
     const cfg = { istioRepo, helmIstioRepo, istioTag, meshProfile, ns };
@@ -132,11 +158,6 @@ export class InstallAdapter {
 \`\`\`bash
 kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${gatewayApiVersion}/standard-install.yaml
 \`\`\``);
-
-    // ── Certificate setup (multicluster) ────────────────────────────────────
-    if (isMultiCluster) {
-      sections.push(this._certSection(certMode, clusters, ns));
-    }
 
     // ── Per-cluster install ──────────────────────────────────────────────────
     for (const cluster of clusters) {
@@ -311,13 +332,19 @@ rm /tmp/ambient-root-ca-key.pem /tmp/ambient-root-ca-cert.pem
         .map(l => `  ${l}`)
         .join('\n');
 
+      // License is a secret — pass it as a --set-string flag (always shell-expanded) rather
+      // than embedding it in the piped values file (wrapped in a quoted heredoc, so a $VAR
+      // reference there would never expand).
+      const licenseFlag =
+        comp.name === 'istiod' ? '  --set-string license.value=$ENTERPRISE_ISTIO_LICENSE \\\n' : '';
+
       return `# ${comp.name}
 helm upgrade --install ${release} oci://${helmIstioRepo}/${chart} \\
   --kube-context=${ctx} \\
   --namespace ${compNs} \\
   --create-namespace \\
   --version ${istioTag} \\
-  --wait \\
+${licenseFlag}  --wait \\
   --timeout 10m \\
   -f - <<'EOF'
 ${valuesYaml}
@@ -454,5 +481,66 @@ ${clusters
 
   cleanup(_selection) {
     return '';
+  }
+
+  generateCleanupSections(labNum, selection, startIndex) {
+    const { profile, infraProfile } = selection;
+    const mesh = profile.spec?.mesh || {};
+    const clusters = infraProfile.spec?.clusters || [];
+    if (clusters.length === 0) return [];
+
+    const isMultiCluster = clusters.length > 1;
+    const peeringMethod = mesh.peering || 'helm';
+    const rawComponents = (mesh.components || []).map(c =>
+      typeof c === 'string' ? { name: c } : { name: c.name }
+    );
+    const installable = rawComponents.filter(c => !DEFERRED.has(c.name) && CHART_MAP[c.name]);
+    const usesEastwestNamespace = isMultiCluster || installable.some(c => NAMESPACE_MAP[c.name]);
+
+    const lines = [];
+
+    if (isMultiCluster) {
+      lines.push('Unlink clusters first:');
+      lines.push('');
+      lines.push('```bash');
+      if (peeringMethod === 'helm') {
+        for (const cluster of clusters) {
+          const ctx = `$${cluster.name.toUpperCase()}_CONTEXT`;
+          lines.push(`helm uninstall peering-remote --kube-context=${ctx} -n istio-eastwest`);
+        }
+      } else {
+        for (const cluster of clusters) {
+          const ctx = `--context=$${cluster.name.toUpperCase()}_CONTEXT`;
+          lines.push(`kubectl ${ctx} delete namespace istio-eastwest --ignore-not-found=true`);
+        }
+      }
+      lines.push('```');
+      lines.push('');
+    }
+
+    lines.push('Uninstall Istio components on each cluster (reverse of install order):');
+    lines.push('');
+    for (const cluster of clusters) {
+      const ctx = `$${cluster.name.toUpperCase()}_CONTEXT`;
+      lines.push(`**Uninstall on \`${cluster.name}\`**`);
+      lines.push('');
+      lines.push('```bash');
+      for (const comp of [...installable].reverse()) {
+        const release = RELEASE_NAME_MAP[comp.name];
+        const compNs = NAMESPACE_MAP[comp.name] || 'istio-system';
+        lines.push(`helm uninstall ${release} --kube-context=${ctx} -n ${compNs}`);
+      }
+      lines.push(`kubectl --context=${ctx} delete namespace istio-system --ignore-not-found=true`);
+      if (usesEastwestNamespace) {
+        lines.push(
+          `kubectl --context=${ctx} delete namespace istio-eastwest --ignore-not-found=true`
+        );
+      }
+      lines.push('```');
+      lines.push('');
+    }
+
+    const heading = `### Lab ${labNum}.${startIndex} — Uninstall ${ConfigResolver.meshModeLabel(installable.map(c => c.name))}`;
+    return [`${heading}\n\n${lines.join('\n').trimEnd()}`];
   }
 }

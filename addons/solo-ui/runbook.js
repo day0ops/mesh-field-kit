@@ -45,6 +45,7 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, env) 
 function _generateManagement(addonCfg, clusterName, env) {
   const addon = addonSettings(addonCfg);
   const ns = addon.namespace || 'solo-enterprise';
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   const hostname = tpl(addon.hostname, env.spec.domains?.soloUI) || 'soloui.example.com';
   const oidc = addon.oidc || {};
   const storageClass = addon.clickhouse?.persistentVolume?.storageClass || 'gp3';
@@ -69,11 +70,11 @@ function _generateManagement(addonCfg, clusterName, env) {
 Create OIDC backend client secret:
 
 \`\`\`bash
-kubectl create secret generic ui-backend-oidc-secret \\
+kubectl --context=${ctx} create secret generic ui-backend-oidc-secret \\
   --from-literal=clientSecret="${oidc.backendClientSecret || ''}" \\
   --namespace ${ns} \\
   --dry-run=client -o yaml \\
-  | kubectl apply -f -
+  | kubectl --context=${ctx} apply -f -
 \`\`\`
 `
     : '';
@@ -92,6 +93,7 @@ kubectl create secret generic ui-backend-oidc-secret \\
 
   const helmArgs = [
     `  ${mgmtChartOci}`,
+    `  --kube-context=${ctx}`,
     `  --namespace ${ns}`,
     `  --create-namespace`,
     `  --version $SOLO_UI_VERSION`,
@@ -120,7 +122,7 @@ kubectl create secret generic ui-backend-oidc-secret \\
 Apply HTTPS resources (Certificate, Gateway, HTTPRoute):
 
 \`\`\`bash
-kubectl apply -f - <<EOF
+kubectl --context=${ctx} apply -f - <<EOF
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -135,7 +137,7 @@ spec:
     - ${hostname}
 EOF
 
-kubectl apply -f - <<EOF
+kubectl --context=${ctx} apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -158,7 +160,7 @@ spec:
           from: All
 EOF
 
-kubectl apply -f - <<EOF
+kubectl --context=${ctx} apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -189,14 +191,15 @@ EOF
 Label namespace for Ambient mesh:
 
 \`\`\`bash
-kubectl create namespace ${ns} --dry-run=client -o yaml | kubectl apply -f -
-kubectl label namespace ${ns} istio.io/dataplane-mode=ambient --overwrite
+kubectl --context=${ctx} create namespace ${ns} --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
+kubectl --context=${ctx} label namespace ${ns} istio.io/dataplane-mode=ambient --overwrite
 \`\`\`
 ${oidcSecretBlock}
 Install management CRDs chart:
 
 \`\`\`bash
 helm upgrade --install solo-ui-crds ${crdsChartOci} \\
+  --kube-context=${ctx} \\
   --namespace ${ns} \\
   --version $SOLO_UI_VERSION \\
   --create-namespace \\
@@ -215,6 +218,7 @@ ${httpsBlock}`;
 function _generateRelay(addonCfg, clusterName, _env) {
   const addon = addonSettings(addonCfg);
   const ns = addon.namespace || 'solo-enterprise';
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   const tunnel = addon.tunnel || {};
   const telemetry = addon.telemetry || {};
 
@@ -226,12 +230,13 @@ function _generateRelay(addonCfg, clusterName, _env) {
 Label namespace for Ambient mesh:
 
 \`\`\`bash
-kubectl create namespace ${ns} --dry-run=client -o yaml | kubectl apply -f -
-kubectl label namespace ${ns} istio.io/dataplane-mode=ambient --overwrite
+kubectl --context=${ctx} create namespace ${ns} --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
+kubectl --context=${ctx} label namespace ${ns} istio.io/dataplane-mode=ambient --overwrite
 \`\`\`
 
 \`\`\`bash
 helm upgrade --install solo-relay ${relayChartOci} \\
+  --kube-context=${ctx} \\
   --namespace ${ns} \\
   --create-namespace \\
   --version $SOLO_UI_VERSION \\
@@ -244,11 +249,12 @@ helm upgrade --install solo-relay ${relayChartOci} \\
 \`\`\``;
 }
 
-export function cleanup(addonCfg, _clusterName) {
+export function cleanup(addonCfg, clusterName) {
   const ns = addonCfg.namespace || 'solo-enterprise';
   const mode = addonCfg.mode || 'management';
   const releases = mode === 'relay' ? 'solo-relay' : 'solo-ui solo-ui-crds';
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   return `\`\`\`bash
-helm uninstall ${releases} -n ${ns}
+helm uninstall ${releases} -n ${ns} --kube-context=${ctx}
 \`\`\``;
 }

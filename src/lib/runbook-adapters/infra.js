@@ -238,4 +238,11 @@ cd terraform-cloud-provisioner
 terraform -chdir=${envDir} destroy -var-file=${envDir}/terraform.tfvars
 \`\`\``;
   }
+
+  generateCleanupSections(labNum, selection, startIndex) {
+    const heading = `### Lab ${labNum}.${startIndex} — Destroy Infrastructure`;
+    const note =
+      '> Skip this step if you did not provision infrastructure via **Infrastructure Provisioning** — e.g. you used pre-existing clusters.';
+    return [`${heading}\n\n${note}\n\n${this.cleanup(selection)}`];
+  }
 }

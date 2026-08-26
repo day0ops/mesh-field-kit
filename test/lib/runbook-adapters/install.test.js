@@ -106,10 +106,13 @@ test('InstallAdapter.generate uses OCI helm repo from profile', () => {
   expect(md).toContain('1.30.0-solo');
 });
 
-test('InstallAdapter.generate includes ENTERPRISE_ISTIO_LICENSE in istiod values', () => {
+test('InstallAdapter.generate passes the license as a --set-string flag, not inside the single-quoted heredoc', () => {
   const adapter = new InstallAdapter();
   const md = adapter.generate(4, singleClusterSelection);
-  expect(md).toContain('ENTERPRISE_ISTIO_LICENSE');
+  // A $VAR reference inside `-f - <<'EOF' ... EOF` never gets shell-expanded — it must be
+  // passed as a separate --set-string flag instead.
+  expect(md).toContain('--set-string license.value=$ENTERPRISE_ISTIO_LICENSE');
+  expect(md).not.toContain('license:');
 });
 
 test('InstallAdapter.generate resolves {{cluster.name}} templates', () => {
@@ -126,12 +129,32 @@ test('InstallAdapter.generate labels namespace with network topology', () => {
   expect(md).toContain('topology.istio.io/network=east');
 });
 
-test('InstallAdapter.generate includes cert setup for multicluster', () => {
+test('InstallAdapter.generateCertSetup emits Cluster Bootstrap cert setup for multicluster', () => {
   const adapter = new InstallAdapter();
-  const md = adapter.generate(4, multiClusterSelection);
+  const md = adapter.generateCertSetup(5, multiClusterSelection);
+  expect(md).toContain('## Lab 5 — Cluster Bootstrap');
   expect(md).toContain('Root CA');
   expect(md).toContain('cacerts');
   expect(md).toContain('Intermediate CA');
+});
+
+test('InstallAdapter.generateCertSetup appends extra preamble sections', () => {
+  const adapter = new InstallAdapter();
+  const md = adapter.generateCertSetup(5, multiClusterSelection, [
+    '**Generate independent SPIRE roots**',
+  ]);
+  expect(md).toContain('**Generate independent SPIRE roots**');
+});
+
+test('InstallAdapter.generateCertSetup is empty for single cluster with no preambles', () => {
+  const adapter = new InstallAdapter();
+  expect(adapter.generateCertSetup(5, singleClusterSelection)).toBe('');
+});
+
+test('InstallAdapter.generate no longer inlines cert setup (moved to Cluster Bootstrap)', () => {
+  const adapter = new InstallAdapter();
+  const md = adapter.generate(7, multiClusterSelection);
+  expect(md).not.toContain('Set Up Shared Root of Trust');
 });
 
 test('InstallAdapter.generate installs on both clusters in multicluster', () => {
@@ -147,6 +170,20 @@ test('InstallAdapter.generate includes cluster linking for multicluster', () => 
   // helm peering method — should show peering-remote install
   expect(md).toContain('Link Clusters');
   expect(md).toContain('peering-remote');
+});
+
+test('InstallAdapter.generateCleanupSections uninstalls components in reverse per cluster', () => {
+  const adapter = new InstallAdapter();
+  const sections = adapter.generateCleanupSections(9, multiClusterSelection, 1);
+  expect(sections).toHaveLength(1);
+  const md = sections[0];
+  expect(md).toContain('### Lab 9.1 — Uninstall');
+  expect(md).toContain('helm uninstall ztunnel --kube-context=$EAST_CONTEXT');
+  expect(md).toContain('helm uninstall peering-remote --kube-context=$EAST_CONTEXT');
+  // reverse order: ztunnel uninstalled before istio-base
+  expect(md.indexOf('helm uninstall ztunnel')).toBeLessThan(
+    md.indexOf('helm uninstall istio-base')
+  );
 });
 
 test('InstallAdapter envVars returns empty array', () => {

@@ -99,6 +99,7 @@ async function _generateGateway(addonCfg, clusterName, env) {
 
   const cfg = addonCfg.config || {};
   const ns = addonCfg.namespace || 'telemetry';
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   const soloUiNs = cfg.soloUiNamespace || 'solo-enterprise';
   const storageClass = cfg.storageClass || 'standard';
   const storageSize = cfg.storageSize || '50Gi';
@@ -140,7 +141,7 @@ Apply Grafana TLS resources (cert-manager Certificate, Gateway API Gateway, HTTP
 
 \`\`\`bash
 # TLS Certificate
-kubectl apply -f - <<EOF
+kubectl --context=${ctx} apply -f - <<EOF
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -156,7 +157,7 @@ spec:
 EOF
 
 # Gateway
-kubectl apply -f - <<EOF
+kubectl --context=${ctx} apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -181,7 +182,7 @@ spec:
 EOF
 
 # HTTPRoute
-kubectl apply -f - <<EOF
+kubectl --context=${ctx} apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -228,6 +229,7 @@ Apply Grafana OIDC configuration (separate upgrade to avoid overwriting base val
 
 \`\`\`bash
 helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \\
+  --kube-context=${ctx} \\
   --namespace ${ns} \\
   --reuse-values \\
   -f - <<'EOF'
@@ -266,7 +268,7 @@ EOF
 Label OTel gateway as a global service so agent clusters can reach it over the ambient mesh:
 
 \`\`\`bash
-kubectl label svc opentelemetry-collector-gateway -n ${ns} solo.io/service-scope=global --overwrite
+kubectl --context=${ctx} label svc opentelemetry-collector-gateway -n ${ns} solo.io/service-scope=global --overwrite
 \`\`\``
     : '';
 
@@ -281,14 +283,15 @@ helm repo update
 Label namespace for Ambient mesh (required for cross-cluster mesh.internal DNS):
 
 \`\`\`bash
-kubectl create namespace ${ns} --dry-run=client -o yaml | kubectl apply -f -
-kubectl label namespace ${ns} istio.io/dataplane-mode=ambient --overwrite
+kubectl --context=${ctx} create namespace ${ns} --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
+kubectl --context=${ctx} label namespace ${ns} istio.io/dataplane-mode=ambient --overwrite
 \`\`\`
 
 Install Grafana Tempo Distributed (trace aggregation, OTLP receiver):
 
 \`\`\`bash
 helm upgrade --install tempo grafana/tempo-distributed \\
+  --kube-context=${ctx} \\
   --namespace ${ns} \\
   --version $TEMPO_VERSION \\
   --set ingester.persistence.enabled=true \\
@@ -308,6 +311,7 @@ Install Grafana Loki (log aggregation):
 
 \`\`\`bash
 helm upgrade --install loki grafana/loki \\
+  --kube-context=${ctx} \\
   --namespace ${ns} \\
   --version $LOKI_VERSION \\
   --set loki.limits_config.retention_period=${retention} \\
@@ -327,6 +331,7 @@ Install Grafana Alloy (pod log scraping DaemonSet):
 
 \`\`\`bash
 helm upgrade --install alloy grafana/alloy \\
+  --kube-context=${ctx} \\
   --namespace ${ns} \\
   --version $TELEMETRY_ALLOY_VERSION \\
   --create-namespace \\
@@ -340,6 +345,7 @@ Install Prometheus + Grafana (kube-prometheus-stack):
 
 \`\`\`bash
 helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \\
+  --kube-context=${ctx} \\
   --namespace ${ns} \\
   --version $PROMETHEUS_STACK_VERSION \\
   --set prometheus.prometheusSpec.retention=${retention} \\
@@ -362,6 +368,7 @@ Install OTel collectors (metrics, logs, traces) — receives telemetry from the 
 \`\`\`bash
 # Metrics collector (scrapes istiod, ztunnel, gateways)
 helm upgrade --install opentelemetry-collector-metrics opentelemetry-collector \\
+  --kube-context=${ctx} \\
   --repo https://open-telemetry.github.io/opentelemetry-helm-charts \\
   --version $OTEL_CHART_VERSION \\
   --namespace ${ns} \\
@@ -375,6 +382,7 @@ EOF
 
 # Logs collector (receives OTLP logs from gateways)
 helm upgrade --install opentelemetry-collector-logs opentelemetry-collector \\
+  --kube-context=${ctx} \\
   --repo https://open-telemetry.github.io/opentelemetry-helm-charts \\
   --version $OTEL_CHART_VERSION \\
   --namespace ${ns} \\
@@ -387,6 +395,7 @@ EOF
 
 # Traces collector (OTLP receiver, forwards to Tempo)
 helm upgrade --install opentelemetry-collector-traces opentelemetry-collector \\
+  --kube-context=${ctx} \\
   --repo https://open-telemetry.github.io/opentelemetry-helm-charts \\
   --version $OTEL_CHART_VERSION \\
   --namespace ${ns} \\
@@ -402,6 +411,7 @@ Install OTel gateway collector (cross-cluster fan-in from agent clusters):
 
 \`\`\`bash
 helm upgrade --install opentelemetry-collector-gateway opentelemetry-collector \\
+  --kube-context=${ctx} \\
   --repo https://open-telemetry.github.io/opentelemetry-helm-charts \\
   --version $OTEL_CHART_VERSION \\
   --namespace ${ns} \\
@@ -417,7 +427,7 @@ ${grafanaTlsSection}
 Apply Grafana datasources (Prometheus, Tempo, Loki):
 
 \`\`\`bash
-kubectl apply -n ${ns} -f - <<'EOF'
+kubectl --context=${ctx} apply -n ${ns} -f - <<'EOF'
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -444,6 +454,7 @@ async function _generateAgent(addonCfg, clusterName, _env) {
 
   const cfg = addonCfg.config || {};
   const ns = addonCfg.namespace || 'telemetry';
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   const otelEndpoint =
     cfg.otelGatewayEndpoint || 'opentelemetry-collector-gateway.telemetry.mesh.internal:4317';
   const lokiPushUrl =
@@ -466,8 +477,8 @@ async function _generateAgent(addonCfg, clusterName, _env) {
 Label namespace for Ambient mesh (required for cross-cluster \`mesh.internal\` DNS resolution):
 
 \`\`\`bash
-kubectl create namespace ${ns} --dry-run=client -o yaml | kubectl apply -f -
-kubectl label namespace ${ns} istio.io/dataplane-mode=ambient --overwrite
+kubectl --context=${ctx} create namespace ${ns} --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
+kubectl --context=${ctx} label namespace ${ns} istio.io/dataplane-mode=ambient --overwrite
 \`\`\`
 
 \`\`\`bash
@@ -480,6 +491,7 @@ Install OTel collectors (metrics, logs, traces) — forward all signals to east 
 \`\`\`bash
 # Metrics collector
 helm upgrade --install opentelemetry-collector-metrics opentelemetry-collector \\
+  --kube-context=${ctx} \\
   --repo https://open-telemetry.github.io/opentelemetry-helm-charts \\
   --version $OTEL_CHART_VERSION \\
   --namespace ${ns} \\
@@ -493,6 +505,7 @@ EOF
 
 # Logs collector
 helm upgrade --install opentelemetry-collector-logs opentelemetry-collector \\
+  --kube-context=${ctx} \\
   --repo https://open-telemetry.github.io/opentelemetry-helm-charts \\
   --version $OTEL_CHART_VERSION \\
   --namespace ${ns} \\
@@ -505,6 +518,7 @@ EOF
 
 # Traces collector
 helm upgrade --install opentelemetry-collector-traces opentelemetry-collector \\
+  --kube-context=${ctx} \\
   --repo https://open-telemetry.github.io/opentelemetry-helm-charts \\
   --version $OTEL_CHART_VERSION \\
   --namespace ${ns} \\
@@ -520,6 +534,7 @@ Install Grafana Alloy (DaemonSet — scrapes pod logs, forwards to east Loki at 
 
 \`\`\`bash
 helm upgrade --install alloy grafana/alloy \\
+  --kube-context=${ctx} \\
   --namespace ${ns} \\
   --version $TELEMETRY_ALLOY_VERSION \\
   --create-namespace \\
@@ -532,19 +547,20 @@ EOF
 > Connectivity depends on the east-west ambient mesh being operational. Verify \`mesh.internal\` DNS resolves before deploying.`;
 }
 
-export function cleanup(addonCfg, _clusterName) {
+export function cleanup(addonCfg, clusterName) {
   const ns = addonCfg.namespace || 'telemetry';
   const cfg = addonCfg.config || {};
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   if (cfg.mode === 'agent') {
     return `\`\`\`bash
-helm uninstall opentelemetry-collector-metrics opentelemetry-collector-logs opentelemetry-collector-traces alloy -n ${ns}
+helm uninstall opentelemetry-collector-metrics opentelemetry-collector-logs opentelemetry-collector-traces alloy -n ${ns} --kube-context=${ctx}
 \`\`\``;
   }
   return `\`\`\`bash
-helm uninstall opentelemetry-collector-gateway opentelemetry-collector-traces opentelemetry-collector-logs opentelemetry-collector-metrics -n ${ns}
-helm uninstall kube-prometheus-stack -n ${ns}
-helm uninstall alloy -n ${ns}
-helm uninstall loki -n ${ns}
-helm uninstall tempo -n ${ns}
+helm uninstall opentelemetry-collector-gateway opentelemetry-collector-traces opentelemetry-collector-logs opentelemetry-collector-metrics -n ${ns} --kube-context=${ctx}
+helm uninstall kube-prometheus-stack -n ${ns} --kube-context=${ctx}
+helm uninstall alloy -n ${ns} --kube-context=${ctx}
+helm uninstall loki -n ${ns} --kube-context=${ctx}
+helm uninstall tempo -n ${ns} --kube-context=${ctx}
 \`\`\``;
 }

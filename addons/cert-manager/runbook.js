@@ -26,16 +26,17 @@ export function envExportsFor(addonCfg, _profile, env) {
   return exports;
 }
 
-export async function generate(_subIndex, addonCfg, _clusterName, _profile, env) {
+export async function generate(_subIndex, addonCfg, clusterName, _profile, env) {
   const ns = addonCfg.namespace || 'cert-manager';
   const letsencrypt = addonCfg.config?.letsencrypt;
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
 
   const selfSignedIssuer = `
 
 Create a self-signed ClusterIssuer (used for bootstrapping and internal certs):
 
 \`\`\`bash
-kubectl apply -f - <<EOF
+kubectl --context=${ctx} apply -f - <<EOF
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -54,7 +55,7 @@ EOF
 Create the Route53 DNS ClusterIssuer for Let's Encrypt:
 
 \`\`\`bash
-kubectl apply -f - <<EOF
+kubectl --context=${ctx} apply -f - <<EOF
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -73,14 +74,14 @@ EOF
 \`\`\``;
   }
 
-  return `Install cert-manager for TLS certificate management on **all clusters**.
+  return `Install cert-manager for TLS certificate management on the **${clusterName}** cluster.
 
 \`\`\`bash
 helm repo add jetstack https://charts.jetstack.io
 helm repo update
 
-# Run on each cluster — repeat with the appropriate --kube-context flag
 helm upgrade --install cert-manager jetstack/cert-manager \\
+  --kube-context=${ctx} \\
   --namespace ${ns} \\
   --create-namespace \\
   --version v$CERT_MANAGER_VERSION \\
@@ -90,9 +91,10 @@ helm upgrade --install cert-manager jetstack/cert-manager \\
 ${clusterIssuer}`;
 }
 
-export function cleanup(addonCfg, _clusterName) {
+export function cleanup(addonCfg, clusterName) {
   const ns = addonCfg.namespace || 'cert-manager';
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   return `\`\`\`bash
-helm uninstall cert-manager -n ${ns}
+helm uninstall cert-manager -n ${ns} --kube-context=${ctx}
 \`\`\``;
 }

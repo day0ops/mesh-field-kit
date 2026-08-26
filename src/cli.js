@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import chalk from 'chalk';
 import figlet from 'figlet';
 import logSymbols from 'log-symbols';
-import { Logger, KubernetesHelper, checkDependencies } from './lib/common.js';
+import { Logger, checkDependencies } from './lib/common.js';
 import { ProfileManager } from './lib/profiles.js';
 import { ProfileSchema } from './lib/profile-schema.js';
 import { InfraManager } from './lib/infra-manager.js';
@@ -404,6 +404,7 @@ base
         }
       }
 
+      let infraProvisionedAt = null;
       if (resolvedInfra) {
         const infraState = await InfraStateManager.load(resolvedInfra);
         if (!infraState?.status?.provisioned) {
@@ -412,6 +413,7 @@ base
           );
           process.exit(1);
         }
+        infraProvisionedAt = infraState.status.provisionedAt || null;
 
         const infraManager = new InfraManager(resolvedInfra);
         const infraProfile = await infraManager.loadInfraProfile();
@@ -463,7 +465,7 @@ base
       });
 
       if (resolvedInfra) {
-        await ProfileStateManager.setProfileName(resolvedInfra, profileName);
+        await ProfileStateManager.setProfileName(resolvedInfra, profileName, infraProvisionedAt);
       }
     } catch (error) {
       Logger.error(`Failed to install: ${error.message}`);
@@ -595,7 +597,10 @@ base
 
         if (!profileName) {
           // First try: read profile recorded at install time
-          const savedProfile = await ProfileStateManager.getProfileName(resolvedInfra);
+          const savedProfile = await ProfileStateManager.getProfileName(
+            resolvedInfra,
+            infraState.status.provisionedAt || null
+          );
           if (savedProfile) {
             profileName = savedProfile;
             Logger.info(`Auto-detected profile: ${profileName}`);
@@ -822,13 +827,6 @@ usecase
   )
   .action(async options => {
     try {
-      if (!(await KubernetesHelper.isClusterAccessible())) {
-        Logger.error(
-          'Cluster not accessible. Check your kubeconfig and credentials (e.g. aws sso login).'
-        );
-        process.exit(1);
-      }
-
       if (options.current) {
         await UseCaseManager.cleanupAll();
         return;
@@ -989,12 +987,20 @@ runbookCmd.addCommand(
     .description('Interactively generate a setup runbook from a profile')
     .option('--output <dir>', 'Output directory', 'docs/runbooks')
     .option('--filename <name>', 'Output filename (without .md extension)')
+    .addOption(
+      new Option('--format <fmt>', 'Output format').choices(['md', 'html', 'both']).default('md')
+    )
     .action(async options => {
       const { RunbookPicker, RunbookBuilder } = await import('./lib/runbook.js');
       const picker = new RunbookPicker();
       const selection = await picker.pick(options);
       const builder = new RunbookBuilder(selection);
-      await builder.build();
+      if (options.format === 'md' || options.format === 'both') {
+        await builder.build();
+      }
+      if (options.format === 'html' || options.format === 'both') {
+        await builder.buildHtml();
+      }
     })
 );
 

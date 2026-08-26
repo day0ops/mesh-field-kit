@@ -85,7 +85,8 @@ export function envExportsFor(addonCfg, _profile, env) {
     exports.push({
       name: 'SOLO_UI_ADMIN_USER',
       value: 'solo-admin',
-      comment: 'Solo UI demo admin username (Keycloak solo-ui realm); password is $SOLO_UI_DEFAULT_PASSWORD',
+      comment:
+        'Solo UI demo admin username (Keycloak solo-ui realm); password is $SOLO_UI_DEFAULT_PASSWORD',
     });
   }
 
@@ -99,6 +100,7 @@ export async function generate(_subIndex, addonCfg, clusterName, profile, env) {
   ]);
 
   const ns = addonCfg.namespace || 'keycloak';
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   const cfg = addonCfg.config || {};
   const hostname = tpl(cfg.hostname, env.spec.domains?.keycloak) || 'keycloak.example.com';
   const protocol = tpl(cfg.protocol, null) || 'https';
@@ -175,7 +177,7 @@ export async function generate(_subIndex, addonCfg, clusterName, profile, env) {
 Create TLS certificate for Keycloak (cert-manager):
 
 \`\`\`bash
-kubectl apply -f - <<EOF
+kubectl --context=${ctx} apply -f - <<EOF
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -200,7 +202,7 @@ EOF
 Wait for the certificate to be issued:
 
 \`\`\`bash
-kubectl wait certificate/${tlsSecretName} -n ${ns} \\
+kubectl --context=${ctx} wait certificate/${tlsSecretName} -n ${ns} \\
   --for=condition=Ready --timeout=120s
 \`\`\`
 `;
@@ -337,13 +339,13 @@ ${suiUserLines}
   return `Install Keycloak on the **${clusterName}** cluster as OIDC provider. Deployed via raw Kubernetes manifests (PostgreSQL 18.2-alpine + Keycloak 26.5.3) — no Helm chart.
 
 \`\`\`bash
-kubectl create namespace ${ns} --dry-run=client -o yaml | kubectl apply -f -
+kubectl --context=${ctx} create namespace ${ns} --dry-run=client -o yaml | kubectl --context=${ctx} apply -f -
 \`\`\`
 ${tlsSection}
 Apply PostgreSQL (ServiceAccount, Secret, PVC, Service, Deployment):
 
 \`\`\`bash
-kubectl apply -n ${ns} -f - <<EOF
+kubectl --context=${ctx} apply -n ${ns} -f - <<EOF
 ${postgresYaml.trimEnd()}
 EOF
 \`\`\`
@@ -351,21 +353,21 @@ EOF
 Wait for PostgreSQL to be ready:
 
 \`\`\`bash
-kubectl wait --for=condition=Ready pod -l app=postgres -n ${ns} --timeout=300s
+kubectl --context=${ctx} wait --for=condition=Ready pod -l app=postgres -n ${ns} --timeout=300s
 \`\`\`
 
 Initialize the Keycloak database:
 
 \`\`\`bash
-kubectl exec -n ${ns} deploy/postgres -- psql -U $KEYCLOAK_POSTGRES_USER -d postgres -c "CREATE DATABASE keycloak;"
-kubectl exec -n ${ns} deploy/postgres -- psql -U $KEYCLOAK_POSTGRES_USER -d postgres -c "CREATE USER keycloak WITH PASSWORD 'password';"
-kubectl exec -n ${ns} deploy/postgres -- psql -U $KEYCLOAK_POSTGRES_USER -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;"
+kubectl --context=${ctx} exec -n ${ns} deploy/postgres -- psql -U $KEYCLOAK_POSTGRES_USER -d postgres -c "CREATE DATABASE keycloak;"
+kubectl --context=${ctx} exec -n ${ns} deploy/postgres -- psql -U $KEYCLOAK_POSTGRES_USER -d postgres -c "CREATE USER keycloak WITH PASSWORD 'password';"
+kubectl --context=${ctx} exec -n ${ns} deploy/postgres -- psql -U $KEYCLOAK_POSTGRES_USER -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;"
 \`\`\`
 
 Apply Keycloak (Deployment + Service):
 
 \`\`\`bash
-kubectl apply -n ${ns} -f - <<EOF
+kubectl --context=${ctx} apply -n ${ns} -f - <<EOF
 ${keycloakYaml.trimEnd()}
 EOF
 \`\`\`
@@ -373,7 +375,7 @@ EOF
 Wait for Keycloak to be ready:
 
 \`\`\`bash
-kubectl wait --for=condition=Ready pod -l app=keycloak -n ${ns} --timeout=600s
+kubectl --context=${ctx} wait --for=condition=Ready pod -l app=keycloak -n ${ns} --timeout=600s
 \`\`\`
 
 Verify Keycloak is reachable:
@@ -385,19 +387,20 @@ curl -sk ${baseUrl}/realms/master | jq '.realm'
 ${realmSnippets}${soloUISection}`;
 }
 
-export async function cleanup(addonCfg, _clusterName) {
+export async function cleanup(addonCfg, clusterName) {
   const [postgresYaml, keycloakYaml] = await Promise.all([
     fs.promises.readFile(join(__dir, 'config/postgres.yaml'), 'utf8'),
     fs.promises.readFile(join(__dir, 'config/keycloak.yaml'), 'utf8'),
   ]);
   const ns = addonCfg.namespace || 'keycloak';
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   return `\`\`\`bash
-kubectl delete -n ${ns} -f - <<'EOF'
+kubectl --context=${ctx} delete -n ${ns} -f - <<'EOF'
 ${keycloakYaml.trimEnd()}
 EOF
-kubectl delete -n ${ns} -f - <<'EOF'
+kubectl --context=${ctx} delete -n ${ns} -f - <<'EOF'
 ${postgresYaml.trimEnd()}
 EOF
-kubectl delete namespace ${ns}
+kubectl --context=${ctx} delete namespace ${ns}
 \`\`\``;
 }
