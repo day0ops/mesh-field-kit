@@ -306,9 +306,12 @@ export class CiliumFeature extends AddonFeature {
         this.log('Cilium uninstalled via cilium CLI (node-level cleanup included)', 'success');
         return;
       }
+      // cilium-cli frequently errors on a secondary step (e.g. CRD/finalizer cleanup) after it
+      // has already removed the Helm release and run the agents' node-level cleanup — the checks
+      // below confirm what's actually left, so this alone isn't warning-worthy yet.
       this.log(
-        `cilium uninstall failed (${result.stderr?.trim() || 'unknown error'}) — falling back to helm`,
-        'warn'
+        `cilium uninstall reported an error (${result.stderr?.trim() || 'unknown error'}) — falling back to helm to verify`,
+        'info'
       );
     } else {
       this.log(

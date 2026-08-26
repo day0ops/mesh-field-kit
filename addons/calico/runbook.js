@@ -14,7 +14,7 @@ export function envExportsFor(addonCfg, _profile, _env) {
   ];
 }
 
-export async function generate(_subIndex, addonCfg, _clusterName, _profile, _env) {
+export async function generate(_subIndex, addonCfg, clusterName, _profile, _env) {
   const addon =
     addonCfg?.config && typeof addonCfg.config === 'object'
       ? { ...addonCfg, ...addonCfg.config }
@@ -22,6 +22,7 @@ export async function generate(_subIndex, addonCfg, _clusterName, _profile, _env
   const mode = addon.mode || 'chaining';
   const chainingTarget = addon.chainingTarget || 'AmazonVPC';
   const kubernetesProvider = addon.kubernetesProvider || 'EKS';
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
 
   const installationValues =
     mode === 'primary'
@@ -30,14 +31,14 @@ export async function generate(_subIndex, addonCfg, _clusterName, _profile, _env
       : `--set installation.kubernetesProvider=${kubernetesProvider} \\
   --set installation.cni.type=${chainingTarget} \\`;
 
-  return `Install Calico (via the Tigera operator) in ${mode} mode on **all clusters**.
+  return `Install Calico (via the Tigera operator) in ${mode} mode on the **${clusterName}** cluster.
 
 \`\`\`bash
 helm repo add projectcalico https://docs.tigera.io/calico/charts
 helm repo update
 
-# Run on each cluster context
 helm upgrade --install calico projectcalico/tigera-operator \\
+  --kube-context=${ctx} \\
   --version $CALICO_VERSION \\
   --namespace tigera-operator \\
   --create-namespace \\
@@ -46,8 +47,9 @@ helm upgrade --install calico projectcalico/tigera-operator \\
 \`\`\``;
 }
 
-export function cleanup(_addonCfg, _clusterName) {
+export function cleanup(_addonCfg, clusterName) {
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   return `\`\`\`bash
-helm uninstall calico -n tigera-operator
+helm uninstall calico -n tigera-operator --kube-context=${ctx}
 \`\`\``;
 }

@@ -7,10 +7,27 @@ test('SpireFeature constructor sets defaults', () => {
   const f = new SpireFeature('spire', { clusterName: 'my-cluster' });
   expect(f.spireNamespace).toBe('spire-server');
   expect(f.trustDomain).toBe('my-cluster');
-  expect(f.spireVersion).toBe('0.24.2');
-  expect(f.spireCrdsVersion).toBe('0.5.0');
+  expect(f.spireVersion).toBe('0.30.0');
+  expect(f.spireCrdsVersion).toBe('0.6.0');
   expect(f.certMode).toBe('self-signed');
+  expect(f.multiRoot).toBe(false);
   expect(f.kubeContext).toBeNull();
+});
+
+test('SpireFeature constructor respects multiRoot override', () => {
+  const f = new SpireFeature('spire', { clusterName: 'my-cluster', multiRoot: true });
+  expect(f.multiRoot).toBe(true);
+});
+
+test('SpireFeature distinctRoots defaults to false', () => {
+  const f = new SpireFeature('spire', { clusterName: 'my-cluster' });
+  expect(f.distinctRoots).toBe(false);
+});
+
+test('SpireFeature distinctRoots implies multiRoot', () => {
+  const f = new SpireFeature('spire', { clusterName: 'my-cluster', distinctRoots: true });
+  expect(f.distinctRoots).toBe(true);
+  expect(f.multiRoot).toBe(true);
 });
 
 test('SpireFeature constructor respects overrides', () => {
@@ -104,6 +121,13 @@ test('SpireFeature buildSpireHelmValues includes trust domain and ztunnel delega
   expect(v['spire-server'].upstreamAuthority.disk.secret.name).toBe('spiffe-upstream-ca');
 });
 
+test('SpireFeature buildSpireHelmValues sets secret.data.bundle placeholder so bundle_file_path renders', () => {
+  const f = new SpireFeature('spire', { clusterName: 'test-cluster' });
+  const v = f.buildSpireHelmValues();
+  expect(v['spire-server'].upstreamAuthority.disk.secret.create).toBe(false);
+  expect(v['spire-server'].upstreamAuthority.disk.secret.data.bundle).toBe('externally-managed');
+});
+
 test('SpireFeature cleanup method exists and is a function', () => {
   const f = new SpireFeature('spire', { clusterName: 'c1' });
   expect(typeof f.cleanup).toBe('function');
@@ -122,6 +146,7 @@ test('spire addon is registered in FeatureManager', () => {
 import {
   generate as spireRunbookGenerate,
   cleanup as spireRunbookCleanup,
+  generatePreamble as spireRunbookPreamble,
 } from '../../addons/spire/runbook.js';
 
 test('spire runbook generate returns markdown with helm commands', async () => {
@@ -130,6 +155,51 @@ test('spire runbook generate returns markdown with helm commands', async () => {
   expect(md).toContain('helm');
   expect(md).toContain('spire');
   expect(md).toContain('spiffe-upstream-ca');
+});
+
+test('spire runbook generate threads kube-context into commands', async () => {
+  const md = await spireRunbookGenerate(1, { certMode: 'self-signed' }, 'my-cluster', {}, {});
+  expect(md).toContain('--kube-context $MY-CLUSTER_CONTEXT');
+  expect(md).toContain('--context=$MY-CLUSTER_CONTEXT');
+});
+
+test('spire runbook generate emits secret.data.bundle placeholder in helm values', async () => {
+  const md = await spireRunbookGenerate(1, { certMode: 'self-signed' }, 'my-cluster', {}, {});
+  expect(md).toContain('bundle: "externally-managed"');
+});
+
+test('spire runbook distinctRoots branch builds bundle in own->istiod->peer order', async () => {
+  const md = await spireRunbookGenerate(
+    1,
+    { config: { certMode: 'self-signed', distinctRoots: true } },
+    'east',
+    {},
+    {}
+  );
+  // own root first, istiod root next, then peer roots appended in a loop
+  expect(md).toContain('/tmp/spire-distinct-roots/east/root-cert.pem');
+  expect(md).toContain('for peer_root in /tmp/spire-distinct-roots/*/root-cert.pem');
+  const bundleLine = md.indexOf('> /tmp/spire-certs/east/bundle.pem');
+  const peerLoop = md.indexOf('for peer_root');
+  expect(bundleLine).toBeLessThan(peerLoop);
+});
+
+test('spire runbook generatePreamble is a plain paragraph (no heading) when distinctRoots set', async () => {
+  const instances = [
+    { addon: { config: { distinctRoots: true } }, clusterName: 'east' },
+    { addon: { config: { distinctRoots: true } }, clusterName: 'west' },
+  ];
+  const preamble = await spireRunbookPreamble(instances, {});
+  expect(preamble).not.toBeNull();
+  expect(preamble.startsWith('#')).toBe(false);
+  expect(preamble).toContain('Generate independent SPIRE roots');
+  expect(preamble).toContain('SPIRE Root CA - east');
+  expect(preamble).toContain('SPIRE Root CA - west');
+});
+
+test('spire runbook generatePreamble returns null when no cluster requests distinctRoots', async () => {
+  const instances = [{ addon: { config: { certMode: 'self-signed' } }, clusterName: 'east' }];
+  expect(await spireRunbookPreamble(instances, {})).toBeNull();
 });
 
 test('spire runbook cleanup returns helm uninstall command', () => {

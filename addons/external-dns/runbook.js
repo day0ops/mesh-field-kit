@@ -41,6 +41,7 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, env) 
     `${env.spec.dns?.childZone || 'demo'}.${env.spec.dns?.parentZone?.domain || 'example.com'}`
   );
   const zoneId = tpl(cfg.zoneId, env.spec.dns?.parentZone?.hostedZoneId || '$DNS_HOSTED_ZONE_ID');
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
 
   // external-dns helm chart uses 'aws' for the Route53 provider (not 'route53')
   const helmProvider = provider === 'route53' ? 'aws' : provider;
@@ -52,6 +53,7 @@ helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
 helm repo update
 
 helm upgrade --install external-dns external-dns/external-dns \\
+  --kube-context=${ctx} \\
   --namespace ${ns} \\
   --create-namespace \\
   --version $EXTERNAL_DNS_VERSION \\
@@ -73,9 +75,10 @@ helm upgrade --install external-dns external-dns/external-dns \\
 > The IAM role must have Route53 write permissions for zone \`${zoneId}\`. \`sources[2]=gateway-httproute\` is required for Ambient mesh Gateway API routes.`;
 }
 
-export function cleanup(addonCfg, _clusterName) {
+export function cleanup(addonCfg, clusterName) {
   const ns = addonCfg.namespace || 'external-dns';
+  const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   return `\`\`\`bash
-helm uninstall external-dns -n ${ns}
+helm uninstall external-dns -n ${ns} --kube-context=${ctx}
 \`\`\``;
 }

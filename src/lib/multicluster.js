@@ -19,7 +19,10 @@ import { writeFileSync, unlinkSync, existsSync, mkdirSync, readFileSync } from '
 
 // ── CertificateManager ────────────────────────────────────────────────────────
 
-const CERTS_WORK_DIR = join(tmpdir(), 'mesh-certs');
+// Exported so the spire addon can sign its intermediate off this same shared root
+// (see addons/spire/index.js) instead of generating an independent, mutually
+// untrusted root.
+export const CERTS_WORK_DIR = join(tmpdir(), 'mesh-certs');
 
 /**
  * Generates a shared root of trust and per-cluster intermediate CA certificates
@@ -306,6 +309,57 @@ export class CertificateManager {
       await new Promise(resolve => setTimeout(resolve, 3000));
     }
     throw new Error(`Secret ${name} not found in ${namespace} within timeout`);
+  }
+}
+
+// ── SpireRootManager ──────────────────────────────────────────────────────────
+
+// Exported so the spire addon can discover every peer cluster's pre-generated root
+// (see addons/spire/index.js, distinctRoots mode) once this manager has run.
+export const SPIRE_DISTINCT_ROOTS_DIR = join(tmpdir(), 'mesh-spire-distinct-roots');
+
+/**
+ * Pre-generates one independent, mutually-unrelated root CA per cluster, before any
+ * cluster installs, for SPIRE's distinctRoots mode. Trust between clusters comes from
+ * each cluster's SPIRE bundle listing every peer's root as an additional trust anchor,
+ * not from cross-signing - so all this does is make every root available on disk up
+ * front, before cluster install order could otherwise hide a peer's root from view.
+ *
+ * Configuration:
+ * {
+ *   clusters: [{ name, trustDomain }],
+ * }
+ */
+export class SpireRootManager {
+  constructor(config) {
+    this.config = config;
+  }
+
+  async deploy() {
+    const clusters = this.config.clusters;
+    Logger.info(`Generating ${clusters.length} independent SPIRE root(s)...`);
+    mkdirSync(SPIRE_DISTINCT_ROOTS_DIR, { recursive: true });
+
+    for (const cluster of clusters) {
+      const dir = join(SPIRE_DISTINCT_ROOTS_DIR, cluster.trustDomain.replace(/\//g, '-'));
+      mkdirSync(dir, { recursive: true });
+      const keyPath = join(dir, 'root-key.pem');
+      const certPath = join(dir, 'root-cert.pem');
+
+      if (existsSync(keyPath) && existsSync(certPath)) {
+        Logger.info(`SPIRE root for '${cluster.trustDomain}' already exists, reusing`);
+        continue;
+      }
+
+      Logger.info(`Generating independent SPIRE root for '${cluster.trustDomain}'...`);
+      await CommandRunner.exec(`openssl genrsa -out "${keyPath}" 2048`);
+      await CommandRunner.exec(
+        `openssl req -new -x509 -days 3650 -key "${keyPath}" ` +
+          `-out "${certPath}" -subj "/CN=SPIRE Root CA - ${cluster.name}"`
+      );
+    }
+
+    Logger.success('Independent SPIRE roots ready');
   }
 }
 

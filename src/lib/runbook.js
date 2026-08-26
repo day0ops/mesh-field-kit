@@ -32,98 +32,80 @@ export class RunbookPicker {
     const infraProfile = await this.loadInfraProfile(profile.spec.infra);
     const environment = await this.loadEnvironment(profile.spec.environment);
 
-    // 3. Use case selection — three-step funnel: scope → categories → use cases
-    const allUsecases = await this.listUsecases(infraProfile);
+    // 3. Use case selection — category → use cases funnel, pre-scoped to whichever topology
+    // (single-cluster vs multi-cluster) the selected profile's infra actually has. A
+    // single-cluster profile can never satisfy a multi-cluster use case's spec.clusters, and
+    // vice versa, so there's nothing to ask — it's fully determined by the profile's cluster
+    // count, not a separate choice.
+    const scope = inferUsecaseScope(infraProfile);
+    const allUsecases = (await this.listUsecases(infraProfile)).filter(
+      u => u._filePath.split('/')[2] === scope
+    );
     let selectedUsecases = [];
     if (allUsecases.length > 0) {
       const humanize = s => s.replace(/-/g, ' ');
       const getPathParts = u => u._filePath.split('/'); // config/usecases/<scope>/<category>/...
 
-      // Step 3a: scope
-      const availableScopes = [...new Set(allUsecases.map(u => getPathParts(u)[2]))].sort(
-        (a, b) => {
-          if (a === 'single-cluster') return -1;
-          if (b === 'single-cluster') return 1;
-          return a.localeCompare(b);
-        }
+      console.log(
+        `\nUse case scope: ${humanize(scope)} (inferred from ${infraProfile.spec?.clusters?.length || 0} cluster(s) in profile)`
       );
-      const { selectedScope } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'selectedScope',
-          message: 'Select use case scope:',
-          choices: [
-            ...availableScopes.map(s => ({ name: humanize(s), value: s })),
-            new Separator(),
-            { name: 'skip', value: 'skip' },
-          ],
-        },
-      ]);
 
-      if (selectedScope === 'skip') {
-        // fall through to output config with no use cases
-      } else {
-        const scopeFiltered = allUsecases.filter(u => getPathParts(u)[2] === selectedScope);
+      // Category → use cases loop — back to category, until done
+      const availableCategories = [...new Set(allUsecases.map(u => getPathParts(u)[3]))].sort();
+      const selectedNames = new Set();
 
-        // Steps 3b+3c: loop — category → use cases → back, until done
-        const availableCategories = [...new Set(scopeFiltered.map(u => getPathParts(u)[3]))].sort();
-        const selectedNames = new Set();
+      while (true) {
+        const count = selectedNames.size;
+        const { selectedCategory } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'selectedCategory',
+            message: `Select category${count > 0 ? ` (${count} use case${count > 1 ? 's' : ''} selected)` : ''}:`,
+            choices: [
+              ...availableCategories.map(c => ({ name: humanize(c), value: c })),
+              new Separator(),
+              { name: 'done', value: '__done__' },
+            ],
+          },
+        ]);
 
-        while (true) {
-          const count = selectedNames.size;
-          const { selectedCategory } = await inquirer.prompt([
-            {
-              type: 'list',
-              name: 'selectedCategory',
-              message: `Select category${count > 0 ? ` (${count} use case${count > 1 ? 's' : ''} selected)` : ''}:`,
-              choices: [
-                ...availableCategories.map(c => ({ name: humanize(c), value: c })),
-                new Separator(),
-                { name: 'done', value: '__done__' },
-              ],
-            },
-          ]);
+        if (selectedCategory === '__done__') break;
 
-          if (selectedCategory === '__done__') break;
+        const categoryFiltered = allUsecases.filter(u => getPathParts(u)[3] === selectedCategory);
+        const usecaseChoices = categoryFiltered.map(u => ({
+          name: `${u.metadata.name}  —  ${(u.metadata.description || '').split('\n')[0].trim()}`,
+          value: u.metadata.name,
+          checked: selectedNames.has(u.metadata.name),
+        }));
 
-          const categoryFiltered = scopeFiltered.filter(
-            u => getPathParts(u)[3] === selectedCategory
-          );
-          const usecaseChoices = categoryFiltered.map(u => ({
-            name: `${u.metadata.name}  —  ${(u.metadata.description || '').split('\n')[0].trim()}`,
-            value: u.metadata.name,
-            checked: selectedNames.has(u.metadata.name),
-          }));
+        const { usecaseNames } = await inquirer.prompt([
+          {
+            type: 'checkbox',
+            name: 'usecaseNames',
+            message: `Select use cases from ${humanize(selectedCategory)}:`,
+            choices: usecaseChoices,
+          },
+        ]);
 
-          const { usecaseNames } = await inquirer.prompt([
-            {
-              type: 'checkbox',
-              name: 'usecaseNames',
-              message: `Select use cases from ${humanize(selectedCategory)}:`,
-              choices: usecaseChoices,
-            },
-          ]);
-
-          // Sync selections for this category (allow deselect on revisit)
-          for (const u of categoryFiltered) {
-            if (usecaseNames.includes(u.metadata.name)) selectedNames.add(u.metadata.name);
-            else selectedNames.delete(u.metadata.name);
-          }
-
-          // Show current selection summary
-          if (selectedNames.size === 0) {
-            console.log('\n  (none selected)\n');
-          } else {
-            console.log('');
-            for (const name of selectedNames) {
-              console.log(`  • ${name}`);
-            }
-            console.log('');
-          }
+        // Sync selections for this category (allow deselect on revisit)
+        for (const u of categoryFiltered) {
+          if (usecaseNames.includes(u.metadata.name)) selectedNames.add(u.metadata.name);
+          else selectedNames.delete(u.metadata.name);
         }
 
-        selectedUsecases = allUsecases.filter(u => selectedNames.has(u.metadata.name));
-      } // end else (selectedScope !== 'skip')
+        // Show current selection summary
+        if (selectedNames.size === 0) {
+          console.log('\n  (none selected)\n');
+        } else {
+          console.log('');
+          for (const name of selectedNames) {
+            console.log(`  • ${name}`);
+          }
+          console.log('');
+        }
+      }
+
+      selectedUsecases = allUsecases.filter(u => selectedNames.has(u.metadata.name));
     }
 
     // 4. Output config — always prefix today's date (local), stripping any existing date prefix
@@ -205,28 +187,43 @@ export class RunbookPicker {
   }
 }
 
-function _buildToc(content) {
+// A use case under config/usecases/single-cluster/ can only ever declare 0 or 1 clusters in
+// spec.clusters; one under multi-cluster/ is written assuming 2+. Matching that folder to the
+// profile's actual cluster count is the only sensible scope — never a user choice.
+export function inferUsecaseScope(infraProfile) {
+  return (infraProfile.spec?.clusters || []).length > 1 ? 'multi-cluster' : 'single-cluster';
+}
+
+export function slugify(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/ /g, '-');
+}
+
+export function scanHeadings(content) {
   const entries = [];
   for (const line of content.split('\n')) {
     const h2 = line.match(/^## (.+)$/);
     const h3 = line.match(/^### (.+)$/);
+    const h4 = line.match(/^#### (.+)$/);
     if (h2) {
-      const text = h2[1];
-      const anchor = text
-        .toLowerCase()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/ /g, '-');
-      entries.push(`- [${text}](#${anchor})`);
+      entries.push({ level: 2, text: h2[1], anchor: slugify(h2[1]) });
     } else if (h3) {
-      const text = h3[1];
-      const anchor = text
-        .toLowerCase()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/ /g, '-');
-      entries.push(`  - [${text}](#${anchor})`);
+      entries.push({ level: 3, text: h3[1], anchor: slugify(h3[1]) });
+    } else if (h4) {
+      entries.push({ level: 4, text: h4[1], anchor: slugify(h4[1]) });
     }
   }
-  return `## Table of Contents\n\n${entries.join('\n')}`;
+  return entries;
+}
+
+function _buildToc(content) {
+  const lines = scanHeadings(content).map(e => {
+    const indent = '  '.repeat(e.level - 2);
+    return `${indent}- [${e.text}](#${e.anchor})`;
+  });
+  return `## Table of Contents\n\n${lines.join('\n')}`;
 }
 
 export class RunbookBuilder {
@@ -234,7 +231,7 @@ export class RunbookBuilder {
     this.selection = selection;
   }
 
-  async build() {
+  async _assemble() {
     const { InfraAdapter } = await import('./runbook-adapters/infra.js');
     const { EnvAdapter } = await import('./runbook-adapters/env.js');
     const { DiagramAdapter } = await import('./runbook-adapters/diagram.js');
@@ -299,23 +296,74 @@ export class RunbookBuilder {
     const labs012 = infraAdapter.generate(0, this.selection);
     const lab3 = envAdapter.generate(3, this.selection, allEnvVars, allEnvExports);
     const lab4 = diagramAdapter.generate(4, this.selection);
-    const lab5 = await addonAdapter.generate(5, this.selection);
-    const lab6 = installAdapter.generate(6, this.selection);
-    const lab7 = await usecaseAdapter.generate(7, this.selection);
+    // Cert/trust bootstrap (cacerts secrets, SPIRE distinct roots) must exist before ANY
+    // addon or mesh component installs — mirrors installer.js's real global-then-per-cluster
+    // order (see InstallAdapter.generateCertSetup). Addons (Lab 6) come after, not before.
+    const addonPreambles = await addonAdapter.generatePreambles(this.selection);
+    const lab5 = installAdapter.generateCertSetup(5, this.selection, addonPreambles);
+    const lab6 = await addonAdapter.generate(6, this.selection);
+    const lab7 = installAdapter.generate(7, this.selection);
+    const lab8 = await usecaseAdapter.generate(8, this.selection);
 
-    const body = [labs012, lab3, lab4, lab5, lab6, lab7].filter(Boolean).join('\n\n');
+    // Lab 9 aggregates cleanup from every adapter, in reverse of install order:
+    // use cases -> Istio mesh -> addons -> infrastructure (terraform destroy).
+    let cleanupIndex = 1;
+    const cleanupSections = [];
+
+    const usecaseCleanup = usecaseAdapter.generateCleanupSections(9, this.selection, cleanupIndex);
+    cleanupSections.push(...usecaseCleanup);
+    cleanupIndex += usecaseCleanup.length;
+
+    const installCleanup = installAdapter.generateCleanupSections(9, this.selection, cleanupIndex);
+    cleanupSections.push(...installCleanup);
+    cleanupIndex += installCleanup.length;
+
+    const addonCleanup = await addonAdapter.generateCleanupSections(
+      9,
+      this.selection,
+      cleanupIndex
+    );
+    cleanupSections.push(...addonCleanup);
+    cleanupIndex += addonCleanup.length;
+
+    const infraCleanup = infraAdapter.generateCleanupSections(9, this.selection, cleanupIndex);
+    cleanupSections.push(...infraCleanup);
+
+    const lab9 = cleanupSections.length
+      ? `## Lab 9 — Cleanup\n\n${cleanupSections.join('\n\n---\n\n')}`
+      : '';
+
+    const body = [labs012, lab3, lab4, lab5, lab6, lab7, lab8, lab9].filter(Boolean).join('\n\n');
     const toc = _buildToc(body);
     const content = [header, toc, body].join('\n\n');
 
-    // TODO: cleanup labs not yet wired — future: append cleanup section from each adapter
+    return { content };
+  }
 
-    // Write file
+  async build() {
+    const { content } = await this._assemble();
+
     const { outputDir, filename } = this.selection;
     fs.mkdirSync(outputDir, { recursive: true });
     const outputPath = path.join(outputDir, `${filename}.md`);
     fs.writeFileSync(outputPath, content, 'utf8');
 
     const lineCount = content.split('\n').length;
+    console.log(`\nRunbook written to ${outputPath} (${lineCount} lines)`);
+    return outputPath;
+  }
+
+  async buildHtml() {
+    const { content } = await this._assemble();
+    const { HtmlRenderer } = await import('./runbook-html.js');
+    const html = new HtmlRenderer().render(content, this.selection);
+
+    const { outputDir, filename } = this.selection;
+    fs.mkdirSync(outputDir, { recursive: true });
+    const outputPath = path.join(outputDir, `${filename}.html`);
+    fs.writeFileSync(outputPath, html, 'utf8');
+
+    const lineCount = html.split('\n').length;
     console.log(`\nRunbook written to ${outputPath} (${lineCount} lines)`);
     return outputPath;
   }

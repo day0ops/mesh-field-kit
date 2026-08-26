@@ -109,10 +109,15 @@ export class Prompts {
 
       const cols = stdout.columns || 80;
       const maxLabel = cols - 4;
-      const fit = text => {
+      // prefixLen accounts for characters rendered before the text itself (e.g. the "    • "
+      // bullet prefix on description lines) so the full rendered line — prefix included — never
+      // exceeds one terminal row. A line that wraps would desync `linesRendered` from the actual
+      // number of visual rows on screen, corrupting every redraw's cursor-up escape sequence.
+      const fit = (text, prefixLen = 0) => {
         const clean = text.replace(/[\r\n]+/g, ' ').trim();
-        if (clean.length <= maxLabel) return clean;
-        return clean.slice(0, maxLabel - 1) + '…';
+        const budget = Math.max(1, maxLabel - prefixLen);
+        if (clean.length <= budget) return clean;
+        return clean.slice(0, budget - 1) + '…';
       };
 
       const render = () => {
@@ -141,7 +146,7 @@ export class Prompts {
             if (choice.description) {
               const descLines = choice.description.trim().split('\n');
               for (const dl of descLines) {
-                const descText = dl.trim();
+                const descText = fit(dl.trim(), 6); // 6 = '    • '.length
                 if (descText) {
                   lines.push(
                     active ? chalk.dim.cyan(`    • ${descText}`) : chalk.dim(`    • ${descText}`)

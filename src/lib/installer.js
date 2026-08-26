@@ -12,6 +12,7 @@ import { OperatorInstaller } from './operator-installer.js';
 import { FeatureManager } from './feature.js';
 import {
   CertificateManager,
+  SpireRootManager,
   EastWestGateway,
   ClusterLinker,
   PeeringInstaller,
@@ -679,7 +680,7 @@ export class InstallerManager {
       const flag = contextFlags(cluster.context).kubectl;
       if (!(await KubernetesHelper.isClusterAccessible(flag))) {
         throw new Error(
-          `Cluster '${cluster.name}' (context: ${cluster.context}) is not accessible. Check your kubeconfig.`
+          `Cluster '${cluster.name}' (context: ${cluster.context}) is not accessible. Check your kubeconfig and credentials (e.g. aws sso login).`
         );
       }
     }
@@ -742,6 +743,38 @@ export class InstallerManager {
       console.log();
       Logger.info('Setting up shared root of trust...');
       await new CertificateManager({ mode: certMode, clusters: clusterList }).deploy();
+    }
+
+    // For SPIRE distinctRoots mode: pre-generate one independent root per cluster whose
+    // spire addon config requests it, before any cluster installs, so every cluster's
+    // SPIRE deploy can discover and trust every peer's root immediately (see
+    // SpireRootManager and addons/spire/index.js).
+    const distinctRootClusters = [];
+    for (const cluster of orderedClusters) {
+      const resolved = ConfigResolver.resolveForCluster(profile, cluster);
+      const spireEntry = (resolved.addons || []).find(
+        addon => (typeof addon === 'string' ? addon : addon.name) === 'spire'
+      );
+      if (!spireEntry || typeof spireEntry === 'string') continue;
+
+      let spireConfig = { ...spireEntry };
+      if (spireConfig.config && typeof spireConfig.config === 'object') {
+        Object.assign(spireConfig, spireConfig.config);
+      }
+      const templateCtx = TemplateResolver.buildContext(cluster, environment, infraState);
+      spireConfig = TemplateResolver.resolveValues(spireConfig, templateCtx);
+
+      if (spireConfig.distinctRoots === true) {
+        distinctRootClusters.push({
+          name: cluster.name,
+          trustDomain: spireConfig.trustDomain || `${cluster.name}.local`,
+        });
+      }
+    }
+    if (distinctRootClusters.length > 0) {
+      console.log();
+      Logger.info('Generating independent SPIRE roots...');
+      await new SpireRootManager({ clusters: distinctRootClusters }).deploy();
     }
 
     for (const cluster of orderedClusters) {
@@ -1032,7 +1065,7 @@ export class InstallerManager {
       const flag = contextFlags(cluster.context).kubectl;
       if (!(await KubernetesHelper.isClusterAccessible(flag))) {
         throw new Error(
-          `Cluster '${cluster.name}' (context: ${cluster.context}) is not accessible. Check your kubeconfig.`
+          `Cluster '${cluster.name}' (context: ${cluster.context}) is not accessible. Check your kubeconfig and credentials (e.g. aws sso login).`
         );
       }
     }

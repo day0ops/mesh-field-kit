@@ -56,18 +56,28 @@ const yamlSingleQuote = value => String(value).replaceAll("'", "''");
  *     backendClientId: string,
  *     backendClientSecret: string,
  *     frontendClientId: string,
- *     defaultPassword: string,      // Default: 'Passwd00' (solo-admin, solo-reader, solo-writer)
+ *                                   // Bootstrap password for solo-admin/solo-reader/solo-writer
+ *                                   // comes from SOLO_UI_DEFAULT_PASSWORD (see below), not config.
  *   },
  *   realms: [],                   // Optional: config-driven realm setup (overrides legacy path)
+ *                                  // A realm named 'grafana' gets its sole user's username/password
+ *                                  // sourced from GRAFANA_REALM_ADMIN_USERNAME/PASSWORD (see below)
+ *                                  // instead of the realm's own username/defaultPassword fields.
  *   externalDns: boolean,         // Optional: explicit override; auto-detected when external-dns addon is present
  * }
  *
  * Requires the following environment variables (no defaults - deploy fails
  * cleanly via validate() if any are unset):
- *   KEYCLOAK_ADMIN_USERNAME    - Keycloak master realm bootstrap admin username
- *   KEYCLOAK_ADMIN_PASSWORD    - Keycloak master realm bootstrap admin password
- *   KEYCLOAK_POSTGRES_USER     - Postgres superuser backing Keycloak's DB
- *   KEYCLOAK_POSTGRES_PASSWORD - Postgres superuser password
+ *   KEYCLOAK_ADMIN_USERNAME       - Keycloak master realm bootstrap admin username
+ *   KEYCLOAK_ADMIN_PASSWORD       - Keycloak master realm bootstrap admin password
+ *   KEYCLOAK_POSTGRES_USER        - Postgres superuser backing Keycloak's DB
+ *   KEYCLOAK_POSTGRES_PASSWORD    - Postgres superuser password
+ *   SOLO_UI_DEFAULT_PASSWORD      - solo-admin/solo-reader/solo-writer bootstrap password
+ *                                   (only required when soloUIClients.enabled is true)
+ *   GRAFANA_REALM_ADMIN_USERNAME  - Grafana OIDC demo admin username (default: 'grafana-admin';
+ *                                   only used when a 'grafana' realm is configured)
+ *   GRAFANA_REALM_ADMIN_PASSWORD  - Grafana OIDC demo admin password (only required when a
+ *                                   'grafana' realm is configured)
  */
 export class KeycloakFeature extends AddonFeature {
   constructor(name, config) {
@@ -110,6 +120,10 @@ export class KeycloakFeature extends AddonFeature {
     this.adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || '';
     this.postgresUser = process.env.KEYCLOAK_POSTGRES_USER || '';
     this.postgresPassword = process.env.KEYCLOAK_POSTGRES_PASSWORD || '';
+    this.soloUiDefaultPassword = process.env.SOLO_UI_DEFAULT_PASSWORD || '';
+    this.grafanaAdminUsername = process.env.GRAFANA_REALM_ADMIN_USERNAME || 'grafana-admin';
+    this.grafanaAdminPassword = process.env.GRAFANA_REALM_ADMIN_PASSWORD || '';
+    this.hasGrafanaRealm = (config.realms || []).some(r => r.realm === 'grafana');
     const clusterAddons = config.clusterAddons || [];
     this.externalDns = config.externalDns === true || clusterAddons.includes('external-dns');
   }
@@ -120,6 +134,8 @@ export class KeycloakFeature extends AddonFeature {
       !this.adminPassword && 'KEYCLOAK_ADMIN_PASSWORD',
       !this.postgresUser && 'KEYCLOAK_POSTGRES_USER',
       !this.postgresPassword && 'KEYCLOAK_POSTGRES_PASSWORD',
+      this.soloUIClients?.enabled && !this.soloUiDefaultPassword && 'SOLO_UI_DEFAULT_PASSWORD',
+      this.hasGrafanaRealm && !this.grafanaAdminPassword && 'GRAFANA_REALM_ADMIN_PASSWORD',
     ].filter(Boolean);
     if (missing.length > 0) {
       throw new Error(
@@ -128,7 +144,9 @@ export class KeycloakFeature extends AddonFeature {
           '  export KEYCLOAK_ADMIN_USERNAME="admin"\n' +
           '  export KEYCLOAK_ADMIN_PASSWORD="<your-password>"\n' +
           '  export KEYCLOAK_POSTGRES_USER="postgres"\n' +
-          '  export KEYCLOAK_POSTGRES_PASSWORD="<your-password>"'
+          '  export KEYCLOAK_POSTGRES_PASSWORD="<your-password>"\n' +
+          '  export SOLO_UI_DEFAULT_PASSWORD="<your-password>"\n' +
+          '  export GRAFANA_REALM_ADMIN_PASSWORD="<your-password>"'
       );
     }
     return true;
@@ -189,8 +207,7 @@ export class KeycloakFeature extends AddonFeature {
       'info'
     );
     if (this.soloUIClients?.enabled) {
-      const soloPassword = this.soloUIClients.defaultPassword || 'Passwd00';
-      this.log(`Solo UI login: solo-admin / ${soloPassword}`, 'info');
+      this.log('Solo UI login: solo-admin / $SOLO_UI_DEFAULT_PASSWORD', 'info');
     }
   }
 
@@ -693,18 +710,20 @@ export class KeycloakFeature extends AddonFeature {
       }
     }
 
-    const defaultPassword = realm.defaultPassword;
+    const isGrafanaRealm = realm.realm === 'grafana';
+    const defaultPassword = isGrafanaRealm ? this.grafanaAdminPassword : realm.defaultPassword;
     for (const user of realm.users || []) {
+      const username = isGrafanaRealm ? this.grafanaAdminUsername : user.username;
       const password = user.password || defaultPassword;
       if (!password) {
         throw new Error(
-          `No password for user '${user.username}' in realm '${realm.realm}'. Set defaultPassword or per-user password.`
+          `No password for user '${username}' in realm '${realm.realm}'. Set defaultPassword or per-user password.`
         );
       }
       await this.createOrUpdateUserWithPassword(
         baseUrl,
         token,
-        user.username,
+        username,
         realm.realm,
         user.attributes || {},
         password,
@@ -712,7 +731,7 @@ export class KeycloakFeature extends AddonFeature {
       );
 
       if (user.memberOf?.length) {
-        const userId = await this.lookupUserId(baseUrl, token, user.username, realm.realm);
+        const userId = await this.lookupUserId(baseUrl, token, username, realm.realm);
         for (const groupName of user.memberOf) {
           const groupId = groupIds[groupName];
           if (userId && groupId) {
@@ -721,7 +740,7 @@ export class KeycloakFeature extends AddonFeature {
               `${baseUrl}/admin/realms/${realm.realm}/users/${userId}/groups/${groupId}`,
               token
             );
-            this.log(`Added '${user.username}' to group '${groupName}'`, 'info');
+            this.log(`Added '${username}' to group '${groupName}'`, 'info');
           }
         }
       }
@@ -1129,7 +1148,7 @@ export class KeycloakFeature extends AddonFeature {
 
   async createSoloUIUsers(baseUrl, token, groupIds) {
     const realm = this.soloUIRealm;
-    const password = this.soloUIClients?.defaultPassword || 'Passwd00';
+    const password = this.soloUiDefaultPassword;
     const users = [
       {
         username: 'solo-admin',

@@ -46,6 +46,9 @@ export KEYCLOAK_ADMIN_USERNAME=          # Keycloak master realm bootstrap admin
 export KEYCLOAK_ADMIN_PASSWORD=          # Keycloak master realm bootstrap admin password
 export KEYCLOAK_POSTGRES_USER=           # Postgres superuser backing Keycloak's DB
 export KEYCLOAK_POSTGRES_PASSWORD=       # Postgres superuser password
+export SOLO_UI_DEFAULT_PASSWORD=         # Required only when soloUIClients.enabled (solo-admin/solo-reader/solo-writer bootstrap password)
+export GRAFANA_REALM_ADMIN_USERNAME=     # Optional, only used when a 'grafana' realm is configured (default: 'grafana-admin')
+export GRAFANA_REALM_ADMIN_PASSWORD=     # Required only when a 'grafana' realm is configured
 
 # telemetry addon, full mode (required when the profile installs it)
 export GRAFANA_ADMIN_USERNAME=           # Grafana admin login username
@@ -90,6 +93,10 @@ Each feature directory contains `index.js` (the Feature subclass) and optionally
 1. Create `features/<category>/<feature-name>/index.js` extending `Feature` with `deploy()` and `cleanup()`.
 2. Add static YAML templates to `features/<category>/<feature-name>/config/` if needed.
 3. Register in `features/index.js` via `FeatureManager.register('<name>', FeatureClass)`.
+
+### Keep runbooks in sync
+
+Each addon's `runbook.js` sidecar (next to `index.js`) hand-reconstructs its install/cleanup commands rather than executing the real code, so it silently drifts if not updated alongside the addon. When adding or changing an addon or feature's install steps, add/update its `runbook.js`/`buildRunbook()` in the same change.
 
 ### Adding a new use case
 

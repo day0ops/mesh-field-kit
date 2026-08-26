@@ -119,19 +119,34 @@ export class ProfileStateManager {
     await this.save(infraName, state);
   }
 
-  static async setProfileName(infraName, profileName) {
+  static async setProfileName(infraName, profileName, infraProvisionedAt = null) {
     let state = await this.load(infraName);
     if (!state) {
       state = this.createEmptyState(infraName);
     }
     if (!state.status) state.status = { clusters: [] };
     state.status.profileName = profileName;
+    state.status.infraProvisionedAt = infraProvisionedAt;
     await this.save(infraName, state);
     return state;
   }
 
-  static async getProfileName(infraName) {
+  /**
+   * Returns the profile name recorded at install time, or null if there isn't one
+   * or it's stale.
+   *
+   * install-state.yaml lives under ._output/infra/<name>/, which is not cleared when
+   * infra is destroyed/reprovisioned under the same name — so a record from a previous
+   * infra generation can silently persist. Pass the infra's current
+   * status.provisionedAt (from InfraStateManager) so a mismatch is treated as stale
+   * rather than trusted.
+   */
+  static async getProfileName(infraName, currentProvisionedAt = null) {
     const state = await this.load(infraName);
-    return state?.status?.profileName || null;
+    if (!state?.status?.profileName) return null;
+    if (currentProvisionedAt && state.status.infraProvisionedAt !== currentProvisionedAt) {
+      return null;
+    }
+    return state.status.profileName;
   }
 }

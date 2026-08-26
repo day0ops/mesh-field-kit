@@ -1,11 +1,9 @@
 apiVersion: mesh.demo/v1
 kind: Profile
 metadata:
-  name: eks-multi-cluster-peering-with-istio-ingress
+  name: eks-multi-cluster-peering-with-kgateway-spire-multiroot
   description: |
-    Multicluster ambient mesh with helm-based peering
-    - Istio ingress enabled
-    - Cilium addon enabled
+    Minimal profile for testing SPIRE multiRoot: an independent root bidirectionally federated with istiod's cacerts root instead of sharing one. Based on eks-multi-cluster-peering-with-kgateway, stripped of keycloak/solo-ui/telemetry for a small, fast install.
 
 spec:
   infra: eks-multi-cluster
@@ -103,12 +101,25 @@ spec:
           terminationGracePeriodSeconds: 29
           variant: distroless
 
-      # east-west gateway deployed via Solo peering chart.
+      # SPIRE_ENABLED=false is intentional: Solo's SPIRE docs never register the
+      # east-west gateway with SPIRE, and ztunnel's gateway-mode SPIRE client
+      # (dedicated_ca_client.rs) has a confirmed DER/PEM parsing bug. Cross-cluster
+      # mTLS works because the spire addon bidirectionally federates its independent
+      # root with istiod's cacerts root (multiRoot: true, see addons/spire/index.js).
       - name: peering-eastwest
         values:
           eastwest:
             cluster: '{{cluster.name}}'
             network: '{{cluster.name}}'
+            deployment:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: istio-proxy
+                        env:
+                          - name: SPIRE_ENABLED
+                            value: 'false'
 
       # peering remote
       - name: peering-remote
@@ -116,21 +127,6 @@ spec:
           trustDomain: '{{cluster.name}}.local'
           addressType: Hostname
           preferredDataplaneServiceType: LoadBalancer
-
-    clusters:
-      - name: east
-        additionalComponents:
-          - name: ingress-gateway
-            values:
-              gateway:
-                name: httpbin-gateway
-                namespace: istio-ingress
-                hostname: '{{env.domains.app}}'
-                port: 80
-                protocol: HTTP
-                allowedRoutes:
-                  namespaces:
-                    from: All
 
   addons:
     clusters:
@@ -140,6 +136,7 @@ spec:
             phase: pre
             certMode: self-signed
             trustDomain: '{{cluster.name}}.local'
+            multiRoot: true
 
           - name: external-dns
             description: Automatic DNS record management via Route53
@@ -149,31 +146,29 @@ spec:
               domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
               region: '{{env.aws.region}}'
 
-          - name: telemetry
-            description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
+          - name: kgateway
+            description: Kubernetes Gateway API ingress controller
+            version: '2.3.1'
             phase: post
-            namespace: telemetry
-            chartVersions:
-              kube-prom-stack: 88.0.1
-              loki: 7.2.0
-              tempo: 1.61.3
-              alloy: 1.11.0
-              otel: 0.165.0
+            namespace: kgateway-system
             config:
-              database:
-                storageClass: gp3
-                storageSize: 100Gi
-              retention: 120h
-              grafanaServiceType: LoadBalancer
-              grafanaHostname: '{{env.domains.grafana}}'
-
-          - name: solo-ui
-            mode: management
-            version: 0.5.3
-            phase: post
-            namespace: solo-enterprise
-            serviceType: LoadBalancer
-            telemetryNamespace: telemetry
+              enterprise: true
+              ambientEnabled: true
+              # No telemetry addon in this minimal profile - point OTel policy backends
+              # at a namespace that exists (kgateway-system) rather than the default
+              # 'telemetry', which would make the ReferenceGrant apply fail. Nothing
+              # listens there, so logs/traces are just dropped - harmless for this test.
+              tracesCollectorNamespace: kgateway-system
+              logsCollectorNamespace: kgateway-system
+              gateway:
+                name: bookinfo-gateway
+                namespace: kgateway-system
+                hostname: '{{env.domains.app}}'
+                port: 80
+                protocol: HTTP
+                allowedRoutes:
+                  namespaces:
+                    from: All
 
       - name: west
         addons:
@@ -181,17 +176,7 @@ spec:
             phase: pre
             certMode: self-signed
             trustDomain: '{{cluster.name}}.local'
-
-          - name: solo-ui
-            mode: relay
-            phase: post
-            version: 0.5.3
-            namespace: solo-enterprise
-            tunnel:
-              fqdn: solo-enterprise-ui.solo-enterprise.mesh.internal
-              port: 9000
-            telemetry:
-              fqdn: solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal
+            multiRoot: true
 
     global:
       - name: cilium
