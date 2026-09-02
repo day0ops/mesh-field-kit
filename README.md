@@ -80,6 +80,7 @@ Profiles reference an infra profile via `spec.infra` and an environment via `spe
 | `aks-single-cluster`      | AKS             | 1                                      |
 | `aks-multi-cluster`       | AKS             | 2 (east, west)                         |
 | `hybrid-multi-cloud`      | EKS + GKE + AKS | 3 (mgmt on EKS, workload on GKE + AKS) |
+| `rosa-single-cluster`     | ROSA (HCP)      | 1                                      |
 
 ### Available installation profiles
 
