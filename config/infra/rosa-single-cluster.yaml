@@ -1,0 +1,18 @@
+apiVersion: mesh.demo/v1
+kind: InfraProfile
+metadata:
+  name: rosa-single-cluster
+  description: Single ROSA (Red Hat OpenShift on AWS, Hosted Control Planes) cluster — infra only, no mesh install
+
+spec:
+  name: rosa-poc
+  provider: rosa
+  environment: aws-dev
+
+  settings:
+    nodes: 2
+    node_type: m5.xlarge
+
+  clusters:
+    - name: rosa-demo
+      role: management
