@@ -133,6 +133,34 @@ const PROVIDER_CONFIGS = {
     },
   },
 
+  rosa: {
+    environment: 'rosa',
+    outputPrefix: 'rosa',
+    label: 'ROSA',
+    defaultRegion: 'us-east-1',
+    defaultNodeType: 'm5.xlarge',
+    // RHCS_CLIENT_ID/RHCS_CLIENT_SECRET authenticate the rhcs Terraform provider
+    // (Red Hat service account) — deliberately not in ENV_TO_SETTINGS below, since
+    // unlike aws_profile these are secrets and must never be sourced from a
+    // checked-in InfraProfile's spec.settings.
+    requiredEnv: ['AWS_PROFILE', 'RHCS_CLIENT_ID', 'RHCS_CLIENT_SECRET'],
+    generateVars(config) {
+      const vars = {
+        owner: config.owner,
+        aws_profile: config.awsProfile,
+        rosa_region: config.region,
+        rosa_cluster_count: config.clusterCount,
+        rosa_cluster_name: config.clusterName,
+        rosa_replicas: config.nodes,
+        rosa_compute_machine_type: config.nodeType,
+      };
+      if (config.team) vars.team = config.team;
+      if (config.purpose) vars.purpose = config.purpose;
+      if (config.kubernetesVersion) vars.rosa_openshift_version = config.kubernetesVersion;
+      return vars;
+    },
+  },
+
   multicluster: {
     environment: 'multicluster',
     outputPrefix: null,
@@ -174,6 +202,12 @@ const CLOUD_DEFAULTS = {
       'ARM_SUBSCRIPTION_ID',
       'ARM_TENANT_ID',
     ],
+  },
+  rosa: {
+    defaultRegion: 'us-east-1',
+    defaultNodeType: 'm5.xlarge',
+    outputPrefix: 'rosa',
+    requiredEnv: ['AWS_PROFILE', 'RHCS_CLIENT_ID', 'RHCS_CLIENT_SECRET'],
   },
 };
 
