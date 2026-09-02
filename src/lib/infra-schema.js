@@ -1,5 +1,5 @@
-const VALID_PROVIDERS = ['eks-ipv6', 'eks', 'gke', 'aks', 'multicluster'];
-const VALID_CLOUDS = ['eks', 'eks-ipv6', 'gke', 'aks'];
+const VALID_PROVIDERS = ['eks-ipv6', 'eks', 'gke', 'aks', 'rosa', 'multicluster'];
+const VALID_CLOUDS = ['eks', 'eks-ipv6', 'gke', 'aks', 'rosa'];
 const VALID_ROLES = ['management', 'workload', 'gateway'];
 const VALID_VM_ROLES = ['workload'];
 const VALID_DNS_PROVIDERS = ['route53', 'azure-dns', 'cloud-dns'];
