@@ -20,6 +20,8 @@ Ensure you have the following installed:
 - **[Terraform](https://www.terraform.io/) or [OpenTofu](https://opentofu.org/)** - for cloud cluster provisioning
 - **jq** - JSON processor
 
+ROSA infra profiles (`rosa-single-cluster`) additionally require the **[rosa](https://docs.openshift.com/rosa/cli_reference/rosa_cli/rosa-get-started-cli.html)** and **[oc](https://docs.openshift.com/rosa/cli_reference/openshift_cli/getting-started-cli.html)** CLIs, plus a Red Hat Hybrid Cloud Console service account exported as `RHCS_CLIENT_ID`/`RHCS_CLIENT_SECRET` (create one at https://console.redhat.com/iam/service-accounts).
+
 ## Install
 
 ```bash
