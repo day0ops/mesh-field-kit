@@ -214,18 +214,45 @@ export class UseCaseManager {
   }
 
   /**
-   * Get the currently deployed use case
+   * Every provisioned infra profile's cluster contexts, deduplicated, in profile-list order.
+   * The tracking ConfigMap always lives on whichever cluster happened to be the ambient
+   * context when `deploy()` called setCurrentUseCase() -- not necessarily any single
+   * predictable cluster -- so getCurrentUseCase() must check all of them explicitly rather
+   * than trust the caller's own ambient kubectl context, which may point at an unrelated
+   * or stale cluster.
+   */
+  static async resolveTrackingConfigMapContexts() {
+    const profiles = await InfraStateManager.listInfraProfiles();
+    const contexts = [];
+    for (const profile of profiles) {
+      if (!profile.provisioned) continue;
+      // Merges this profile's kubeconfig file(s) into process.env.KUBECONFIG so the
+      // --context=<name> flags below can actually resolve, not just discover the names.
+      await this.ensureKubeconfigsLoaded(profile.name);
+      const state = await InfraStateManager.load(profile.name);
+      for (const { context } of InfraStateManager.getAllContexts(state)) {
+        if (context && !contexts.includes(context)) contexts.push(context);
+      }
+    }
+    return contexts;
+  }
+
+  /**
+   * Get the currently deployed use case.
+   * Checks every provisioned infra profile's cluster contexts explicitly (see
+   * resolveTrackingConfigMapContexts), falling back to the ambient kubectl context only
+   * when no infra state exists at all (e.g. a cluster installed via a raw --context flag).
    */
   static async getCurrentUseCase() {
-    if (!(await KubernetesHelper.isClusterAccessible())) {
-      throw new Error(
-        'Cannot reach the Kubernetes API — check your kubeconfig/credentials (e.g. an expired AWS SSO session) before continuing.'
-      );
-    }
+    const contexts = await this.resolveTrackingConfigMapContexts();
+    const candidates = contexts.length > 0 ? contexts : [null];
 
-    try {
+    let anyReachable = false;
+    for (const context of candidates) {
+      const contextFlag = context ? `--context=${context}` : '';
       const result = await KubernetesHelper.kubectl(
         [
+          ...(contextFlag ? [contextFlag] : []),
           'get',
           'configmap',
           TRACKING_CONFIGMAP,
@@ -233,14 +260,26 @@ export class UseCaseManager {
           TRACKING_NAMESPACE,
           '-o',
           'jsonpath={.data.usecase}',
+          // Without this, a cluster with no tracked use case exits nonzero (NotFound) --
+          // indistinguishable from a genuinely unreachable cluster without inspecting
+          // stderr text. --ignore-not-found makes "reachable, nothing tracked" exit 0.
+          '--ignore-not-found',
         ],
         { ignoreError: true }
       );
-
-      return result.stdout.trim() || null;
-    } catch {
-      return null;
+      if (result.exitCode === 0) {
+        anyReachable = true;
+        const usecase = result.stdout.trim();
+        if (usecase) return usecase;
+      }
     }
+
+    if (!anyReachable) {
+      throw new Error(
+        'Cannot reach the Kubernetes API on any provisioned cluster — check your kubeconfig/credentials (e.g. an expired AWS SSO session) before continuing.'
+      );
+    }
+    return null;
   }
 
   /**
@@ -460,23 +499,6 @@ export class UseCaseManager {
       process.env.KUBECONFIG = parts.join(':');
     } catch {
       // best-effort — if state missing just continue
-    }
-  }
-
-  /**
-   * Merge kubeconfig files from every provisioned infra into process.env.KUBECONFIG.
-   * Used when the tracked use case (and therefore its infra) isn't known yet,
-   * so the current-use-case ConfigMap can still be found regardless of which
-   * cluster context is ambient.
-   */
-  static async ensureAllKubeconfigsLoaded() {
-    try {
-      const profiles = await InfraStateManager.listInfraProfiles();
-      for (const profile of profiles) {
-        await this.ensureKubeconfigsLoaded(profile.name);
-      }
-    } catch {
-      // best-effort — if listing fails just continue
     }
   }
 
@@ -861,7 +883,6 @@ export class UseCaseManager {
    * Clean up the currently deployed use case
    */
   static async cleanupAll() {
-    await this.ensureAllKubeconfigsLoaded();
     const currentUseCase = await this.getCurrentUseCase();
     if (currentUseCase) {
       await this.cleanup(currentUseCase);

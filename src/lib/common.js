@@ -865,7 +865,12 @@ export function waitFor(ms) {
 /**
  * Wait indefinitely for a public hostname to resolve in DNS, then verify HTTP reachability.
  *
- * Phase 1 — DNS: polls dns.resolve4(hostname) every `interval` ms until an IP is returned.
+ * Phase 1 — DNS: polls dns.lookup(hostname) every `interval` ms until an IP is returned. Uses
+ * dns.lookup() (getaddrinfo, the OS resolver) rather than dns.resolve4() (a raw query against
+ * /etc/resolv.conf's nameserver) so this respects the same resolution path — split-DNS overrides
+ * (e.g. macOS /etc/resolver/*), /etc/hosts, nsswitch.conf — that Phase 2's HTTP request below
+ * already goes through. The two phases used to disagree: Phase 1 could hang on a stale answer
+ * from a caching resolver (e.g. Pi-hole) that Phase 2 would have already bypassed.
  * Phase 2 — HTTP: polls the URL (ignoring TLS cert errors) until a non-5xx response is received.
  *
  * @param {string} hostname
@@ -895,11 +900,9 @@ export async function waitForPublicUrl(
   logger(`Waiting for DNS to resolve: ${hostname}`, 'info');
   while (true) {
     try {
-      const addrs = await dns.resolve4(hostname);
-      if (addrs.length > 0) {
-        logger(`DNS resolved: ${hostname} → ${addrs[0]} (${elapsed()})`, 'success');
-        break;
-      }
+      const { address } = await dns.lookup(hostname, { family: 4 });
+      logger(`DNS resolved: ${hostname} → ${address} (${elapsed()})`, 'success');
+      break;
     } catch {
       // ENOTFOUND or similar — record not propagated yet
     }
