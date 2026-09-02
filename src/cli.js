@@ -475,9 +475,7 @@ base
 
 base
   .command('clean-addons')
-  .description(
-    'Clean up all profile-based addons (cert-manager, external-dns, keycloak, solo-ui, cilium, calico)'
-  )
+  .description('Clean up all profile-based addons')
   .action(async () => {
     try {
       const confirmed = await Prompts.confirm(

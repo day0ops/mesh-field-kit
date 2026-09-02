@@ -418,6 +418,25 @@ export class SpireFeature extends AddonFeature {
    * istiod's own ephemeral CA) never hit this cross-CA gap in the first place.
    */
   async #federateWithIstioCA(context, caBundle) {
+    // multiRoot/distinctRoots always imply a multi-cluster install where CertificateManager
+    // creates cacerts on every cluster - but its creation isn't barriered against this addon's
+    // own deploy() across clusters, so cacerts may not exist here yet even though it's coming.
+    // Wait rather than silently skip, or a slower cluster's federation gets dropped on the floor
+    // with no error (the exact gap that produced a live UnknownCA cross-cluster mTLS failure).
+    if (this.multiRoot || this.distinctRoots) {
+      try {
+        await this.#waitForSecret('cacerts', 'istio-system', context);
+      } catch {
+        this.log(
+          'cacerts secret never appeared - skipping istiod CA federation. Cross-cluster mTLS ' +
+            'between SPIRE-issued peers and istiod-issued gateways (e.g. istio-eastwest) will ' +
+            "fail with 'UnknownCA' until cacerts is patched and istiod is restarted.",
+          'warn'
+        );
+        return;
+      }
+    }
+
     const currentRootPem = await this.#getIstioCARootCert(context);
     if (!currentRootPem) return;
 
