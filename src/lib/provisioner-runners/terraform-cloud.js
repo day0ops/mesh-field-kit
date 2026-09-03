@@ -170,6 +170,16 @@ const PROVIDER_CONFIGS = {
     requiredEnv: [],
     isMulticluster: true,
   },
+
+  'eks-rosa': {
+    environment: 'eks-rosa',
+    outputPrefix: null,
+    label: 'EKS + ROSA',
+    defaultRegion: null,
+    defaultNodeType: null,
+    requiredEnv: [],
+    isMulticluster: true,
+  },
 };
 
 const CLOUD_DEFAULTS = {
@@ -525,10 +535,18 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
     const eksCloud = config.clouds['eks'] || config.clouds['eks-ipv6'];
     const gkeCloud = config.clouds['gke'];
     const aksCloud = config.clouds['aks'];
+    const rosaCloud = config.clouds['rosa'];
+
+    // aws_profile is a single shared variable (both EKS and ROSA use the
+    // same default aws provider), so it's only written once here rather
+    // than in each cloud's own branch below.
+    if (eksCloud || rosaCloud) {
+      lines.push(`aws_profile = ${formatTfValue(config.awsProfile || 'default')}`);
+      lines.push('');
+    }
 
     if (eksCloud) {
       lines.push(`# EKS`);
-      lines.push(`aws_profile = ${formatTfValue(config.awsProfile || 'default')}`);
       lines.push(`eks_cluster_count = ${eksCloud.count}`);
       lines.push(`eks_cluster_name = ${formatTfValue(eksCloud.clusterName)}`);
       lines.push(`eks_region = ${formatTfValue(eksCloud.region)}`);
@@ -541,6 +559,32 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       lines.push('');
     }
 
+    if (rosaCloud) {
+      // ROSA shares the EKS/default aws provider (same region) instead of
+      // its own aliased provider: simpler, and the two need to be in the
+      // same region for cross-cluster connectivity testing anyway. There's
+      // no rosa_region variable here — the eks-rosa environment derives it
+      // straight from eks_region. It also doesn't take kubernetesVersion,
+      // since that's a Kubernetes version string (e.g. "1.31") shared with
+      // eks/gke/aks, not an OpenShift version (e.g. "4.19.44") — ROSA keeps
+      // the module's own default.
+      lines.push(`# ROSA`);
+      lines.push(`rosa_cluster_count = ${rosaCloud.count}`);
+      lines.push(`rosa_cluster_name = ${formatTfValue(rosaCloud.clusterName)}`);
+      lines.push(`rosa_replicas = ${rosaCloud.nodes}`);
+      lines.push(`rosa_compute_machine_type = ${formatTfValue(rosaCloud.nodeType)}`);
+      lines.push('');
+    } else {
+      lines.push(`rosa_cluster_count = 0`);
+      lines.push(`rosa_cluster_name = "none"`);
+      lines.push('');
+    }
+
+    // The eks-rosa environment doesn't declare gke_*/aks_* variables at all
+    // (it only has aws + rhcs providers), so skip these sections entirely
+    // rather than writing "undeclared variable" values it'll just warn about.
+    const supportsGkeAks = this.providerConfig.environment === 'multicluster';
+
     if (gkeCloud) {
       lines.push(`# GKE`);
       lines.push(`gke_project = ${formatTfValue(config.gkeProject)}`);
@@ -550,7 +594,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       lines.push(`gke_node_pool_size = ${gkeCloud.nodes}`);
       lines.push(`gke_node_type = ${formatTfValue(gkeCloud.nodeType)}`);
       lines.push('');
-    } else {
+    } else if (supportsGkeAks) {
       lines.push(`gke_cluster_count = 0`);
       lines.push(`gke_cluster_name = "none"`);
       lines.push(`gke_project = "none"`);
@@ -570,7 +614,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
         lines.push(`aks_service_principal = null`);
       }
       lines.push('');
-    } else {
+    } else if (supportsGkeAks) {
       lines.push(`aks_cluster_count = 0`);
       lines.push(`aks_cluster_name = "none"`);
       lines.push(`aks_service_principal = null`);

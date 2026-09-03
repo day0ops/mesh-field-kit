@@ -844,7 +844,7 @@ export async function checkDependencies() {
 
   for (const cmd of required) {
     try {
-      await CommandRunner.run('command', ['-v', cmd], { ignoreError: true });
+      await CommandRunner.run('command', ['-v', cmd]);
       console.log(chalk.green('✓'), cmd);
     } catch {
       console.log(chalk.yellow('✗'), cmd, chalk.dim('(missing)'));
@@ -854,7 +854,7 @@ export async function checkDependencies() {
 
   for (const { cmd, note } of optional) {
     try {
-      await CommandRunner.run('command', ['-v', cmd], { ignoreError: true });
+      await CommandRunner.run('command', ['-v', cmd]);
       console.log(chalk.green('✓'), cmd);
     } catch {
       console.log(chalk.yellow('✗'), cmd, chalk.dim(`(optional — ${note})`));

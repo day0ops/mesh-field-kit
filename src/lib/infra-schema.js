@@ -1,5 +1,8 @@
-const VALID_PROVIDERS = ['eks-ipv6', 'eks', 'gke', 'aks', 'rosa', 'multicluster'];
+const VALID_PROVIDERS = ['eks-ipv6', 'eks', 'gke', 'aks', 'rosa', 'multicluster', 'eks-rosa'];
 const VALID_CLOUDS = ['eks', 'eks-ipv6', 'gke', 'aks', 'rosa'];
+// Providers that combine more than one cloud in a single infra profile need
+// each cluster to declare its own `cloud` — see isMulticluster below.
+const MULTI_CLOUD_PROVIDERS = ['multicluster', 'eks-rosa'];
 const VALID_ROLES = ['management', 'workload', 'gateway'];
 const VALID_VM_ROLES = ['workload'];
 const VALID_DNS_PROVIDERS = ['route53', 'azure-dns', 'cloud-dns'];
@@ -37,7 +40,7 @@ export const InfraSchema = {
         );
       }
 
-      const isMulticluster = infraProfile.spec.provider === 'multicluster';
+      const isMulticluster = MULTI_CLOUD_PROVIDERS.includes(infraProfile.spec.provider);
 
       if (!infraProfile.spec.clusters || !Array.isArray(infraProfile.spec.clusters)) {
         errors.push('Missing or invalid field: spec.clusters (must be an array)');
