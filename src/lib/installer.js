@@ -9,6 +9,7 @@ import { ProfileSchema } from './profile-schema.js';
 import { ConfigResolver } from './config-resolver.js';
 import { TemplateResolver } from './template-resolver.js';
 import { OperatorInstaller } from './operator-installer.js';
+import { SailOperatorInstaller } from './sail-operator-installer.js';
 import { FeatureManager } from './feature.js';
 import {
   CertificateManager,
@@ -52,6 +53,13 @@ const COMPONENT_NAMESPACE_MAP = {
 // Components that are deferred to the installAll() post-install phase
 // (require cross-cluster info not available during per-cluster install)
 const DEFERRED_COMPONENTS = new Set(['peering-remote']);
+
+// installMethod values that install/uninstall a full mesh-mode CR/controller
+// instead of the per-component Helm charts — dispatched to a dedicated installer.
+const OPERATOR_LIKE_INSTALLERS = {
+  operator: OperatorInstaller,
+  'sail-operator': SailOperatorInstaller,
+};
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -438,9 +446,10 @@ export class InstallerManager {
 
     const cfg = resolveConfig(profile, { ...options, licenseKey });
 
-    if (cfg.installMethod === 'operator') {
+    const OperatorLikeInstaller = OPERATOR_LIKE_INSTALLERS[cfg.installMethod];
+    if (OperatorLikeInstaller) {
       await this.#installAddons({ profile, cluster, phase: 'pre', templateContext });
-      await OperatorInstaller.installCluster({
+      await OperatorLikeInstaller.installCluster({
         profile,
         cluster,
         templateContext,
@@ -947,8 +956,9 @@ export class InstallerManager {
     spinner.start(`Uninstalling ${label} from ${cluster?.name || contextDisplay}...`);
 
     try {
-      if (installMethod === 'operator') {
-        await OperatorInstaller.uninstall(context);
+      const OperatorLikeInstaller = OPERATOR_LIKE_INSTALLERS[installMethod];
+      if (OperatorLikeInstaller) {
+        await OperatorLikeInstaller.uninstall(context);
       }
 
       const flags = contextFlags(context);
