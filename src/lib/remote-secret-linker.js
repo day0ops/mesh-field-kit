@@ -165,7 +165,9 @@ export class RemoteSecretLinker {
   async #patchGatewayStatusAddress(cluster, gatewayName, address) {
     const ctx = cluster.context ? `--context=${cluster.context}` : '';
     const addressType = /^(\d{1,3}\.){3}\d{1,3}$/.test(address) ? 'IPAddress' : 'Hostname';
-    const patch = JSON.stringify({ status: { addresses: [{ type: addressType, value: address }] } });
+    const patch = JSON.stringify({
+      status: { addresses: [{ type: addressType, value: address }] },
+    });
 
     await CommandRunner.exec(
       `kubectl ${ctx} patch gateway ${gatewayName} -n ${EW_GATEWAY_NAMESPACE} --type=merge --subresource=status -p '${patch}'`

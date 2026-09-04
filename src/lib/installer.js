@@ -830,7 +830,10 @@ export class InstallerManager {
         });
 
         if (!hasEastWestComponent) {
-          await new EastWestGateway({ clusters: clusterList, namespace: 'istio-eastwest' }).deploy();
+          await new EastWestGateway({
+            clusters: clusterList,
+            namespace: 'istio-eastwest',
+          }).deploy();
         }
 
         const firstResolved = ConfigResolver.resolveForCluster(profile, orderedClusters[0]);
@@ -1167,7 +1170,10 @@ export class InstallerManager {
         }
 
         try {
-          await new EastWestGateway({ clusters: clusterList, namespace: 'istio-eastwest' }).cleanup();
+          await new EastWestGateway({
+            clusters: clusterList,
+            namespace: 'istio-eastwest',
+          }).cleanup();
         } catch {
           Logger.warn('Could not clean up east-west gateways');
         }
