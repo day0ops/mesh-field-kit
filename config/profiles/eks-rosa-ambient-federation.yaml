@@ -1,0 +1,77 @@
+apiVersion: mesh.demo/v1
+kind: Profile
+metadata:
+  name: eks-rosa-ambient-federation
+  description: |
+    Cross-vendor ambient mesh federation: Solo Istio Ambient Enterprise on EKS
+    federated with Red Hat OpenShift Service Mesh 3 (Sail Operator) on ROSA,
+    linked via standard istioctl create-remote-secret multicluster instead of
+    Solo's proprietary peering system (which has no controller to talk to on
+    a non-Solo cluster). Proof-of-concept scope only — see
+    docs/cross-mesh-federation/{report,instructions}.md for exactly what
+    works and what doesn't across the vendor boundary before demoing this.
+
+    Automates a workaround for a genuine bug in Solo's Istio fork
+    (EastWestGatewayClassName diverges from upstream "istio-east-west" to
+    "istio-eastwest"), via RemoteSecretLinker's GatewayClass-name "shim"
+    gateways. This is a bug workaround, not a supported pattern — see
+    instructions.md Step 6, and remove once Solo reverts or configures it.
+
+spec:
+  infra: eks-rosa-multi-cluster
+  environment: aws-dev
+
+  mesh:
+    istioVersion: 1.30.3
+    gatewayApiVersion: v1.5.0
+    profile: ambient
+
+    certificates:
+      mode: self-signed
+
+    # Sail Operator (ROSA) ships its own upstream Istio release, versioned
+    # independently of Solo's fork used on the Helm-installed EKS cluster above.
+    operator:
+      istioVersion: v1.28.10
+
+    multicluster:
+      mode: remote-secret
+      clusters:
+        - name: eks-cluster
+          eastWestGatewayClassName: istio-eastwest
+        - name: rosa-cluster
+          eastWestGatewayClassName: istio-east-west
+
+    clusters:
+      - name: eks-cluster
+        installMethod: helm
+        components:
+          - name: base
+          - name: istiod
+            values:
+              global:
+                meshID: mesh1
+                multiCluster:
+                  clusterName: eks-cluster
+              env:
+                AMBIENT_ENABLE_MULTI_NETWORK: 'true'
+                AMBIENT_ENABLE_BAGGAGE: 'true'
+                CA_TRUSTED_NODE_ACCOUNTS: istio-system/ztunnel
+          - name: cni
+          - name: ztunnel
+            values:
+              multiCluster:
+                clusterName: eks-cluster
+
+      - name: rosa-cluster
+        installMethod: sail-operator
+        components:
+          - name: istiod
+            values:
+              global:
+                meshID: mesh1
+              env:
+                AMBIENT_ENABLE_MULTI_NETWORK: 'true'
+                AMBIENT_ENABLE_BAGGAGE: 'true'
+                CA_TRUSTED_NODE_ACCOUNTS: istio-system/ztunnel
+          - name: ztunnel
