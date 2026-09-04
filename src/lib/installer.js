@@ -95,7 +95,7 @@ function resolveConfig(profile, options = {}) {
       'v1.5.0',
     meshProfile: ProfileSchema.getMeshProfile(profile),
     istioRevision: ProfileSchema.getIstioRevision(profile),
-    installMethod: ProfileSchema.getInstallMethod(profile),
+    installMethod: ProfileSchema.getInstallMethod(profile, options.cluster),
     namespace: options.namespace || process.env.NAMESPACE || DEFAULTS.NAMESPACE,
     waitTimeout: options.waitTimeout || process.env.WAIT_TIMEOUT || DEFAULTS.WAIT_TIMEOUT,
     vmClusterName: options.vmClusterName || null,
@@ -931,7 +931,7 @@ export class InstallerManager {
     const contextDisplay = context || 'current context';
     const spinner = new SpinnerLogger();
 
-    const installMethod = profile ? ProfileSchema.getInstallMethod(profile) : 'helm';
+    const installMethod = profile ? ProfileSchema.getInstallMethod(profile, cluster) : 'helm';
 
     let label = 'Istio';
     if (profile && cluster) {

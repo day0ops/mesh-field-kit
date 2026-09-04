@@ -7,10 +7,36 @@ const DEFAULT_COMPONENTS = [
   'peering-remote',
 ];
 const VALID_COMPONENTS = [...DEFAULT_COMPONENTS, 'ingress-gateway'];
-const VALID_INSTALL_METHODS = ['helm', 'operator'];
+const VALID_INSTALL_METHODS = ['helm', 'operator', 'sail-operator'];
+// Install methods that manage their own mesh-mode CR/spec instead of the Helm
+// 'profile' value (ambient/sidecar) — spec.mesh.profile isn't required for these.
+const OPERATOR_LIKE_INSTALL_METHODS = ['operator', 'sail-operator'];
 const VALID_CERT_MODES = ['self-signed', 'cert-manager'];
 const VALID_SCALING_PROFILES = ['Default', 'Demo', 'Large'];
 const VALID_PEERING_METHODS = ['helm', 'declarative'];
+
+/**
+ * spec.mesh.profile (ambient/sidecar) is only required when some cluster actually
+ * installs via Helm. Considers the base scalar plus every per-role/per-cluster
+ * installMethod override declared in the profile, not just the top-level scalar,
+ * so a mixed-method profile (e.g. helm + sail-operator on different clusters)
+ * isn't spuriously required to set it when only the operator-like clusters exist,
+ * nor spuriously exempted when a helm-installed cluster is still in the mix.
+ */
+function needsMeshProfile(mesh) {
+  const roleMethods =
+    mesh.roles && typeof mesh.roles === 'object'
+      ? Object.values(mesh.roles).map(r => r?.installMethod)
+      : [];
+  const clusterMethods = Array.isArray(mesh.clusters)
+    ? mesh.clusters.map(c => c?.installMethod)
+    : [];
+  const declaredMethods = [mesh.installMethod, ...roleMethods, ...clusterMethods].filter(Boolean);
+
+  // Nothing declared anywhere — falls back to the 'helm' default.
+  if (declaredMethods.length === 0) return true;
+  return declaredMethods.some(m => !OPERATOR_LIKE_INSTALL_METHODS.includes(m));
+}
 
 function validateMesh(mesh, errors) {
   if (!mesh) {
@@ -22,8 +48,7 @@ function validateMesh(mesh, errors) {
     errors.push('Missing required field: spec.mesh.istioVersion');
   }
 
-  const isOperator = mesh.installMethod === 'operator';
-  if (!isOperator && !mesh.profile) {
+  if (needsMeshProfile(mesh) && !mesh.profile) {
     errors.push(
       'Missing required field: spec.mesh.profile (required when installMethod is not operator)'
     );
@@ -87,6 +112,11 @@ function validateMesh(mesh, errors) {
         if (roleConfig.addons) {
           validateAddons(roleConfig.addons, `${prefix}.addons`, errors);
         }
+        if (roleConfig.installMethod && !VALID_INSTALL_METHODS.includes(roleConfig.installMethod)) {
+          errors.push(
+            `${prefix}.installMethod: Invalid value: ${roleConfig.installMethod}. Valid values: ${VALID_INSTALL_METHODS.join(', ')}`
+          );
+        }
       }
     }
   }
@@ -113,6 +143,11 @@ function validateMesh(mesh, errors) {
         }
         if (entry.componentValues) {
           validateComponentValues(entry.componentValues, `${prefix}.componentValues`, errors);
+        }
+        if (entry.installMethod && !VALID_INSTALL_METHODS.includes(entry.installMethod)) {
+          errors.push(
+            `${prefix}.installMethod: Invalid value: ${entry.installMethod}. Valid values: ${VALID_INSTALL_METHODS.join(', ')}`
+          );
         }
       }
     }
@@ -358,8 +393,25 @@ export const ProfileSchema = {
     return profile.spec?.mesh?.istioRevision || 'default';
   },
 
-  getInstallMethod(profile) {
-    return profile.spec?.mesh?.installMethod || 'helm';
+  /**
+   * Resolve the effective install method for a cluster: base scalar, overridden by
+   * spec.mesh.roles.<role>.installMethod, overridden by spec.mesh.clusters[].installMethod
+   * — mirrors ConfigResolver.resolveForCluster's precedence order for components/addons.
+   */
+  getInstallMethod(profile, cluster) {
+    let method = profile.spec?.mesh?.installMethod || 'helm';
+
+    if (cluster?.role) {
+      const roleConfig = this.getRoleConfig(profile, cluster.role);
+      if (roleConfig?.installMethod) method = roleConfig.installMethod;
+    }
+
+    if (cluster?.name) {
+      const clusterOverride = this.getClusterOverride(profile, cluster.name);
+      if (clusterOverride?.installMethod) method = clusterOverride.installMethod;
+    }
+
+    return method;
   },
 
   getCertificates(profile) {
