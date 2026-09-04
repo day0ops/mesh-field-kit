@@ -18,6 +18,7 @@ import {
   ClusterLinker,
   PeeringInstaller,
 } from './multicluster.js';
+import { RemoteSecretLinker } from './remote-secret-linker.js';
 import { EnvironmentManager } from './environment.js';
 import { InfraStateManager } from './infra-state.js';
 import { InfraManager } from './infra-manager.js';
@@ -808,27 +809,41 @@ export class InstallerManager {
       Logger.info('Configuring multicluster connectivity...');
       const clusterList = orderedClusters.map(c => ({ name: c.name, context: c.context }));
       const cfg = resolveConfig(profile, { licenseKey });
-      const peeringMethod = ProfileSchema.getPeeringMethod(profile);
+      const multiclusterConfig = ProfileSchema.getMulticlusterConfig(profile);
 
-      const hasEastWestComponent = orderedClusters.some(c => {
-        const resolved = ConfigResolver.resolveForCluster(profile, c);
-        return resolved.components.includes('peering-eastwest');
-      });
+      if (multiclusterConfig) {
+        const linkerClusters = clusterList.map(c => ({
+          ...c,
+          eastWestGatewayClassName: ProfileSchema.getMulticlusterClusterConfig(profile, c.name)
+            ?.eastWestGatewayClassName,
+        }));
+        await new RemoteSecretLinker({
+          clusters: linkerClusters,
+          istioImage: cfg.istioImage,
+        }).deploy();
+      } else {
+        const peeringMethod = ProfileSchema.getPeeringMethod(profile);
 
-      if (!hasEastWestComponent) {
-        await new EastWestGateway({ clusters: clusterList, namespace: 'istio-eastwest' }).deploy();
+        const hasEastWestComponent = orderedClusters.some(c => {
+          const resolved = ConfigResolver.resolveForCluster(profile, c);
+          return resolved.components.includes('peering-eastwest');
+        });
+
+        if (!hasEastWestComponent) {
+          await new EastWestGateway({ clusters: clusterList, namespace: 'istio-eastwest' }).deploy();
+        }
+
+        const firstResolved = ConfigResolver.resolveForCluster(profile, orderedClusters[0]);
+        const peeringRemoteValues = firstResolved.componentValues['peering-remote'] || {};
+        await new ClusterLinker({
+          clusters: clusterList,
+          namespace: 'istio-eastwest',
+          method: peeringMethod,
+          helmRepo: cfg.helmIstioRepo,
+          istioImage: cfg.istioImage,
+          peeringRemoteValues,
+        }).deploy();
       }
-
-      const firstResolved = ConfigResolver.resolveForCluster(profile, orderedClusters[0]);
-      const peeringRemoteValues = firstResolved.componentValues['peering-remote'] || {};
-      await new ClusterLinker({
-        clusters: clusterList,
-        namespace: 'istio-eastwest',
-        method: peeringMethod,
-        helmRepo: cfg.helmIstioRepo,
-        istioImage: cfg.istioImage,
-        peeringRemoteValues,
-      }).deploy();
       Logger.success('Multicluster connectivity configured');
     }
 
@@ -1125,22 +1140,37 @@ export class InstallerManager {
       console.log();
       Logger.info('Cleaning up multicluster connectivity...');
       const clusterList = orderedClusters.map(c => ({ name: c.name, context: c.context }));
-      const peeringMethod = profile ? ProfileSchema.getPeeringMethod(profile) : 'helm';
+      const multiclusterConfig = profile ? ProfileSchema.getMulticlusterConfig(profile) : null;
 
-      try {
-        await new ClusterLinker({
-          clusters: clusterList,
-          namespace: 'istio-eastwest',
-          method: peeringMethod,
-        }).cleanup();
-      } catch {
-        Logger.warn('Could not clean up cluster links');
-      }
+      if (multiclusterConfig) {
+        const linkerClusters = clusterList.map(c => ({
+          ...c,
+          eastWestGatewayClassName: ProfileSchema.getMulticlusterClusterConfig(profile, c.name)
+            ?.eastWestGatewayClassName,
+        }));
+        try {
+          await new RemoteSecretLinker({ clusters: linkerClusters }).cleanup();
+        } catch {
+          Logger.warn('Could not clean up remote-secret multicluster linking');
+        }
+      } else {
+        const peeringMethod = profile ? ProfileSchema.getPeeringMethod(profile) : 'helm';
 
-      try {
-        await new EastWestGateway({ clusters: clusterList, namespace: 'istio-eastwest' }).cleanup();
-      } catch {
-        Logger.warn('Could not clean up east-west gateways');
+        try {
+          await new ClusterLinker({
+            clusters: clusterList,
+            namespace: 'istio-eastwest',
+            method: peeringMethod,
+          }).cleanup();
+        } catch {
+          Logger.warn('Could not clean up cluster links');
+        }
+
+        try {
+          await new EastWestGateway({ clusters: clusterList, namespace: 'istio-eastwest' }).cleanup();
+        } catch {
+          Logger.warn('Could not clean up east-west gateways');
+        }
       }
     }
 

@@ -14,6 +14,7 @@ const OPERATOR_LIKE_INSTALL_METHODS = ['operator', 'sail-operator'];
 const VALID_CERT_MODES = ['self-signed', 'cert-manager'];
 const VALID_SCALING_PROFILES = ['Default', 'Demo', 'Large'];
 const VALID_PEERING_METHODS = ['helm', 'declarative'];
+const VALID_MULTICLUSTER_MODES = ['remote-secret'];
 
 /**
  * spec.mesh.profile (ambient/sidecar) is only required when some cluster actually
@@ -78,6 +79,10 @@ function validateMesh(mesh, errors) {
     errors.push(
       `Invalid installMethod: ${mesh.installMethod}. Valid values: ${VALID_INSTALL_METHODS.join(', ')}`
     );
+  }
+
+  if (mesh.multicluster !== undefined) {
+    validateMulticluster(mesh.multicluster, errors);
   }
 
   if (mesh.certificates) {
@@ -163,6 +168,36 @@ function validateCertificates(certs, errors) {
     errors.push(
       `Invalid certificates.mode: ${certs.mode}. Valid values: ${VALID_CERT_MODES.join(', ')}`
     );
+  }
+}
+
+function validateMulticluster(multicluster, errors) {
+  if (typeof multicluster !== 'object' || Array.isArray(multicluster)) {
+    errors.push('spec.mesh.multicluster must be an object');
+    return;
+  }
+  if (multicluster.mode && !VALID_MULTICLUSTER_MODES.includes(multicluster.mode)) {
+    errors.push(
+      `Invalid spec.mesh.multicluster.mode: ${multicluster.mode}. Valid values: ${VALID_MULTICLUSTER_MODES.join(', ')}`
+    );
+  }
+  if (multicluster.clusters !== undefined) {
+    if (!Array.isArray(multicluster.clusters)) {
+      errors.push('spec.mesh.multicluster.clusters must be an array');
+    } else {
+      for (let i = 0; i < multicluster.clusters.length; i++) {
+        const entry = multicluster.clusters[i];
+        const prefix = `spec.mesh.multicluster.clusters[${i}]`;
+        if (!entry || typeof entry !== 'object') {
+          errors.push(`${prefix}: must be an object with 'name' and 'eastWestGatewayClassName'`);
+          continue;
+        }
+        if (!entry.name) errors.push(`${prefix}: missing required field: name`);
+        if (!entry.eastWestGatewayClassName) {
+          errors.push(`${prefix}: missing required field: eastWestGatewayClassName`);
+        }
+      }
+    }
   }
 }
 
@@ -453,6 +488,21 @@ export const ProfileSchema = {
 
   getPeeringMethod(profile) {
     return profile.spec?.mesh?.peering || 'helm';
+  },
+
+  /**
+   * spec.mesh.multicluster — the standard istioctl create-remote-secret linking
+   * mode, kept separate from spec.mesh.peering (Solo's proprietary peering
+   * system). Returns null when the profile doesn't opt into it.
+   */
+  getMulticlusterConfig(profile) {
+    return profile.spec?.mesh?.multicluster || null;
+  },
+
+  getMulticlusterClusterConfig(profile, clusterName) {
+    const clusters = profile.spec?.mesh?.multicluster?.clusters;
+    if (!Array.isArray(clusters)) return null;
+    return clusters.find(c => c.name === clusterName) || null;
   },
 
   getValidComponents() {
