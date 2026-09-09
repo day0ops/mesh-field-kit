@@ -141,7 +141,7 @@ spec:
             namespace: keycloak
             keycloakNamespace: keycloak
             keycloakImage: '{{env.images.keycloak}}'
-            hostname: '{{env.domains.keycloak}}'
+            hostname: '{{env.domains.core.keycloak}}'
             protocol: '{{env.keycloak.scheme}}'
             tls:
               enabled: true
@@ -151,7 +151,7 @@ spec:
             soloUIClients:
               enabled: true
               realm: solo-ui
-              hostname: 'https://{{env.domains.soloUI}}'
+              hostname: 'https://{{env.domains.core.soloUi}}'
               backendClientId: solo-ui-backend
               backendClientSecret: solo-ui-backend-secret
               frontendClientId: solo-ui-frontend
@@ -199,9 +199,9 @@ spec:
                       - authorization-code
                     groupMembership: true
                     redirectUris:
-                      - 'https://{{env.domains.grafana}}/login/generic_oauth'
+                      - 'https://{{env.domains.core.grafana}}/login/generic_oauth'
                     postLogoutRedirectUris:
-                      - 'https://{{env.domains.grafana}}'
+                      - 'https://{{env.domains.core.grafana}}'
                 users:
                   # username/password sourced from GRAFANA_REALM_ADMIN_USERNAME (default:
                   # grafana-admin) and GRAFANA_REALM_ADMIN_PASSWORD, not this profile
@@ -228,33 +228,33 @@ spec:
                 storageClass: gp3
                 storageSize: 100Gi
               retention: 120h
-              grafanaHostname: '{{env.domains.grafana}}'
+              grafanaHostname: '{{env.domains.core.grafana}}'
               grafanaTls:
                 enabled: true
                 secretName: grafana-tls
                 issuer: letsencrypt-dns
               grafanaOidc:
                 enabled: true
-                issuerUrl: 'https://{{env.domains.keycloak}}/realms/grafana'
+                issuerUrl: 'https://{{env.domains.core.keycloak}}/realms/grafana'
                 clientId: grafana
                 clientSecret: grafana-client-secret
                 adminGroup: grafana-admins
 
           - name: solo-ui
             mode: management
-            version: 0.5.3
+            version: '{{env.soloUi.version}}'
             phase: post
             namespace: solo-enterprise
             serviceType: LoadBalancer
             telemetryNamespace: telemetry
-            hostname: '{{env.domains.soloUI}}'
+            hostname: '{{env.domains.core.soloUi}}'
             tls:
               enabled: true
               secretName: solo-ui-tls
               issuer: letsencrypt-dns
             oidc:
               enabled: true
-              issuerUrl: 'https://{{env.domains.keycloak}}/realms/solo-ui'
+              issuerUrl: 'https://{{env.domains.core.keycloak}}/realms/solo-ui'
               backendClientId: solo-ui-backend
               backendClientSecret: solo-ui-backend-secret
               frontendClientId: solo-ui-frontend
@@ -275,7 +275,7 @@ spec:
               gateway:
                 name: bookinfo-gateway
                 namespace: kgateway-system
-                hostname: '{{env.domains.app}}'
+                hostname: '{{env.domains.app.main}}'
                 port: 80
                 protocol: HTTP
                 allowedRoutes:
@@ -292,7 +292,7 @@ spec:
           - name: solo-ui
             mode: relay
             phase: post
-            version: 0.5.3
+            version: '{{env.soloUi.version}}'
             namespace: solo-enterprise
             tunnel:
               fqdn: solo-enterprise-ui.solo-enterprise.mesh.internal

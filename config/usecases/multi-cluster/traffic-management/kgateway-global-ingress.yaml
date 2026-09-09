@@ -43,7 +43,7 @@ spec:
         gatewayName: bookinfo-gateway
         gatewayNamespace: kgateway-system
         namespace: bookinfo
-        hostname: '{{env.domains.app}}'
+        hostname: '{{env.domains.app.main}}'
         rules:
           - matches:
               - path:
@@ -75,7 +75,7 @@ spec:
         - name: east
       steps:
         - action: send-request
-          hostname: '{{env.domains.app}}'
+          hostname: '{{env.domains.app.main}}'
           autoDetectGwAddress: true
           path: /productpage
           timeout: 30s
@@ -101,7 +101,7 @@ spec:
           timeout: 30s
       steps:
         - action: send-request
-          hostname: '{{env.domains.app}}'
+          hostname: '{{env.domains.app.main}}'
           autoDetectGwAddress: true
           path: /productpage
           timeout: 30s

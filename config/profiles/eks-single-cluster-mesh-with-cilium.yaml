@@ -69,4 +69,4 @@ spec:
           storageSize: 100Gi
         retention: 120h
         grafanaServiceType: LoadBalancer
-        grafanaHostname: '{{env.domains.grafana}}'
+        grafanaHostname: '{{env.domains.core.grafana}}'

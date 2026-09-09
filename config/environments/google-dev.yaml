@@ -21,8 +21,13 @@ spec:
     keycloak: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/keycloak:26.7.0
 
   domains:
-    keycloak: keycloak.ambient-demo-gke.kasunt.apac.fe.solo.io
-    grafana: grafana.ambient-demo-gke.kasunt.apac.fe.solo.io
-    soloUI: soloui.ambient-demo-gke.kasunt.apac.fe.solo.io
-    okta: integrator-1335842.okta.com
-    app: app.ambient-demo-gke.kasunt.apac.fe.solo.io
+    core:
+      keycloak: keycloak.ambient-demo-gke.kasunt.apac.fe.solo.io
+      grafana: grafana.ambient-demo-gke.kasunt.apac.fe.solo.io
+      soloUi: soloui.ambient-demo-gke.kasunt.apac.fe.solo.io
+    app:
+      main: app.ambient-demo-gke.kasunt.apac.fe.solo.io
+
+  # Okta tenant
+  okta:
+    domain: integrator-1335842.okta.com
