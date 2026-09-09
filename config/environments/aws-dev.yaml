@@ -27,6 +27,9 @@ spec:
   keycloak:
     scheme: https
 
+  soloUi:
+    version: 0.5.6
+
   images:
     keycloak: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/keycloak:26.7.0
 
@@ -42,8 +45,13 @@ spec:
 
   # Domain mappings - auto-generated pattern: <service>.<childZone>.<parentDomain>
   domains:
-    keycloak: keycloak.mesh-demo.kasunt.apac.fe.solo.io
-    grafana: grafana.mesh-demo.kasunt.apac.fe.solo.io
-    soloUI: soloui.mesh-demo.kasunt.apac.fe.solo.io
-    okta: integrator-1335842.okta.com
-    app: app.mesh-demo.kasunt.apac.fe.solo.io
+    core:
+      keycloak: keycloak.mesh-demo.kasunt.apac.fe.solo.io
+      grafana: grafana.mesh-demo.kasunt.apac.fe.solo.io
+      soloUi: soloui.mesh-demo.kasunt.apac.fe.solo.io
+    app:
+      main: app.mesh-demo.kasunt.apac.fe.solo.io
+
+  # Okta tenant
+  okta:
+    domain: integrator-1335842.okta.com

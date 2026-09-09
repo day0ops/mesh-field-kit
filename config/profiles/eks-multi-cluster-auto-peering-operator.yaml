@@ -80,11 +80,11 @@ spec:
                 storageSize: 100Gi
               retention: 120h
               grafanaServiceType: LoadBalancer
-              grafanaHostname: '{{env.domains.grafana}}'
+              grafanaHostname: '{{env.domains.core.grafana}}'
 
           - name: solo-ui
             mode: management
-            version: 0.4.3
+            version: '{{env.soloUi.version}}'
             phase: post
             namespace: solo-enterprise
             serviceType: LoadBalancer
@@ -102,7 +102,7 @@ spec:
               gateway:
                 name: bookinfo-gateway
                 namespace: kgateway-system
-                hostname: '{{env.domains.app}}'
+                hostname: '{{env.domains.app.main}}'
                 port: 80
                 protocol: HTTP
                 allowedRoutes:
@@ -114,7 +114,7 @@ spec:
           - name: solo-ui
             mode: relay
             phase: post
-            version: 0.4.3
+            version: '{{env.soloUi.version}}'
             namespace: solo-enterprise
             tunnel:
               fqdn: solo-enterprise-ui.solo-enterprise.mesh.internal

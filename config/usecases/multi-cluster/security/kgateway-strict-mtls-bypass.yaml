@@ -33,7 +33,7 @@ spec:
         gatewayName: bookinfo-gateway
         gatewayNamespace: kgateway-system
         namespace: bookinfo
-        hostname: '{{env.domains.app}}'
+        hostname: '{{env.domains.app.main}}'
         rules:
           - matches:
               - path:
@@ -52,7 +52,7 @@ spec:
         - name: east
       steps:
         - action: send-request
-          hostname: '{{env.domains.app}}'
+          hostname: '{{env.domains.app.main}}'
           autoDetectGwAddress: true
           path: /productpage
           timeout: 30s
@@ -108,7 +108,7 @@ spec:
       steps:
         - action: exec
           command: |
-            curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H "Host: {{env.domains.app}}" http://$(kubectl get gateway.gateway.networking.k8s.io bookinfo-gateway -n kgateway-system -o jsonpath='{.status.addresses[0].value}')/productpage || echo "000"
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H "Host: {{env.domains.app.main}}" http://$(kubectl get gateway.gateway.networking.k8s.io bookinfo-gateway -n kgateway-system -o jsonpath='{.status.addresses[0].value}')/productpage || echo "000"
           timeout: 20s
         - action: verify
           expect:
@@ -143,7 +143,7 @@ spec:
           timeout: 20s
       steps:
         - action: send-request
-          hostname: '{{env.domains.app}}'
+          hostname: '{{env.domains.app.main}}'
           autoDetectGwAddress: true
           path: /productpage
           timeout: 20s

@@ -5,7 +5,7 @@ import { TemplateResolver } from '../../src/lib/template-resolver.js';
 const mockEnvironment = {
   spec: {
     aws: { region: 'ap-southeast-1' },
-    domains: { keycloak: 'keycloak.example.com' },
+    domains: { core: { keycloak: 'keycloak.example.com' } },
   },
 };
 

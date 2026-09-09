@@ -167,7 +167,7 @@ spec:
               gateway:
                 name: bookinfo-gateway
                 namespace: kgateway-system
-                hostname: '{{env.domains.app}}'
+                hostname: '{{env.domains.app.main}}'
                 port: 80
                 protocol: HTTP
                 allowedRoutes:

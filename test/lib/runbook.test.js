@@ -134,7 +134,7 @@ const fullSelection = {
     spec: { name: 'maple', provider: 'eks', clusters: [{ name: 'east' }, { name: 'west' }] },
   },
   environment: {
-    spec: { aws: { region: 'ap-southeast-1' }, domains: { app: 'app.example.com' } },
+    spec: { aws: { region: 'ap-southeast-1' }, domains: { app: { main: 'app.example.com' } } },
   },
   usecases: [],
   outputDir: path.join(os.tmpdir(), `runbook-test-${Date.now()}`),
