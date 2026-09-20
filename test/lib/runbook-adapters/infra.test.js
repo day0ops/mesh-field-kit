@@ -45,3 +45,21 @@ test('InfraAdapter.generate produces Lab 0 with prereqs, credentials, terraform,
   expect(md).toContain('environments/eks/terraform.tfvars');
   expect(md).toContain('eks_kubeconfig');
 });
+
+test('InfraAdapter falls back to the generic tfvars placeholder for eks-rosa', () => {
+  const adapter = new InfraAdapter();
+  const selection = {
+    ...mockSelection,
+    infraProfile: {
+      metadata: { name: 'rosa-eks-multi-cluster' },
+      spec: {
+        name: 'rosa-eks',
+        provider: 'eks-rosa',
+        clusters: [{ name: 'rosa-cluster' }, { name: 'eks-cluster' }],
+      },
+    },
+  };
+  const md = adapter.generate(0, selection);
+  expect(md).toContain('# Fill in your provider-specific terraform.tfvars');
+  expect(md).not.toContain('eks_region');
+});
