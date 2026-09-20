@@ -1,6 +1,6 @@
 // test/lib/installer.test.js
 import { test, expect } from 'bun:test';
-import { buildComponentBaseValues } from '../../src/lib/installer.js';
+import { buildComponentBaseValues, resolveComponentNamespace } from '../../src/lib/installer.js';
 
 const cfg = {
   istioRevision: null,
@@ -31,8 +31,6 @@ test('isVmCluster does not affect other components', () => {
   expect(cni.env).toBeUndefined();
   expect(ztunnel.env).toEqual({ L7_ENABLED: 'true' });
 });
-
-import { resolveComponentNamespace } from '../../src/lib/installer.js';
 
 test('resolveComponentNamespace uses a per-cluster componentNamespaces override', () => {
   const profile = {
