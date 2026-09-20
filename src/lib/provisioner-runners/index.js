@@ -16,7 +16,9 @@ const RUNNER_REGISTRY = new Map([
   ['eks', TerraformCloudRunner],
   ['gke', TerraformCloudRunner],
   ['aks', TerraformCloudRunner],
+  ['rosa', TerraformCloudRunner],
   ['multicluster', TerraformCloudRunner],
+  ['eks-rosa', TerraformCloudRunner],
 ]);
 
 /**

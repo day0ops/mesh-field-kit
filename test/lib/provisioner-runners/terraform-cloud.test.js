@@ -126,3 +126,69 @@ test('writeTerraformVars emits vm_cluster_index when enabled', () => {
   const content = readFileSync(runner.varFile, 'utf8');
   expect(content).toContain('vm_cluster_index = 1');
 });
+
+function eksRosaClusters() {
+  return [
+    {
+      name: 'rosa-cluster',
+      provisioner: {
+        type: 'eks-rosa',
+        cloud: 'rosa',
+        owner: 'kasunt',
+        cluster_name: 'ridge',
+        nodes: { desired: 2 },
+      },
+    },
+    {
+      name: 'eks-cluster',
+      provisioner: {
+        type: 'eks-rosa',
+        cloud: 'eks',
+        owner: 'kasunt',
+        region: 'ap-southeast-2',
+        cluster_name: 'ridge',
+        nodes: { desired: 2 },
+      },
+    },
+  ];
+}
+
+test('writeTerraformVars for eks-rosa emits eks_* and rosa_* vars, omits gke/aks', () => {
+  const runner = new TerraformCloudRunner('rosa-eks-multi-cluster', eksRosaClusters(), {
+    outputDir: dir,
+    kubeconfigDir: join(dir, 'kubeconfig'),
+  });
+  runner.ensureDirectories();
+  runner.writeTerraformVars(runner.resolveConfiguration());
+
+  const content = readFileSync(runner.varFile, 'utf8');
+  expect(content).toContain('eks_cluster_count = 1');
+  expect(content).toContain('rosa_cluster_count = 1');
+  expect(content).toContain('rosa_cluster_name = "ridge"');
+  expect(content).not.toContain('gke_cluster_count');
+  expect(content).not.toContain('aks_cluster_count');
+});
+
+test('standalone rosa provider writeTerraformVars emits rosa_* vars', () => {
+  const runner = new TerraformCloudRunner(
+    'rosa-single-cluster',
+    [
+      {
+        name: 'rosa-demo',
+        provisioner: {
+          type: 'rosa',
+          owner: 'kasunt',
+          cluster_name: 'rosa-poc',
+          nodes: { desired: 2 },
+        },
+      },
+    ],
+    { outputDir: dir, kubeconfigDir: join(dir, 'kubeconfig') }
+  );
+  runner.ensureDirectories();
+  runner.writeTerraformVars(runner.resolveConfiguration());
+
+  const content = readFileSync(runner.varFile, 'utf8');
+  expect(content).toContain('rosa_cluster_name = "rosa-poc"');
+  expect(content).toContain('rosa_compute_machine_type = "m5.xlarge"');
+});
