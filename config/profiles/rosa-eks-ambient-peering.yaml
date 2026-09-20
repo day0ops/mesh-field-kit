@@ -1,0 +1,113 @@
+apiVersion: mesh.demo/v1
+kind: Profile
+metadata:
+  name: rosa-eks-ambient-peering
+  description: |
+    Solo Istio Ambient Enterprise on both a ROSA (HCP) cluster and an EKS
+    cluster, linked via this framework's normal Solo peering multicluster
+    mechanism (not the cross-vendor remote-secret workaround used for
+    Red Hat OSSM3 federation). POC-minimal: enough to prove ambient installs
+    cleanly on ROSA/OpenShift and that cross-cluster peering works, before
+    layering on telemetry, SPIRE, or other addons.
+
+spec:
+  infra: rosa-eks-multi-cluster
+  environment: aws-dev
+
+  mesh:
+    istioVersion: 1.30.3
+    gatewayApiVersion: v1.5.0
+    profile: ambient
+    peering: helm
+
+    certificates:
+      mode: self-signed
+
+    image:
+      istioRepo: us-docker.pkg.dev/soloio-img/istio
+      helmIstioRepo: us-docker.pkg.dev/soloio-img/istio-helm
+      tag: 1.30.3-solo
+
+    components:
+      - name: base
+
+      - name: istiod
+        values:
+          global:
+            multiCluster:
+              clusterName: '{{cluster.name}}'
+            network: '{{cluster.name}}'
+            proxy:
+              clusterDomain: cluster.local
+          meshConfig:
+            accessLogFile: /dev/stdout
+            trustDomain: '{{cluster.name}}.local'
+          platforms:
+            peering:
+              enabled: true
+
+      - name: cni
+        values:
+          ambient:
+            dnsCapture: true
+          excludeNamespaces:
+            - istio-system
+            - kube-system
+
+      - name: ztunnel
+        values:
+          istioNamespace: istio-system
+          namespace: istio-system
+          multiCluster:
+            clusterName: '{{cluster.name}}'
+          network: '{{cluster.name}}'
+          proxy:
+            clusterDomain: cluster.local
+          variant: distroless
+
+      - name: peering-eastwest
+        values:
+          eastwest:
+            cluster: '{{cluster.name}}'
+            network: '{{cluster.name}}'
+
+      - name: peering-remote
+        values:
+          trustDomain: '{{cluster.name}}.local'
+          addressType: Hostname
+          preferredDataplaneServiceType: LoadBalancer
+
+    clusters:
+      - name: rosa-cluster
+        componentNamespaces:
+          cni: kube-system
+          ztunnel: kube-system
+        componentValues:
+          base:
+            global:
+              platform: openshift
+          istiod:
+            global:
+              platform: openshift
+          cni:
+            global:
+              platform: openshift
+          ztunnel:
+            global:
+              platform: openshift
+
+  addons:
+    clusters:
+      - name: rosa-cluster
+        addons:
+          - name: openshift-scc
+            phase: pre
+
+      - name: eks-cluster
+        addons:
+          - name: cilium
+            description: eBPF-based CNI in chaining mode for network policy and observability
+            version: 1.19.4
+            mode: chaining
+            chainingTarget: aws-cni
+            enableHealthProbePolicy: true
