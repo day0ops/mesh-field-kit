@@ -49,6 +49,20 @@ const COMPONENT_NAMESPACE_MAP = {
   'peering-eastwest': 'istio-eastwest',
 };
 
+/**
+ * Resolve the Kubernetes namespace a component installs into: a per-cluster
+ * override (spec.mesh.clusters[].componentNamespaces - e.g. OpenShift's
+ * requirement that istio-cni/ztunnel run in kube-system while istiod/base
+ * stay in the mesh's normal namespace), then the global COMPONENT_NAMESPACE_MAP
+ * (e.g. peering-eastwest -> istio-eastwest), then the mesh's own namespace.
+ */
+export function resolveComponentNamespace(profile, cluster, component, cfg) {
+  const override = ProfileSchema.getClusterOverride(profile, cluster.name);
+  return (
+    override?.componentNamespaces?.[component] || COMPONENT_NAMESPACE_MAP[component] || cfg.namespace
+  );
+}
+
 // Components that are deferred to the installAll() post-install phase
 // (require cross-cluster info not available during per-cluster install)
 const DEFERRED_COMPONENTS = new Set(['peering-remote']);
@@ -624,7 +638,7 @@ export class InstallerManager {
           quotingType: '"',
           forceQuotes: false,
         });
-        const componentNamespace = COMPONENT_NAMESPACE_MAP[component] || cfg.namespace;
+        const componentNamespace = resolveComponentNamespace(profile, cluster, component, cfg);
 
         await this.#installHelmChart(releaseName, chartName, cfg, flags, {
           values: valuesYaml,

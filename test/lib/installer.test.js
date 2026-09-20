@@ -31,3 +31,37 @@ test('isVmCluster does not affect other components', () => {
   expect(cni.env).toBeUndefined();
   expect(ztunnel.env).toEqual({ L7_ENABLED: 'true' });
 });
+
+import { resolveComponentNamespace } from '../../src/lib/installer.js';
+
+test('resolveComponentNamespace uses a per-cluster componentNamespaces override', () => {
+  const profile = {
+    spec: {
+      mesh: {
+        clusters: [
+          {
+            name: 'rosa-cluster',
+            componentNamespaces: { cni: 'kube-system', ztunnel: 'kube-system' },
+          },
+        ],
+      },
+    },
+  };
+  const cluster = { name: 'rosa-cluster' };
+  const cfg = { namespace: 'istio-system' };
+
+  expect(resolveComponentNamespace(profile, cluster, 'cni', cfg)).toBe('kube-system');
+  expect(resolveComponentNamespace(profile, cluster, 'ztunnel', cfg)).toBe('kube-system');
+  expect(resolveComponentNamespace(profile, cluster, 'istiod', cfg)).toBe('istio-system');
+});
+
+test('resolveComponentNamespace falls back to the global map then cfg.namespace', () => {
+  const profile = { spec: { mesh: {} } };
+  const cluster = { name: 'east' };
+  const cfg = { namespace: 'istio-system' };
+
+  expect(resolveComponentNamespace(profile, cluster, 'peering-eastwest', cfg)).toBe(
+    'istio-eastwest'
+  );
+  expect(resolveComponentNamespace(profile, cluster, 'istiod', cfg)).toBe('istio-system');
+});
