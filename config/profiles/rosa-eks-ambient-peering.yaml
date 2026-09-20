@@ -45,6 +45,8 @@ spec:
           platforms:
             peering:
               enabled: true
+          env:
+            PILOT_SKIP_VALIDATE_TRUST_DOMAIN: 'true'
 
       - name: cni
         values:
@@ -64,6 +66,8 @@ spec:
           proxy:
             clusterDomain: cluster.local
           variant: distroless
+          env:
+            SKIP_VALIDATE_TRUST_DOMAIN: 'true'
 
       - name: peering-eastwest
         values:
