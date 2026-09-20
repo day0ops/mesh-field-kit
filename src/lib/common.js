@@ -834,6 +834,10 @@ export class KubernetesHelper {
 
 export async function checkDependencies() {
   const required = ['kubectl', 'helm', 'terraform', 'ssh', 'scp', 'istioctl'];
+  const optional = [
+    { cmd: 'rosa', note: 'needed for ROSA infra profiles (rosa, eks-rosa providers)' },
+    { cmd: 'oc', note: 'needed for ROSA infra profiles (rosa, eks-rosa providers)' },
+  ];
   const missing = [];
 
   Logger.info('Checking dependencies...');
@@ -845,6 +849,15 @@ export async function checkDependencies() {
     } catch {
       console.log(chalk.yellow('✗'), cmd, chalk.dim('(missing)'));
       missing.push(cmd);
+    }
+  }
+
+  for (const { cmd, note } of optional) {
+    try {
+      await CommandRunner.run('command', ['-v', cmd], { ignoreError: true });
+      console.log(chalk.green('✓'), cmd);
+    } catch {
+      console.log(chalk.yellow('✗'), cmd, chalk.dim(`(optional - ${note})`));
     }
   }
 
