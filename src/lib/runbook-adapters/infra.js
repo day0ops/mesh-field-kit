@@ -154,16 +154,17 @@ dns_parent_domain   = "${dns.parentZone?.domain || '<parent-domain>'}"
 dns_child_zone_name = "${dns.childZone || '<child-zone>'}"`
       : '';
 
+    const desiredNodes = settings.nodes?.desired ?? 2;
     const tfvars = isAws
       ? `owner               = "<your-name>"
 aws_profile         = "$AWS_PROFILE"
 eks_region          = "${environment.spec.aws?.region || 'us-east-1'}"
 eks_cluster_name    = "${infraName}"
 eks_cluster_count   = ${clusters.length}
-eks_node_type       = "${settings.node_type || 't3.medium'}"
-eks_nodes           = ${settings.nodes || 2}
-eks_min_nodes       = ${Math.max(1, (settings.nodes || 2) - 1)}
-eks_max_nodes       = ${(settings.nodes || 2) + 2}${dnsVars}`
+eks_node_type       = "${settings.nodes?.type || 't3.medium'}"
+eks_nodes           = ${desiredNodes}
+eks_min_nodes       = ${settings.nodes?.min ?? Math.max(1, desiredNodes - 1)}
+eks_max_nodes       = ${settings.nodes?.max ?? desiredNodes + 2}${dnsVars}`
       : `# Fill in your provider-specific terraform.tfvars`;
 
     const contextExports = clusters

@@ -8,8 +8,9 @@ spec:
   provider: gke
   region: australia-southeast1
   settings:
-    nodes: 2
-    node_type: n1-standard-2
+    nodes:
+      desired: 2
+      type: n1-standard-2
 
   clusters:
     - name: demo
