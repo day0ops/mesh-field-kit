@@ -3,19 +3,15 @@ kind: Profile
 metadata:
   name: rosa-eks-ambient-peering
   description: |
-    Solo Istio Ambient Enterprise on both a ROSA (HCP) cluster and an EKS
-    cluster, linked via this framework's normal Solo peering multicluster
-    mechanism (not the cross-vendor remote-secret workaround used for
-    Red Hat OSSM3 federation). POC-minimal: enough to prove ambient installs
-    cleanly on ROSA/OpenShift and that cross-cluster peering works, before
-    layering on telemetry, SPIRE, or other addons.
+    Solo Istio Ambient Enterprise on both a ROSA (HCP) cluster and an EKS cluster, linked via this framework's normal Solo peering multicluster mechanism. 
+    minimal addons: layering on telemetry, SPIRE, or other addons.
 
 spec:
   infra: rosa-eks-multi-cluster
   environment: aws-dev
 
   mesh:
-    istioVersion: 1.30.3
+    istioVersion: 1.30.4
     gatewayApiVersion: v1.5.0
     profile: ambient
     peering: helm
@@ -26,7 +22,7 @@ spec:
     image:
       istioRepo: us-docker.pkg.dev/soloio-img/istio
       helmIstioRepo: us-docker.pkg.dev/soloio-img/istio-helm
-      tag: 1.30.3-solo
+      tag: 1.30.4-solo
 
     components:
       - name: base
