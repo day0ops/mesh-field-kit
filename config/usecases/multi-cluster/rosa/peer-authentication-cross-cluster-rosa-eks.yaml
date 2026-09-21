@@ -6,26 +6,11 @@ metadata:
     Enforce STRICT mTLS on the bookinfo namespace on the ROSA cluster only,
     and verify:
     - Legitimate cross-cluster mesh traffic from eks-cluster to rosa-cluster
-      (over the east-west gateway) still works - it's still authenticated
-      mTLS even though it crosses a trust domain boundary (each cluster has
-      its own trust domain here: "{{cluster.name}}.local").
-    - A client with no mesh identity on rosa-cluster is still rejected by
-      ztunnel, same as the single-cluster case.
-    No waypoint is required - PeerAuthentication is enforced by ztunnel at
-    L4. Adapted from peer-authentication-cross-cluster for the
-    rosa-eks-multi-cluster infra profile (cluster names rosa-cluster/
-    eks-cluster instead of west/east) - deliberately puts the enforced side
-    on rosa-cluster to exercise ztunnel policy enforcement on OpenShift
-    specifically, not just connectivity.
+      still works - authenticated mTLS across the trust domain boundary
+      (each cluster has its own trust domain: "{{cluster.name}}.local").
+    - A client with no mesh identity on rosa-cluster is rejected by ztunnel.
+    No waypoint is required - PeerAuthentication is enforced by ztunnel at L4.
 spec:
-  diagram: |
-    flowchart LR
-      PP[productpage\nbookinfo/eks-cluster] -->|reviews.bookinfo.mesh.internal| ZTe[ztunnel eks-cluster]
-      ZTe -->|HBONE/mTLS| EWG[east-west gw]
-      EWG --> ZTw[ztunnel rosa-cluster]
-      PA[PeerAuthentication STRICT] -.->|enforced by| ZTw
-      ZTw --> R[reviews rosa-cluster]
-
   infra: rosa-eks-multi-cluster
 
   requires:
@@ -88,9 +73,7 @@ spec:
           timeout: 15s
         - action: exec
           command: >-
-            kubectl run plaintext-client -n no-mesh
-            --image=curlimages/curl:8.11.0 --restart=Never
-            --command -- sleep 3600
+            kubectl run plaintext-client -n no-mesh --image=curlimages/curl:8.11.0 --restart=Never --command -- sleep 3600
           timeout: 15s
         - action: exec
           command: kubectl wait --for=condition=ready pod/plaintext-client -n no-mesh --timeout=60s
@@ -98,9 +81,7 @@ spec:
       steps:
         - action: exec
           command: >-
-            kubectl exec plaintext-client -n no-mesh --
-            curl -s -o /dev/null -w '%{http_code}' --max-time 5
-            http://reviews.bookinfo.svc.cluster.local:9080/reviews/1
+            kubectl exec plaintext-client -n no-mesh -- curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://reviews.bookinfo.svc.cluster.local:9080/reviews/1
           timeout: 15s
           retries: 1
           retryDelay: 3000

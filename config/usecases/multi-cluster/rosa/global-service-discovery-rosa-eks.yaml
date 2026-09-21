@@ -3,26 +3,13 @@ kind: UseCase
 metadata:
   name: global-service-discovery-rosa-eks
   description: |
-    Cross-cluster service discovery between a ROSA (HCP) cluster and an EKS
-    cluster, both running Solo Istio Ambient Enterprise, linked via Solo's
-    peering multicluster mechanism. Adapted from global-service-discovery
-    for the rosa-eks-multi-cluster infra profile (cluster names rosa-cluster/
-    eks-cluster instead of west/east) - trimmed to drop the ingress-httproute
-    feature and its DNS-routed test, since rosa-eks-ambient-peering is
-    POC-minimal and doesn't set up an ingress gateway. Proves raw
-    cross-cluster mesh connectivity directly via kubectl exec instead.
+    Cross-cluster service discovery between a ROSA cluster and an EKS
+    cluster, both running Solo Istio Ambient Enterprise.
     - Services labeled solo.io/service-scope=global get a unified mesh.internal hostname
     - Annotate with networking.istio.io/traffic-distribution: Any to distribute across clusters
     - Endpoints from both clusters are merged under the same global hostname
 
 spec:
-  diagram: |
-    flowchart LR
-      PP[productpage\nbookinfo/eks-cluster] -->|reviews.bookinfo.mesh.internal| ZTe[ztunnel eks-cluster]
-      ZTe -->|HBONE/mTLS| EWG[east-west gw]
-      EWG --> ZTw[ztunnel rosa-cluster]
-      ZTw --> R[reviews rosa-cluster]
-
   infra: rosa-eks-multi-cluster
 
   requires:

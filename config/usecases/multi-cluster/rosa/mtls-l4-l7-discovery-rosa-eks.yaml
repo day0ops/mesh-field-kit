@@ -3,39 +3,20 @@ kind: UseCase
 metadata:
   name: mtls-l4-l7-discovery-rosa-eks
   description: |
-    Comprehensive zero-trust demonstration across ROSA and EKS, both running
-    Solo Istio Ambient Enterprise: bidirectional cross-cluster service
-    discovery, enforced mTLS, L4 identity-based policy, and L7 waypoint
-    policy - each demonstrated on a distinct bookinfo service so failures
-    are independently diagnosable.
-    - productpage/reviews/ratings/details globally scoped on both clusters (discovery)
-    - STRICT mTLS enforced on rosa-cluster's bookinfo namespace (mTLS)
-    - A selector-based AuthorizationPolicy on details, on rosa-cluster,
-      allows only ratings-v1's identity from eks-cluster (L4 identity policy,
-      ztunnel-enforced - rejections are connection-level, not HTTP 403).
-      Side effect: rosa-cluster's own local productpage can no longer reach
-      its local details either, since the policy only allows the named
-      eks-cluster caller - the bookinfo UI on rosa-cluster will show
-      "details unavailable" while this use case is deployed, by design.
-    - A waypoint + Gateway-targeted AuthorizationPolicy on reviews, on
-      eks-cluster, allows only GET requests, enforced identically for local
-      and cross-cluster callers (L7 waypoint policy, HTTP-level rejections)
+    Zero-trust demonstration across ROSA and EKS, both running Solo Istio
+    Ambient Enterprise: bidirectional service discovery, enforced mTLS, L4
+    identity policy, and L7 waypoint policy, each on a distinct bookinfo
+    service.
+    - productpage/reviews/ratings/details globally scoped on both clusters
+    - STRICT mTLS enforced on rosa-cluster's bookinfo namespace
+    - An AuthorizationPolicy on details (rosa-cluster) allows only
+      ratings-v1's identity from eks-cluster - L4, ztunnel-enforced,
+      rejections are connection-level, not HTTP 403. Local productpage on
+      rosa-cluster loses access to details too, by design.
+    - A waypoint + AuthorizationPolicy on reviews (eks-cluster) allows only
+      GET requests, enforced identically for local and cross-cluster callers
 
 spec:
-  diagram: |
-    flowchart LR
-      subgraph rosa[rosa-cluster - mTLS STRICT]
-        D[details]
-        PPr[productpage]
-      end
-      subgraph eks[eks-cluster]
-        PPe[productpage] -->|GET ok, DELETE 403| Wp[reviews-waypoint]
-        Wp --> Re[reviews eks-cluster]
-        RTv1[ratings-v1] -->|allowed identity| D
-      end
-      PPr -->|reviews.bookinfo.mesh.internal| EWG1[east-west gw]
-      EWG1 --> Wp
-
   infra: rosa-eks-multi-cluster
 
   requires:
