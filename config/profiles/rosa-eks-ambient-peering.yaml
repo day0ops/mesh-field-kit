@@ -153,15 +153,15 @@ spec:
 
       - name: eks-cluster
         addons:
-          - name: spire
-            phase: pre
-            certMode: self-signed
-            trustDomain: '{{cluster.name}}.local'
-            distinctRoots: true
-
           - name: cilium
             description: eBPF-based CNI in chaining mode for network policy and observability
             version: 1.19.4
             mode: chaining
             chainingTarget: aws-cni
             enableHealthProbePolicy: true
+
+          - name: spire
+            phase: pre
+            certMode: self-signed
+            trustDomain: '{{cluster.name}}.local'
+            distinctRoots: true

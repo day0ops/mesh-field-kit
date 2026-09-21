@@ -8,11 +8,15 @@ metadata:
     discovery, enforced mTLS, L4 identity-based policy, and L7 waypoint
     policy - each demonstrated on a distinct bookinfo service so failures
     are independently diagnosable.
-    - productpage/reviews/ratings globally scoped on both clusters (discovery)
+    - productpage/reviews/ratings/details globally scoped on both clusters (discovery)
     - STRICT mTLS enforced on rosa-cluster's bookinfo namespace (mTLS)
     - A selector-based AuthorizationPolicy on details, on rosa-cluster,
       allows only ratings-v1's identity from eks-cluster (L4 identity policy,
-      ztunnel-enforced - rejections are connection-level, not HTTP 403)
+      ztunnel-enforced - rejections are connection-level, not HTTP 403).
+      Side effect: rosa-cluster's own local productpage can no longer reach
+      its local details either, since the policy only allows the named
+      eks-cluster caller - the bookinfo UI on rosa-cluster will show
+      "details unavailable" while this use case is deployed, by design.
     - A waypoint + Gateway-targeted AuthorizationPolicy on reviews, on
       eks-cluster, allows only GET requests, enforced identically for local
       and cross-cluster callers (L7 waypoint policy, HTTP-level rejections)
