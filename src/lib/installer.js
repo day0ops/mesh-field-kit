@@ -910,8 +910,15 @@ export class InstallerManager {
       const msg = `Removing ${crds.length} orphaned addon CRD(s)...`;
       if (spinner) spinner.log(msg);
       else Logger.info(msg);
+      // ignoreError: some clusters (e.g. OpenShift/ROSA) manage their own copy of the
+      // Gateway API CRDs via a platform operator and block deletion with a
+      // ValidatingAdmissionPolicy - kubectl still deletes every CRD it's allowed to in
+      // the same batch, but exits non-zero overall, which would otherwise abort cleanup
+      // for CRDs we DO own. Matches the tolerance already applied to the sibling
+      // ValidatingAdmissionPolicy/Binding cleanup immediately below.
       await CommandRunner.exec(
-        `kubectl ${flags.kubectl} delete crd ${crds.join(' ')} --ignore-not-found=true`
+        `kubectl ${flags.kubectl} delete crd ${crds.join(' ')} --ignore-not-found=true`,
+        { ignoreError: true }
       );
     }
 
