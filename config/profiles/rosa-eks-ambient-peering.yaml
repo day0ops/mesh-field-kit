@@ -3,8 +3,11 @@ kind: Profile
 metadata:
   name: rosa-eks-ambient-peering
   description: |
-    Solo Istio Ambient Enterprise on both a ROSA (HCP) cluster and an EKS cluster, linked via this framework's normal Solo peering multicluster mechanism. 
-    minimal addons: layering on telemetry, SPIRE, or other addons.
+    Solo Istio Ambient Enterprise on both a ROSA (HCP) cluster and an EKS
+    cluster, linked via this framework's normal Solo peering multicluster
+    mechanism. SPIRE (independent root per cluster, federated) provides
+    workload identity attestation on both clusters. Solo UI + telemetry run
+    on the ROSA (management) cluster.
 
 spec:
   infra: rosa-eks-multi-cluster
@@ -35,6 +38,9 @@ spec:
             network: '{{cluster.name}}'
             proxy:
               clusterDomain: cluster.local
+            gateways:
+              spire:
+                workloads: true
           meshConfig:
             accessLogFile: /dev/stdout
             trustDomain: '{{cluster.name}}.local'
@@ -62,6 +68,8 @@ spec:
           proxy:
             clusterDomain: cluster.local
           variant: distroless
+          spire:
+            enabled: true
           env:
             SKIP_VALIDATE_TRUST_DOMAIN: 'true'
 
@@ -70,6 +78,15 @@ spec:
           eastwest:
             cluster: '{{cluster.name}}'
             network: '{{cluster.name}}'
+            deployment:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: istio-proxy
+                        env:
+                          - name: SPIRE_ENABLED
+                            value: 'false'
 
       - name: peering-remote
         values:
@@ -103,8 +120,20 @@ spec:
           - name: openshift-scc
             phase: pre
 
+          - name: spire
+            phase: pre
+            certMode: self-signed
+            trustDomain: '{{cluster.name}}.local'
+            distinctRoots: true
+
       - name: eks-cluster
         addons:
+          - name: spire
+            phase: pre
+            certMode: self-signed
+            trustDomain: '{{cluster.name}}.local'
+            distinctRoots: true
+
           - name: cilium
             description: eBPF-based CNI in chaining mode for network policy and observability
             version: 1.19.4
