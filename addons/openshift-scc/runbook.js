@@ -27,6 +27,14 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, _env)
 
 \`\`\`bash
 oc --context=${ctx} adm policy add-scc-to-group ${scc} system:serviceaccounts:${ns}
+\`\`\`
+
+Enable OVN-Kubernetes local gateway mode (\`routingViaHost\`) cluster-wide - required so kubelet liveness/readiness probe traffic reaches pods directly instead of being pulled into ztunnel's ambient datapath and dropped:
+
+\`\`\`bash
+oc --context=${ctx} patch networks.operator.openshift.io cluster --type=merge \\
+  -p '{"spec":{"defaultNetwork":{"ovnKubernetesConfig":{"gatewayConfig":{"routingViaHost":true}}}}}'
+oc --context=${ctx} wait clusteroperator/network --for=condition=Progressing=false --timeout=600s
 \`\`\``;
 }
 
