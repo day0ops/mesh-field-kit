@@ -19,6 +19,7 @@ const __dirname = path.dirname(__filename);
  *   namespace: string,           // Required: Namespace
  *   action: string,              // Optional: ALLOW|DENY|CUSTOM (default: ALLOW)
  *   targetRefs: array,           // Optional: Gateway API targetRefs
+ *   selector: object,            // Optional: workload selector (ztunnel-enforced L4 policy)
  *   rules: array,                // Required: Authorization rules
  * }
  */
@@ -71,6 +72,11 @@ export class AuthorizationPolicyFeature extends Feature {
     // Add targetRefs if provided (Gateway API style)
     if (this.config.targetRefs) {
       spec.targetRefs = this.config.targetRefs;
+    }
+
+    // Add selector if provided (workload selector, ztunnel-enforced at L4)
+    if (this.config.selector) {
+      spec.selector = this.config.selector;
     }
 
     const policy = {

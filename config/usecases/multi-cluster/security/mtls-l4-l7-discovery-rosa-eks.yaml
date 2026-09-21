@@ -58,6 +58,10 @@ spec:
             scope: global
             annotations:
               networking.istio.io/traffic-distribution: Any
+          - name: details
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: Any
       clusters:
         - name: rosa-cluster
         - name: eks-cluster
@@ -148,9 +152,19 @@ spec:
             contains: '200'
 
     - name: discovery-and-l4-allow-eks-to-rosa
-      description: ratings-v1 on eks-cluster reaches details on rosa-cluster via mesh.internal - proves discovery eks-to-rosa, that the L4 identity policy allows the correct caller, and that this legitimate cross-cluster call still succeeds under rosa-cluster's STRICT mTLS.
+      description: ratings-v1 on eks-cluster reaches details on rosa-cluster via mesh.internal - proves discovery eks-to-rosa, that the L4 identity policy allows the correct caller, and that this legitimate cross-cluster call still succeeds under rosa-cluster's STRICT mTLS. eks-cluster's own local details is scaled to 0 first so the call is forced across the east-west gateway to rosa-cluster's details, rather than being served locally.
       clusters:
         - name: eks-cluster
+      setup:
+        - action: exec
+          command: kubectl scale deploy/details-v1 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/details-v1 -n bookinfo --replicas=1
+          timeout: 30s
       steps:
         - action: exec
           command: >-
@@ -199,10 +213,15 @@ spec:
           timeout: 30s
 
     - name: l4-wrong-identity-denied
-      description: A mesh-authenticated caller in bookinfo on eks-cluster with a different identity than bookinfo-ratings (here, bookinfo-reviews) is denied by the L4 policy on rosa-cluster's details service - proves the policy enforces identity, not just mesh membership. Connection-level rejection, not an HTTP response.
+      description: A mesh-authenticated caller in bookinfo on eks-cluster with a different identity than bookinfo-ratings (here, bookinfo-reviews) is denied by the L4 policy on rosa-cluster's details service - proves the policy enforces identity, not just mesh membership. Connection-level rejection, not an HTTP response. eks-cluster's own local details is scaled to 0 first so the call is forced across the east-west gateway to rosa-cluster's details, rather than being served locally.
       clusters:
         - name: eks-cluster
       setup:
+        - action: exec
+          command: kubectl scale deploy/details-v1 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
         - action: exec
           command: >-
             kubectl run wrong-identity-client -n bookinfo
@@ -213,6 +232,13 @@ spec:
         - action: exec
           command: kubectl wait --for=condition=ready pod/wrong-identity-client -n bookinfo --timeout=60s
           timeout: 70s
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/details-v1 -n bookinfo --replicas=1
+          timeout: 30s
+        - action: exec
+          command: kubectl delete pod wrong-identity-client -n bookinfo --ignore-not-found
+          timeout: 30s
       steps:
         - action: exec
           command: >-
@@ -225,10 +251,6 @@ spec:
         - action: verify
           expect:
             contains: '000'
-      teardown:
-        - action: exec
-          command: kubectl delete pod wrong-identity-client -n bookinfo --ignore-not-found
-          timeout: 30s
 
     - name: l7-local-get-allowed
       description: A local GET request to reviews on eks-cluster succeeds under the waypoint's L7 policy.
