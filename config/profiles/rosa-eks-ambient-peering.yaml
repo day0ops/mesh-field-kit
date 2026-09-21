@@ -145,7 +145,7 @@ spec:
 
           - name: solo-ui
             mode: management
-            version: 0.5.3
+            version: 0.5.8
             phase: post
             namespace: solo-enterprise
             serviceType: LoadBalancer
@@ -165,3 +165,14 @@ spec:
             certMode: self-signed
             trustDomain: '{{cluster.name}}.local'
             distinctRoots: true
+
+          - name: solo-ui
+            mode: relay
+            phase: post
+            version: 0.5.8
+            namespace: solo-enterprise
+            tunnel:
+              fqdn: solo-enterprise-ui.solo-enterprise.mesh.internal
+              port: 9000
+            telemetry:
+              fqdn: solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal
