@@ -1,0 +1,113 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: peer-authentication-cross-cluster-rosa-eks
+  description: |
+    Enforce STRICT mTLS on the bookinfo namespace on the ROSA cluster only,
+    and verify:
+    - Legitimate cross-cluster mesh traffic from eks-cluster to rosa-cluster
+      (over the east-west gateway) still works - it's still authenticated
+      mTLS even though it crosses a trust domain boundary (each cluster has
+      its own trust domain here: "{{cluster.name}}.local").
+    - A client with no mesh identity on rosa-cluster is still rejected by
+      ztunnel, same as the single-cluster case.
+    No waypoint is required - PeerAuthentication is enforced by ztunnel at
+    L4. Adapted from peer-authentication-cross-cluster for the
+    rosa-eks-multi-cluster infra profile (cluster names rosa-cluster/
+    eks-cluster instead of west/east) - deliberately puts the enforced side
+    on rosa-cluster to exercise ztunnel policy enforcement on OpenShift
+    specifically, not just connectivity.
+spec:
+  diagram: |
+    flowchart LR
+      PP[productpage\nbookinfo/eks-cluster] -->|reviews.bookinfo.mesh.internal| ZTe[ztunnel eks-cluster]
+      ZTe -->|HBONE/mTLS| EWG[east-west gw]
+      EWG --> ZTw[ztunnel rosa-cluster]
+      PA[PeerAuthentication STRICT] -.->|enforced by| ZTw
+      ZTw --> R[reviews rosa-cluster]
+
+  infra: rosa-eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: rosa-cluster
+          - name: eks-cluster
+
+  features:
+    - name: global-service
+      description: Make reviews on rosa-cluster reachable from eks-cluster via mesh.internal
+      config:
+        namespace: bookinfo
+        services:
+          - name: reviews
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: Any
+      clusters:
+        - name: rosa-cluster
+        - name: eks-cluster
+
+    - name: peer-authentication
+      description: Require STRICT mTLS for all workloads in bookinfo on rosa-cluster
+      config:
+        policyName: bookinfo-strict-mtls
+        namespace: bookinfo
+        mtls:
+          mode: STRICT
+      clusters:
+        - name: rosa-cluster
+
+  tests:
+    - name: cross-cluster-request-succeeds-under-strict-mtls
+      description: A workload in bookinfo/eks-cluster reaches reviews on rosa-cluster over the east-west gateway even though rosa-cluster now requires STRICT mTLS - the connection is genuinely mTLS-authenticated across the trust domain boundary. Uses ratings-v1 (not productpage-v1, whose image has no curl binary) as the client.
+      clusters:
+        - name: eks-cluster
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec -n bookinfo deploy/ratings-v1 --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://reviews.bookinfo.mesh.internal:9080/reviews/1
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: '200'
+
+    - name: non-mesh-client-rejected-on-rosa
+      description: A client with no mesh identity on rosa-cluster cannot reach reviews once STRICT mTLS is enforced there - same failure mode as the single-cluster peer-authentication-strict usecase, now verified against ztunnel running on OpenShift/ROSA.
+      clusters:
+        - name: rosa-cluster
+      setup:
+        - action: exec
+          command: kubectl create namespace no-mesh --dry-run=client -o yaml | kubectl apply -f -
+          timeout: 15s
+        - action: exec
+          command: >-
+            kubectl run plaintext-client -n no-mesh
+            --image=curlimages/curl:8.11.0 --restart=Never
+            --command -- sleep 3600
+          timeout: 15s
+        - action: exec
+          command: kubectl wait --for=condition=ready pod/plaintext-client -n no-mesh --timeout=60s
+          timeout: 70s
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec plaintext-client -n no-mesh --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 5
+            http://reviews.bookinfo.svc.cluster.local:9080/reviews/1
+          timeout: 15s
+          retries: 1
+          retryDelay: 3000
+        - action: verify
+          expect:
+            contains: '000'
+      teardown:
+        - action: exec
+          command: kubectl delete namespace no-mesh --ignore-not-found
+          timeout: 30s

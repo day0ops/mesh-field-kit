@@ -1,0 +1,112 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: global-service-discovery-rosa-eks
+  description: |
+    Cross-cluster service discovery between a ROSA (HCP) cluster and an EKS
+    cluster, both running Solo Istio Ambient Enterprise, linked via Solo's
+    peering multicluster mechanism. Adapted from global-service-discovery
+    for the rosa-eks-multi-cluster infra profile (cluster names rosa-cluster/
+    eks-cluster instead of west/east) - trimmed to drop the ingress-httproute
+    feature and its DNS-routed test, since rosa-eks-ambient-peering is
+    POC-minimal and doesn't set up an ingress gateway. Proves raw
+    cross-cluster mesh connectivity directly via kubectl exec instead.
+    - Services labeled solo.io/service-scope=global get a unified mesh.internal hostname
+    - Annotate with networking.istio.io/traffic-distribution: Any to distribute across clusters
+    - Endpoints from both clusters are merged under the same global hostname
+
+spec:
+  diagram: |
+    flowchart LR
+      PP[productpage\nbookinfo/eks-cluster] -->|reviews.bookinfo.mesh.internal| ZTe[ztunnel eks-cluster]
+      ZTe -->|HBONE/mTLS| EWG[east-west gw]
+      EWG --> ZTw[ztunnel rosa-cluster]
+      ZTw --> R[reviews rosa-cluster]
+
+  infra: rosa-eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: rosa-cluster
+          - name: eks-cluster
+
+  features:
+    - name: global-service
+      description: Make bookinfo services globally accessible
+      config:
+        namespace: bookinfo
+        services:
+          - name: productpage
+            scope: global
+          - name: reviews
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: Any
+        deploymentPatches:
+          - deployment: productpage-v1
+            env:
+              REVIEWS_HOSTNAME: reviews.bookinfo.mesh.internal
+      clusters:
+        - name: rosa-cluster
+        - name: eks-cluster
+
+  tests:
+    - name: global-service-entries-exist
+      description: Verify global ServiceEntry resources are created for bookinfo services on both clusters
+      steps:
+        - action: exec
+          clusters:
+            - name: rosa-cluster
+          command: kubectl get serviceentry -n istio-system -o jsonpath='{.items[*].spec.hosts[*]}'
+          timeout: 20s
+        - action: verify
+          expect:
+            contains:
+              - productpage.bookinfo.mesh.internal
+              - reviews.bookinfo.mesh.internal
+        - action: exec
+          clusters:
+            - name: eks-cluster
+          command: kubectl get serviceentry -n istio-system -o jsonpath='{.items[*].spec.hosts[*]}'
+          timeout: 20s
+        - action: verify
+          expect:
+            contains:
+              - productpage.bookinfo.mesh.internal
+              - reviews.bookinfo.mesh.internal
+
+    - name: reviews-global-endpoints
+      description: Verify istioctl zc shows cross-cluster autogen WorkloadEntry for reviews on eks-cluster
+      clusters:
+        - name: eks-cluster
+      steps:
+        - action: istioctl-zc-endpoints
+          hostname: reviews.bookinfo.mesh.internal
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains:
+              - autogen.rosa-cluster.bookinfo.reviews
+              - Healthy
+
+    - name: cross-cluster-global-service
+      description: Verify reviews is reachable from productpage on rosa-cluster via the mesh.internal hostname, proving genuine cross-cluster ambient connectivity with no ingress gateway involved
+      clusters:
+        - name: rosa-cluster
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec -n bookinfo deploy/productpage-v1 --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://reviews.bookinfo.mesh.internal:9080/reviews/1
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: '200'
