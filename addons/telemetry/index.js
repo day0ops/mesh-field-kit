@@ -526,7 +526,9 @@ export class TelemetryFeature extends AddonFeature {
       Object.entries(replacements).reduce((s, [k, v]) => s.replaceAll(k, v), tmpl);
 
     const metricsValuesFile =
-      this.prometheusMode === 'managed' ? 'otel-metrics-managed-values.yaml' : 'otel-metrics-values.yaml';
+      this.prometheusMode === 'managed'
+        ? 'otel-metrics-managed-values.yaml'
+        : 'otel-metrics-values.yaml';
     await this.installOtelChart(
       OTEL_METRICS_RELEASE,
       fill(readFileSync(join(CONFIG_DIR, metricsValuesFile), 'utf8')),
@@ -1075,10 +1077,9 @@ export class TelemetryFeature extends AddonFeature {
    * querier's CA bundle. cluster-monitoring-view is the platform's own read-only
    * ClusterRole for the Thanos Querier API - the same one `oc adm` tooling grants
    * to human users who need query access without write/admin rights.
-   * Only wires up credentials; not yet called by deployFull() - a follow-up change wires
-   * it into Grafana's datasource config.
+   * Consumed by installDatasources() to wire Grafana's Prometheus datasource to the
+   * platform Thanos Querier in managed mode.
    */
-  // eslint-disable-next-line no-unused-private-class-members -- consumed once Grafana's managed-mode datasource wiring lands
   async #getThanosQuerierCredentials() {
     this.log('Provisioning Grafana ServiceAccount for Thanos Querier access...', 'info');
     const saName = 'grafana-thanos-reader';
@@ -1213,12 +1214,41 @@ export class TelemetryFeature extends AddonFeature {
    * before Grafana starts — no reload race condition.
    *
    * Datasource URLs use the configured telemetry namespace (supports non-default namespaces).
+   *
+   * In managed mode, the Prometheus datasource points at OpenShift's platform Thanos Querier
+   * instead of an in-cluster Prometheus, authenticating with the Bearer token and CA cert from
+   * #getThanosQuerierCredentials().
    */
   async installDatasources() {
     this.log('Installing Grafana datasources...', 'info');
 
     const template = await readFile(join(CONFIG_DIR, 'grafana-datasources.yaml'), 'utf8');
-    const content = template.replaceAll('{{TELEMETRY_NAMESPACE}}', this.namespace);
+    let content = template.replaceAll('{{TELEMETRY_NAMESPACE}}', this.namespace);
+
+    if (this.prometheusMode === 'managed') {
+      const { token, caCert } = await this.#getThanosQuerierCredentials();
+      content = content
+        .replaceAll(
+          '{{PROMETHEUS_DATASOURCE_URL}}',
+          'https://thanos-querier.openshift-monitoring.svc:9092'
+        )
+        .replace(
+          '{{PROMETHEUS_AUTH_JSONDATA}}',
+          'httpHeaderName1: Authorization\n      tlsAuthWithCACert: true'
+        )
+        .replace(
+          '{{PROMETHEUS_AUTH_SECUREJSONDATA}}',
+          `secureJsonData:\n      httpHeaderValue1: ${JSON.stringify(`Bearer ${token}`)}\n      tlsCACert: ${JSON.stringify(caCert)}`
+        );
+    } else {
+      content = content
+        .replaceAll(
+          '{{PROMETHEUS_DATASOURCE_URL}}',
+          `http://kube-prometheus-stack-prometheus.${this.namespace}:9090`
+        )
+        .replace('{{PROMETHEUS_AUTH_JSONDATA}}', '')
+        .replace('{{PROMETHEUS_AUTH_SECUREJSONDATA}}', '');
+    }
 
     await this.applyResource(
       {

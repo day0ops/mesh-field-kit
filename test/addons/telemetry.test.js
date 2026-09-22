@@ -11,6 +11,7 @@ import {
 } from '../../addons/telemetry/index.js';
 import { generate as telemetryRunbookGenerate } from '../../addons/telemetry/runbook.js';
 import { CommandRunner } from '../../src/lib/common.js';
+import { Feature } from '../../src/lib/feature.js';
 
 test('TelemetryFeature openshift defaults to false', () => {
   const f = new TelemetryFeature('telemetry', {});
@@ -28,9 +29,15 @@ test('telemetry runbook omits --skip-crds when platform is not set', async () =>
 });
 
 test('telemetry runbook emits --skip-crds for kube-prometheus-stack when platform is openshift', async () => {
-  const md = await telemetryRunbookGenerate(1, { platform: 'openshift' }, 'my-cluster', {}, {
-    spec: {},
-  });
+  const md = await telemetryRunbookGenerate(
+    1,
+    { platform: 'openshift' },
+    'my-cluster',
+    {},
+    {
+      spec: {},
+    }
+  );
   expect(md).toContain('--skip-crds');
 });
 
@@ -108,7 +115,14 @@ test('getPrometheusStackWaitTargets skips operator and prometheus in managed mod
   expect(statefulSets).toEqual([]);
 });
 
-const CONFIG_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'addons', 'telemetry', 'config');
+const CONFIG_DIR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  'addons',
+  'telemetry',
+  'config'
+);
 
 test('otel-metrics-managed-values.yaml exists and uses a pull-based prometheus exporter', () => {
   const path = join(CONFIG_DIR, 'otel-metrics-managed-values.yaml');
@@ -140,7 +154,10 @@ describe('installOtelCollectors() metrics values file selection', () => {
   });
 
   test('managed mode installs the metrics collector with the pull-based values file', async () => {
-    const f = new TelemetryFeature('telemetry', { prometheusMode: 'managed', platform: 'openshift' });
+    const f = new TelemetryFeature('telemetry', {
+      prometheusMode: 'managed',
+      platform: 'openshift',
+    });
     await f.installOtelCollectors();
 
     const metricsCall = calls.find(c => c.release === 'opentelemetry-collector-metrics');
@@ -247,11 +264,10 @@ describe('readClusterMonitoringConfigYaml()', () => {
     runSpy = spyOn(CommandRunner, 'run').mockResolvedValue({
       exitCode: 1,
       stdout: '',
-      stderr: 'Error from server (Forbidden): configmaps is forbidden: User "x" cannot get resource',
+      stderr:
+        'Error from server (Forbidden): configmaps is forbidden: User "x" cannot get resource',
     });
-    await expect(readClusterMonitoringConfigYaml([])).rejects.toThrow(
-      /cannot be safely merged/
-    );
+    await expect(readClusterMonitoringConfigYaml([])).rejects.toThrow(/cannot be safely merged/);
   });
 
   test('threads context args into the oc get command', async () => {
@@ -266,5 +282,80 @@ describe('readClusterMonitoringConfigYaml()', () => {
       expect.arrayContaining(['--context=my-cluster', 'get', 'configmap']),
       expect.any(Object)
     );
+  });
+});
+
+test('grafana-datasources.yaml template has managed-mode placeholders', () => {
+  const content = readFileSync(join(CONFIG_DIR, 'grafana-datasources.yaml'), 'utf8');
+  expect(content).toContain('{{PROMETHEUS_DATASOURCE_URL}}');
+  expect(content).toContain('{{PROMETHEUS_AUTH_JSONDATA}}');
+  expect(content).toContain('{{PROMETHEUS_AUTH_SECUREJSONDATA}}');
+});
+
+describe('installDatasources()', () => {
+  let applyResourceSpy;
+  let applyResourceCalls;
+
+  beforeEach(() => {
+    applyResourceCalls = [];
+    applyResourceSpy = spyOn(Feature.prototype, 'applyResource').mockImplementation(
+      async resource => {
+        applyResourceCalls.push(resource);
+      }
+    );
+  });
+
+  afterEach(() => {
+    applyResourceSpy.mockRestore();
+  });
+
+  function grafanaDatasourcesYaml() {
+    const configMap = applyResourceCalls.find(
+      r => r.kind === 'ConfigMap' && r.metadata.name === 'grafana-datasources'
+    );
+    return configMap.data['datasources.yaml'];
+  }
+
+  test('embedded mode keeps the in-cluster Prometheus URL with no auth block', async () => {
+    const f = new TelemetryFeature('telemetry', {});
+    await f.installDatasources();
+
+    const content = grafanaDatasourcesYaml();
+    expect(content).not.toContain('{{');
+    const prometheus = yaml.load(content).datasources.find(d => d.name === 'Prometheus');
+    expect(prometheus.url).toBe('http://kube-prometheus-stack-prometheus.telemetry:9090');
+    expect(prometheus.jsonData).toEqual({
+      httpMethod: 'GET',
+      exemplarTraceIdDestinations: [{ name: 'trace_id', datasourceUid: 'tempo' }],
+    });
+    expect(prometheus.secureJsonData).toBeUndefined();
+  });
+
+  test('managed mode points Grafana at Thanos Querier with Bearer token + CA cert auth', async () => {
+    const caCert = '-----BEGIN CERTIFICATE-----\nfakecert\n-----END CERTIFICATE-----\n';
+    const runSpy = spyOn(CommandRunner, 'run').mockImplementation(async (_cmd, args) => {
+      if (args.includes('token')) {
+        return { exitCode: 0, stdout: 'fake-sa-token\n', stderr: '' };
+      }
+      return { exitCode: 0, stdout: caCert, stderr: '' };
+    });
+
+    const f = new TelemetryFeature('telemetry', {
+      prometheusMode: 'managed',
+      platform: 'openshift',
+    });
+    await f.installDatasources();
+    runSpy.mockRestore();
+
+    const content = grafanaDatasourcesYaml();
+    expect(content).not.toContain('{{');
+    const prometheus = yaml.load(content).datasources.find(d => d.name === 'Prometheus');
+    expect(prometheus.url).toBe('https://thanos-querier.openshift-monitoring.svc:9092');
+    expect(prometheus.jsonData.httpHeaderName1).toBe('Authorization');
+    expect(prometheus.jsonData.tlsAuthWithCACert).toBe(true);
+    expect(prometheus.secureJsonData).toEqual({
+      httpHeaderValue1: 'Bearer fake-sa-token',
+      tlsCACert: caCert,
+    });
   });
 });
