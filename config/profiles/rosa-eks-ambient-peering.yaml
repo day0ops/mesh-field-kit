@@ -147,10 +147,11 @@ spec:
             platform: openshift
 
           - name: telemetry
-            description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
+            description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo). prometheusMode managed integrates with OpenShift's own user-workload-monitoring instead of deploying a redundant Prometheus/Alertmanager/operator.
             phase: post
             namespace: telemetry
             platform: openshift
+            prometheusMode: managed
             chartVersions:
               kube-prom-stack: 88.0.1
               loki: 7.2.0
