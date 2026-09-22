@@ -80,6 +80,38 @@ export async function readClusterMonitoringConfigYaml(ctxArgs) {
   );
 }
 
+// Exported for testing: polls the given ConfigMap until OpenShift's service-ca-operator
+// populates its service-ca.crt key (injected via the service.beta.openshift.io/inject-cabundle
+// annotation on the ConfigMap), then returns the CA bundle. Mirrors the #waitForSecret polling
+// pattern in addons/spire/index.js.
+export async function waitForCaBundleConfigMap(cmName, namespace, ctxArgs, timeoutMs = 120000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const result = await CommandRunner.run(
+      'oc',
+      [
+        ...ctxArgs,
+        'get',
+        'configmap',
+        cmName,
+        '-n',
+        namespace,
+        '-o',
+        'jsonpath={.data.service-ca\\.crt}',
+      ],
+      { ignoreError: true, captureOutput: true }
+    );
+    if (result.exitCode === 0 && result.stdout?.trim()) {
+      return result.stdout;
+    }
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+  throw new Error(
+    `ConfigMap '${cmName}' in '${namespace}' was not populated with service-ca.crt ` +
+      'within timeout - the OpenShift service-ca-operator may not be running'
+  );
+}
+
 /**
  * Telemetry Feature
  *
@@ -1085,6 +1117,11 @@ export class TelemetryFeature extends AddonFeature {
       { captureOutput: true }
     );
     const token = tokenResult.stdout.trim();
+    if (!token) {
+      throw new Error(
+        `'oc create token' for ServiceAccount '${saName}' in '${this.namespace}' returned an empty token`
+      );
+    }
 
     const caCert = await this.#getThanosQuerierCaCert(ctxArgs);
 
@@ -1096,10 +1133,10 @@ export class TelemetryFeature extends AddonFeature {
    * Get the CA that signed the Thanos Querier's serving certificate, so Grafana can validate
    * it over TLS. OpenShift's service-ca-operator injects the cluster's serving CA bundle into
    * any ConfigMap annotated with service.beta.openshift.io/inject-cabundle - this creates that
-   * ConfigMap and polls until the operator populates it, mirroring the #waitForSecret pattern
-   * in addons/spire/index.js.
+   * ConfigMap, then delegates to waitForCaBundleConfigMap() to poll until the operator
+   * populates it.
    */
-  async #getThanosQuerierCaCert(ctxArgs, timeoutMs = 60000) {
+  async #getThanosQuerierCaCert(ctxArgs, timeoutMs = 120000) {
     const cmName = 'thanos-querier-ca-bundle';
     await this.applyResource(
       {
@@ -1114,31 +1151,7 @@ export class TelemetryFeature extends AddonFeature {
       this.kubeContext
     );
 
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      const result = await CommandRunner.run(
-        'oc',
-        [
-          ...ctxArgs,
-          'get',
-          'configmap',
-          cmName,
-          '-n',
-          this.namespace,
-          '-o',
-          'jsonpath={.data.service-ca\\.crt}',
-        ],
-        { ignoreError: true, captureOutput: true }
-      );
-      if (result.exitCode === 0 && result.stdout?.trim()) {
-        return result.stdout;
-      }
-      await new Promise(resolve => setTimeout(resolve, 3000));
-    }
-    throw new Error(
-      `ConfigMap '${cmName}' in '${this.namespace}' was not populated with service-ca.crt ` +
-        'within timeout - the OpenShift service-ca-operator may not be running'
-    );
+    return waitForCaBundleConfigMap(cmName, this.namespace, ctxArgs, timeoutMs);
   }
 
   /**

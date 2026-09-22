@@ -7,6 +7,7 @@ import {
   TelemetryFeature,
   mergeUserWorkloadConfig,
   readClusterMonitoringConfigYaml,
+  waitForCaBundleConfigMap,
 } from '../../addons/telemetry/index.js';
 import { generate as telemetryRunbookGenerate } from '../../addons/telemetry/runbook.js';
 import { CommandRunner } from '../../src/lib/common.js';
@@ -174,12 +175,45 @@ test('mergeUserWorkloadConfig preserves existing unrelated keys', () => {
   });
 });
 
-test('TelemetryFeature has a method for minting Thanos Querier credentials', () => {
-  const f = new TelemetryFeature('telemetry', { prometheusMode: 'managed', platform: 'openshift' });
-  // Private methods aren't directly invokable from tests, but the class should construct
-  // cleanly with managed mode configured - this exercises the constructor path that later
-  // gates whether deployFull() calls into the Thanos Querier credential flow.
-  expect(f.prometheusMode).toBe('managed');
+describe('waitForCaBundleConfigMap()', () => {
+  let runSpy;
+  let setTimeoutSpy;
+
+  afterEach(() => {
+    runSpy?.mockRestore();
+    setTimeoutSpy?.mockRestore();
+  });
+
+  test('returns the CA cert when the first poll finds it populated', async () => {
+    runSpy = spyOn(CommandRunner, 'run').mockResolvedValue({
+      exitCode: 0,
+      stdout: '-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n',
+      stderr: '',
+    });
+    const result = await waitForCaBundleConfigMap('thanos-querier-ca-bundle', 'telemetry', []);
+    expect(result).toBe('-----BEGIN CERTIFICATE-----\nfake\n-----END CERTIFICATE-----\n');
+    expect(runSpy).toHaveBeenCalledWith(
+      'oc',
+      expect.arrayContaining(['get', 'configmap', 'thanos-querier-ca-bundle', '-n', 'telemetry']),
+      expect.any(Object)
+    );
+  });
+
+  test('throws a clear, actionable error naming the ConfigMap/namespace if it never populates', async () => {
+    // The retry loop sleeps 3s between polls; fire that timer immediately so the test
+    // doesn't actually wait. A short timeoutMs then bounds real wall-clock time.
+    setTimeoutSpy = spyOn(globalThis, 'setTimeout').mockImplementation(fn => fn());
+    runSpy = spyOn(CommandRunner, 'run').mockResolvedValue({
+      exitCode: 0,
+      stdout: '',
+      stderr: '',
+    });
+    await expect(
+      waitForCaBundleConfigMap('thanos-querier-ca-bundle', 'telemetry', [], 20)
+    ).rejects.toThrow(
+      /ConfigMap 'thanos-querier-ca-bundle' in 'telemetry' was not populated with service-ca\.crt/
+    );
+  });
 });
 
 describe('readClusterMonitoringConfigYaml()', () => {
