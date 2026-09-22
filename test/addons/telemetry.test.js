@@ -1,4 +1,4 @@
-import { test, expect } from 'bun:test';
+import { test, expect, describe, spyOn, beforeEach, afterEach } from 'bun:test';
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -112,4 +112,43 @@ test('otel-metrics-managed-values.yaml exists and uses a pull-based prometheus e
   expect(content).toContain('serviceMonitor:');
   expect(content).toContain('enabled: true');
   expect(content).not.toContain('prometheusremotewrite');
+});
+
+describe('installOtelCollectors() metrics values file selection', () => {
+  let installOtelChartSpy;
+  let calls;
+
+  beforeEach(() => {
+    calls = [];
+    // Stub the Helm-calling boundary so branching logic is exercised without touching a cluster.
+    installOtelChartSpy = spyOn(TelemetryFeature.prototype, 'installOtelChart').mockImplementation(
+      async (release, valuesContent, helmCtxArgs) => {
+        calls.push({ release, valuesContent, helmCtxArgs });
+      }
+    );
+  });
+
+  afterEach(() => {
+    installOtelChartSpy.mockRestore();
+  });
+
+  test('managed mode installs the metrics collector with the pull-based values file', async () => {
+    const f = new TelemetryFeature('telemetry', { prometheusMode: 'managed', platform: 'openshift' });
+    await f.installOtelCollectors();
+
+    const metricsCall = calls.find(c => c.release === 'opentelemetry-collector-metrics');
+    expect(metricsCall).toBeDefined();
+    expect(metricsCall.valuesContent).toContain("endpoint: '0.0.0.0:8889'");
+    expect(metricsCall.valuesContent).not.toContain('prometheusremotewrite');
+  });
+
+  test('embedded (default) mode installs the metrics collector with the prometheusremotewrite values file', async () => {
+    const f = new TelemetryFeature('telemetry', {});
+    await f.installOtelCollectors();
+
+    const metricsCall = calls.find(c => c.release === 'opentelemetry-collector-metrics');
+    expect(metricsCall).toBeDefined();
+    expect(metricsCall.valuesContent).toContain('prometheusremotewrite');
+    expect(metricsCall.valuesContent).not.toContain("endpoint: '0.0.0.0:8889'");
+  });
 });
