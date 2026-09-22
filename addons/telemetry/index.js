@@ -1038,6 +1038,110 @@ export class TelemetryFeature extends AddonFeature {
   }
 
   /**
+   * Provision the ServiceAccount + ClusterRoleBinding Grafana uses to authenticate to
+   * OpenShift's platform Thanos Querier, then mint a long-lived token and fetch the
+   * querier's CA bundle. cluster-monitoring-view is the platform's own read-only
+   * ClusterRole for the Thanos Querier API - the same one `oc adm` tooling grants
+   * to human users who need query access without write/admin rights.
+   * Only wires up credentials; not yet called by deployFull() - a follow-up change wires
+   * it into Grafana's datasource config.
+   */
+  // eslint-disable-next-line no-unused-private-class-members -- consumed once Grafana's managed-mode datasource wiring lands
+  async #getThanosQuerierCredentials() {
+    this.log('Provisioning Grafana ServiceAccount for Thanos Querier access...', 'info');
+    const saName = 'grafana-thanos-reader';
+    const crbName = `grafana-thanos-reader-${this.namespace}`;
+    const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
+
+    await this.applyResource(
+      {
+        apiVersion: 'v1',
+        kind: 'ServiceAccount',
+        metadata: { name: saName, namespace: this.namespace },
+      },
+      this.kubeContext
+    );
+
+    await this.applyResource(
+      {
+        apiVersion: 'rbac.authorization.k8s.io/v1',
+        kind: 'ClusterRoleBinding',
+        metadata: { name: crbName },
+        subjects: [{ kind: 'ServiceAccount', name: saName, namespace: this.namespace }],
+        roleRef: {
+          kind: 'ClusterRole',
+          name: 'cluster-monitoring-view',
+          apiGroup: 'rbac.authorization.k8s.io',
+        },
+      },
+      this.kubeContext
+    );
+
+    // 8760h (1 year) — long enough that Grafana's datasource config doesn't need a
+    // token-refresh mechanism for the life of a typical demo/POC deployment.
+    const tokenResult = await CommandRunner.run(
+      'oc',
+      [...ctxArgs, 'create', 'token', saName, '-n', this.namespace, '--duration=8760h'],
+      { captureOutput: true }
+    );
+    const token = tokenResult.stdout.trim();
+
+    const caCert = await this.#getThanosQuerierCaCert(ctxArgs);
+
+    this.log('Thanos Querier credentials ready', 'info');
+    return { token, caCert };
+  }
+
+  /**
+   * Get the CA that signed the Thanos Querier's serving certificate, so Grafana can validate
+   * it over TLS. OpenShift's service-ca-operator injects the cluster's serving CA bundle into
+   * any ConfigMap annotated with service.beta.openshift.io/inject-cabundle - this creates that
+   * ConfigMap and polls until the operator populates it, mirroring the #waitForSecret pattern
+   * in addons/spire/index.js.
+   */
+  async #getThanosQuerierCaCert(ctxArgs, timeoutMs = 60000) {
+    const cmName = 'thanos-querier-ca-bundle';
+    await this.applyResource(
+      {
+        apiVersion: 'v1',
+        kind: 'ConfigMap',
+        metadata: {
+          name: cmName,
+          namespace: this.namespace,
+          annotations: { 'service.beta.openshift.io/inject-cabundle': 'true' },
+        },
+      },
+      this.kubeContext
+    );
+
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const result = await CommandRunner.run(
+        'oc',
+        [
+          ...ctxArgs,
+          'get',
+          'configmap',
+          cmName,
+          '-n',
+          this.namespace,
+          '-o',
+          'jsonpath={.data.service-ca\\.crt}',
+        ],
+        { ignoreError: true, captureOutput: true }
+      );
+      if (result.exitCode === 0 && result.stdout?.trim()) {
+        return result.stdout;
+      }
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+    throw new Error(
+      `ConfigMap '${cmName}' in '${this.namespace}' was not populated with service-ca.crt ` +
+        'within timeout - the OpenShift service-ca-operator may not be running'
+    );
+  }
+
+  /**
    * Install kube-prometheus-stack (Prometheus + Grafana + Alertmanager)
    * Grafana is pre-configured with datasources for Prometheus, Tempo, and Loki.
    */

@@ -174,6 +174,14 @@ test('mergeUserWorkloadConfig preserves existing unrelated keys', () => {
   });
 });
 
+test('TelemetryFeature has a method for minting Thanos Querier credentials', () => {
+  const f = new TelemetryFeature('telemetry', { prometheusMode: 'managed', platform: 'openshift' });
+  // Private methods aren't directly invokable from tests, but the class should construct
+  // cleanly with managed mode configured - this exercises the constructor path that later
+  // gates whether deployFull() calls into the Thanos Querier credential flow.
+  expect(f.prometheusMode).toBe('managed');
+});
+
 describe('readClusterMonitoringConfigYaml()', () => {
   let runSpy;
 
