@@ -1,4 +1,7 @@
 import { test, expect } from 'bun:test';
+import { readFileSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { TelemetryFeature } from '../../addons/telemetry/index.js';
 import { generate as telemetryRunbookGenerate } from '../../addons/telemetry/runbook.js';
 
@@ -96,4 +99,17 @@ test('getPrometheusStackWaitTargets skips operator and prometheus in managed mod
   const { deployments, statefulSets } = f.getPrometheusStackWaitTargets();
   expect(deployments).toEqual(['kube-prometheus-stack-grafana']);
   expect(statefulSets).toEqual([]);
+});
+
+const CONFIG_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'addons', 'telemetry', 'config');
+
+test('otel-metrics-managed-values.yaml exists and uses a pull-based prometheus exporter', () => {
+  const path = join(CONFIG_DIR, 'otel-metrics-managed-values.yaml');
+  expect(existsSync(path)).toBe(true);
+  const content = readFileSync(path, 'utf8');
+  expect(content).toContain('prometheus:');
+  expect(content).toContain("endpoint: '0.0.0.0:8889'");
+  expect(content).toContain('serviceMonitor:');
+  expect(content).toContain('enabled: true');
+  expect(content).not.toContain('prometheusremotewrite');
 });

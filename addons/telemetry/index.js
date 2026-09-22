@@ -447,9 +447,11 @@ export class TelemetryFeature extends AddonFeature {
     const fill = tmpl =>
       Object.entries(replacements).reduce((s, [k, v]) => s.replaceAll(k, v), tmpl);
 
+    const metricsValuesFile =
+      this.prometheusMode === 'managed' ? 'otel-metrics-managed-values.yaml' : 'otel-metrics-values.yaml';
     await this.installOtelChart(
       OTEL_METRICS_RELEASE,
-      fill(readFileSync(join(CONFIG_DIR, 'otel-metrics-values.yaml'), 'utf8')),
+      fill(readFileSync(join(CONFIG_DIR, metricsValuesFile), 'utf8')),
       helmCtxArgs
     );
     await this.installOtelChart(
