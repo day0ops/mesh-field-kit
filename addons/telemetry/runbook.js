@@ -104,6 +104,7 @@ async function _generateGateway(addonCfg, clusterName, env) {
   const storageClass = cfg.storageClass || 'standard';
   const storageSize = cfg.storageSize || '50Gi';
   const retention = cfg.retention || '120h';
+  const openshift = (addonCfg.platform || cfg.platform) === 'openshift';
   const grafanaHostname =
     tpl(cfg.grafanaHostname, env.spec.domains?.grafana) || 'grafana.example.com';
   const grafanaTls = cfg.grafanaTls || {};
@@ -347,7 +348,12 @@ Install Prometheus + Grafana (kube-prometheus-stack):
 helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \\
   --kube-context=${ctx} \\
   --namespace ${ns} \\
-  --version $PROMETHEUS_STACK_VERSION \\
+  --version $PROMETHEUS_STACK_VERSION \\${
+    openshift
+      ? `
+  --skip-crds \\`
+      : ''
+  }
   --set prometheus.prometheusSpec.retention=${retention} \\
   --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=${storageClass} \\
   --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=${storageSize} \\

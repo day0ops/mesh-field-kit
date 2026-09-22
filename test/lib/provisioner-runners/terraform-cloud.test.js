@@ -192,3 +192,29 @@ test('standalone rosa provider writeTerraformVars emits rosa_* vars', () => {
   expect(content).toContain('rosa_cluster_name = "rosa-poc"');
   expect(content).toContain('rosa_compute_machine_type = "m5.xlarge"');
 });
+
+test('extractIamInfo returns albControllerRoleArn for the given cluster index', async () => {
+  const runner = makeRunner();
+  const terraform = {
+    getOutput: async (_stateFile, key) => {
+      if (key === 'eks_aws_load_balancer_controller_role_arns') {
+        return ['arn:aws:iam::111111111111:role/east-lbc-role', null];
+      }
+      return null;
+    },
+  };
+
+  const iam0 = await runner.extractIamInfo(terraform, 'eks', 0);
+  expect(iam0).toEqual({ albControllerRoleArn: 'arn:aws:iam::111111111111:role/east-lbc-role' });
+
+  const iam1 = await runner.extractIamInfo(terraform, 'eks', 1);
+  expect(iam1).toBeNull();
+});
+
+test('extractIamInfo returns null when the output is missing', async () => {
+  const runner = makeRunner();
+  const terraform = { getOutput: async () => null };
+
+  const iam = await runner.extractIamInfo(terraform, 'eks', 0);
+  expect(iam).toBeNull();
+});

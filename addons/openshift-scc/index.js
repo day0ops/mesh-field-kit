@@ -24,7 +24,27 @@ const NETWORK_ROLLOUT_SETTLE_MS = 15000;
  *    those ServiceAccounts - binding a named SA that doesn't exist yet fails,
  *    and pre-creating it by hand risks Helm's own install refusing to adopt
  *    a pre-existing, unmanaged object of the same name.
- * 2. Enables OVN-Kubernetes local gateway mode (routingViaHost: true) on the
+ * 2. Ensures the target namespace exists and carries a matching
+ *    pod-security.kubernetes.io/enforce label. SCC and Pod Security Admission
+ *    are two independent gates - granting the SCC only controls what security
+ *    context a service account may request, it does not affect the PSA label
+ *    OpenShift's namespace label-sync controller may or may not have gotten
+ *    around to setting yet (especially for a namespace a chart's own
+ *    --create-namespace is about to create moments later). Long-lived
+ *    namespaces like kube-system already carry a privileged label from
+ *    cluster bootstrap, so this is a no-op there; a fresh namespace (e.g.
+ *    spire-server) has none until this runs, and would otherwise reject any
+ *    pod requesting a privileged context (confirmed live: SPIRE's
+ *    spiffe-csi-driver/agent DaemonSet, which needs hostPath volumes,
+ *    hostNetwork/hostPID, and privileged containers). Only meaningful when scc
+ *    is itself a valid PSA level name ('privileged' - the only overlap; 'baseline'/
+ *    'restricted' are never used here). Set enablePodSecurityLabel: false for any
+ *    other SCC (e.g. 'anyuid', granted to workloads that just need a fixed non-root
+ *    UID outside the namespace's allocated range - a pure SCC-selection concern,
+ *    unrelated to and unblocked by PSA, confirmed live: Grafana Tempo/Loki/
+ *    kube-prometheus-stack all hardcode fixed UIDs and were rejected with "unable
+ *    to validate against any security context constraint", not a PSA error).
+ * 3. Enables OVN-Kubernetes local gateway mode (routingViaHost: true) on the
  *    cluster-wide Network.operator.openshift.io CR - required so kubelet
  *    liveness/readiness probe traffic reaches pods directly via the host
  *    instead of being pulled into ztunnel's ambient datapath, where it's
@@ -39,6 +59,12 @@ export class OpenshiftSccFeature extends AddonFeature {
     this.sccNamespace = config.namespace || DEFAULT_NAMESPACE;
     this.scc = config.scc || DEFAULT_SCC;
     this.kubeContext = config.kubeContext || null;
+    // Cluster-wide setting - only the first openshift-scc addon entry in a profile needs
+    // to apply it. Later entries (e.g. granting SCC to a second namespace like spire-server)
+    // should set this to false to skip redundantly re-patching and re-waiting on the network
+    // ClusterOperator rollout.
+    this.enableRoutingViaHost = config.enableRoutingViaHost !== false;
+    this.enablePodSecurityLabel = config.enablePodSecurityLabel !== false;
   }
 
   validate() {
@@ -46,8 +72,9 @@ export class OpenshiftSccFeature extends AddonFeature {
   }
 
   async deploy() {
-    this.log(`Granting ${this.scc} SCC to service accounts in ${this.sccNamespace}...`, 'info');
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
+
+    this.log(`Granting ${this.scc} SCC to service accounts in ${this.sccNamespace}...`, 'info');
     await CommandRunner.run('oc', [
       ...ctxArgs,
       'adm',
@@ -58,7 +85,36 @@ export class OpenshiftSccFeature extends AddonFeature {
     ]);
     this.log(`${this.scc} SCC granted to system:serviceaccounts:${this.sccNamespace}`, 'success');
 
-    await this.#enableRoutingViaHost(ctxArgs);
+    if (this.enablePodSecurityLabel) {
+      await this.#ensureNamespacePodSecurityLabel(ctxArgs);
+    }
+
+    if (this.enableRoutingViaHost) {
+      await this.#enableRoutingViaHost(ctxArgs);
+    }
+  }
+
+  async #ensureNamespacePodSecurityLabel(ctxArgs) {
+    this.log(`Ensuring namespace '${this.sccNamespace}' exists...`, 'info');
+    await CommandRunner.run('oc', [...ctxArgs, 'create', 'namespace', this.sccNamespace], {
+      ignoreError: true,
+    });
+
+    this.log(
+      `Labeling namespace '${this.sccNamespace}' for '${this.scc}' Pod Security...`,
+      'info'
+    );
+    await CommandRunner.run('oc', [
+      ...ctxArgs,
+      'label',
+      'namespace',
+      this.sccNamespace,
+      `pod-security.kubernetes.io/enforce=${this.scc}`,
+      `pod-security.kubernetes.io/audit=${this.scc}`,
+      `pod-security.kubernetes.io/warn=${this.scc}`,
+      '--overwrite',
+    ]);
+    this.log(`Namespace '${this.sccNamespace}' labeled for '${this.scc}' Pod Security`, 'success');
   }
 
   async #enableRoutingViaHost(ctxArgs) {

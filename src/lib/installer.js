@@ -973,11 +973,46 @@ export class InstallerManager {
       }
 
       const flags = contextFlags(context);
+      const RELEASE_TO_COMPONENT = {
+        ztunnel: 'ztunnel',
+        'istio-cni': 'cni',
+        istiod: 'istiod',
+        'istio-base': 'base',
+      };
+      // istio-cni/ztunnel run as DaemonSets. On managed ROSA/OSD, Red Hat's own SRE
+      // admission webhooks permanently block Helm from deleting their ServiceAccount/
+      // ClusterRoleBinding in kube-system ("failed to delete release") - confirmed live,
+      // no workaround exists short of a Red Hat support case. Deleting the DaemonSet
+      // directly first at least removes the actual running workload before Helm's
+      // release-bookkeeping delete inevitably fails on those two RBAC objects.
+      const RELEASE_TO_DAEMONSET = {
+        ztunnel: 'ztunnel',
+        'istio-cni': 'istio-cni-node',
+      };
       for (const release of ['ztunnel', 'istio-cni', 'istiod', 'istio-base']) {
+        // Mirrors the install path's per-component namespace resolution (see
+        // resolveComponentNamespace above) - without it, a cluster override like
+        // OpenShift's componentNamespaces: { cni: kube-system, ztunnel: kube-system }
+        // leaves those two releases behind, since uninstall would look in the wrong
+        // namespace for them. Confirmed live.
+        const releaseNamespace =
+          profile && cluster
+            ? resolveComponentNamespace(profile, cluster, RELEASE_TO_COMPONENT[release], {
+                namespace,
+              })
+            : namespace;
+
+        const daemonsetName = RELEASE_TO_DAEMONSET[release];
+        if (daemonsetName) {
+          await CommandRunner.exec(
+            `kubectl ${flags.kubectl} delete daemonset ${daemonsetName} -n ${releaseNamespace} --ignore-not-found`
+          );
+        }
+
         try {
-          await CommandRunner.exec(`helm ${flags.helm} uninstall ${release} -n ${namespace}`);
+          await CommandRunner.exec(`helm ${flags.helm} uninstall ${release} -n ${releaseNamespace}`);
         } catch (err) {
-          if (!/not found|no deployed releases/i.test(err.message)) throw err;
+          if (!/not found|no deployed releases|failed to delete release/i.test(err.message)) throw err;
         }
       }
 

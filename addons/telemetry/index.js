@@ -75,6 +75,11 @@ const helmSetEscape = value => String(value).replace(/\\/g, '\\\\').replace(/,/g
  *     otel: string,               // opentelemetry-collector (default: 0.165.0)
  *   },
  *   namespace: string,            // Default: 'telemetry'
+ *   platform: string,             // 'openshift' passes --skip-crds to kube-prometheus-stack -
+ *                                 // OpenShift's own cluster-monitoring-operator already owns the
+ *                                 // monitoring.coreos.com CRD group (AlertmanagerConfig, Prometheus,
+ *                                 // etc.); installing them again causes a field-manager conflict
+ *                                 // with the cluster-version-operator. Confirmed live.
  *   enableLogs: boolean,          // Default: true  — install Loki + Alloy
  *   enableTraces: boolean,        // Default: true  — install Tempo
  *   enableMetrics: boolean,       // Default: true  — install Prometheus scrape configs
@@ -117,6 +122,7 @@ export class TelemetryFeature extends AddonFeature {
     this.kubeContext = config.kubeContext || null;
     this.soloUiNamespace = config.soloUiNamespace || 'solo-enterprise';
     this.clusterName = config.clusterName || '';
+    this.openshift = config.platform === 'openshift';
 
     if (this.mode === 'agent') {
       this.otelGatewayEndpoint = config.otelGatewayEndpoint || null;
@@ -860,6 +866,11 @@ export class TelemetryFeature extends AddonFeature {
       '--wait',
       '--timeout',
       '10m',
+      // OpenShift's own cluster-monitoring-operator already owns the monitoring.coreos.com
+      // CRD group - installing this chart's copy conflicts with the cluster-version-operator
+      // over field ownership. Confirmed live: "Error: failed to install CRD
+      // crds/crd-alertmanagerconfigs.yaml: conflict ... conflicts with cluster-version-operator".
+      ...(this.openshift ? ['--skip-crds'] : []),
       '--set',
       `prometheus.prometheusSpec.retention=${this.retention}`,
       '--set',

@@ -677,6 +677,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       }
 
       const network = await this.extractNetworkInfo(terraform, prefix, i);
+      const iam = await this.extractIamInfo(terraform, prefix, i);
 
       results.push({
         name: clusterLabel,
@@ -686,6 +687,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
         provisioned: true,
         verified: false,
         ...(network ? { network } : {}),
+        ...(iam ? { iam } : {}),
       });
     }
 
@@ -733,6 +735,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
         }
 
         const network = await this.extractNetworkInfo(terraform, prefix, i);
+        const iam = await this.extractIamInfo(terraform, prefix, i);
 
         results.push({
           name: clusterLabel,
@@ -742,6 +745,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
           provisioned: true,
           verified: false,
           ...(network ? { network } : {}),
+          ...(iam ? { iam } : {}),
         });
       }
     }
@@ -783,6 +787,21 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       };
     } catch {
       this.logWarn(`Could not extract network outputs for cluster index ${clusterIndex}`);
+      return null;
+    }
+  }
+
+  async extractIamInfo(terraform, prefix, clusterIndex) {
+    try {
+      const roleArns = await terraform.getOutput(
+        this.stateFile,
+        `${prefix}_aws_load_balancer_controller_role_arns`
+      );
+      const albControllerRoleArn = Array.isArray(roleArns) ? roleArns[clusterIndex] || null : null;
+      if (!albControllerRoleArn) return null;
+      return { albControllerRoleArn };
+    } catch {
+      this.logWarn(`Could not extract IAM outputs for cluster index ${clusterIndex}`);
       return null;
     }
   }

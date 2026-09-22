@@ -48,6 +48,16 @@ test('SpireFeature constructor respects overrides', () => {
   expect(f.kubeContext).toBe('ctx1');
 });
 
+test('SpireFeature openshift defaults to false', () => {
+  const f = new SpireFeature('spire', { clusterName: 'my-cluster' });
+  expect(f.openshift).toBe(false);
+});
+
+test('SpireFeature openshift is true only when platform is openshift', () => {
+  const f = new SpireFeature('spire', { clusterName: 'my-cluster', platform: 'openshift' });
+  expect(f.openshift).toBe(true);
+});
+
 test('SpireFeature validate passes for self-signed', () => {
   const f = new SpireFeature('spire', { clusterName: 'c1', certMode: 'self-signed' });
   expect(f.validate()).toBe(true);
@@ -128,6 +138,18 @@ test('SpireFeature buildSpireHelmValues sets secret.data.bundle placeholder so b
   expect(v['spire-server'].upstreamAuthority.disk.secret.data.bundle).toBe('externally-managed');
 });
 
+test('SpireFeature buildSpireHelmValues omits global.openshift when not on OpenShift', () => {
+  const f = new SpireFeature('spire', { clusterName: 'test-cluster' });
+  const v = f.buildSpireHelmValues();
+  expect(v.global.openshift).toBeUndefined();
+});
+
+test('SpireFeature buildSpireHelmValues sets global.openshift when platform is openshift', () => {
+  const f = new SpireFeature('spire', { clusterName: 'test-cluster', platform: 'openshift' });
+  const v = f.buildSpireHelmValues();
+  expect(v.global.openshift).toBe(true);
+});
+
 test('SpireFeature cleanup method exists and is a function', () => {
   const f = new SpireFeature('spire', { clusterName: 'c1' });
   expect(typeof f.cleanup).toBe('function');
@@ -166,6 +188,33 @@ test('spire runbook generate threads kube-context into commands', async () => {
 test('spire runbook generate emits secret.data.bundle placeholder in helm values', async () => {
   const md = await spireRunbookGenerate(1, { certMode: 'self-signed' }, 'my-cluster', {}, {});
   expect(md).toContain('bundle: "externally-managed"');
+});
+
+test('spire runbook generate registers ambient workloads by namespaceSelector, not podSelector', async () => {
+  // istio.io/dataplane-mode=ambient is a namespace label, never a pod label - a podSelector
+  // on it matches nothing, so ordinary ambient workloads never get a SPIFFE identity.
+  const md = await spireRunbookGenerate(1, { certMode: 'self-signed' }, 'my-cluster', {}, {});
+  const ambientRegBlock = md.slice(md.indexOf('name: istio-ambient-reg'));
+  expect(ambientRegBlock).toContain('namespaceSelector:');
+  expect(ambientRegBlock.indexOf('namespaceSelector:')).toBeLessThan(
+    ambientRegBlock.indexOf('istio.io/dataplane-mode: ambient')
+  );
+});
+
+test('spire runbook generate omits openshift when platform is not set', async () => {
+  const md = await spireRunbookGenerate(1, { certMode: 'self-signed' }, 'my-cluster', {}, {});
+  expect(md).not.toContain('openshift: true');
+});
+
+test('spire runbook generate emits global.openshift when platform is openshift', async () => {
+  const md = await spireRunbookGenerate(
+    1,
+    { certMode: 'self-signed', platform: 'openshift' },
+    'my-cluster',
+    {},
+    {}
+  );
+  expect(md).toContain('openshift: true');
 });
 
 test('spire runbook distinctRoots branch builds bundle in own->istiod->peer order', async () => {

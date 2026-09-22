@@ -3,11 +3,9 @@ kind: Profile
 metadata:
   name: rosa-eks-ambient-peering
   description: |
-    Solo Istio Ambient Enterprise on both a ROSA (HCP) cluster and an EKS
-    cluster, linked via this framework's normal Solo peering multicluster
-    mechanism. SPIRE (independent root per cluster, federated) provides
-    workload identity attestation on both clusters. Solo UI + telemetry run
-    on the ROSA (management) cluster.
+    Solo Istio Ambient Enterprise on both a ROSA (HCP) cluster and an EKS cluster, linked via this framework's normal Solo peering multicluster mechanism. 
+    SPIRE (independent root per cluster, federated) provides workload identity attestation on both clusters. 
+    Solo UI + telemetry run on the ROSA (management) cluster.
 
 spec:
   infra: rosa-eks-multi-cluster
@@ -96,9 +94,14 @@ spec:
 
     clusters:
       - name: rosa-cluster
-        componentNamespaces:
-          cni: kube-system
-          ztunnel: kube-system
+        # Deviates from Istio's own ambient platform-prerequisites docs, which state
+        # (without explaining why) that OpenShift requires istio-cni/ztunnel in
+        # kube-system. Testing istio-system instead: managed ROSA's SRE admission
+        # webhooks permanently block Helm from cleaning up their ServiceAccount/
+        # ClusterRoleBinding when they live in kube-system - istio-system doesn't
+        # carry that restriction. The openshift-scc addon below grants the same
+        # privileged SCC + Pod Security labeling to istio-system directly, so this
+        # doesn't depend on kube-system's built-in exemptions.
         componentValues:
           base:
             global:
@@ -118,18 +121,36 @@ spec:
       - name: rosa-cluster
         addons:
           - name: openshift-scc
+            description: Privileged SCC for istio-cni/ztunnel's node agents (hostPath, hostNetwork/hostPID, privileged) - testing istio-system instead of the kube-system Istio's docs call for.
             phase: pre
+            namespace: istio-system
+
+          - name: openshift-scc
+            description: Privileged SCC for SPIRE's spiffe-csi-driver/agent DaemonSet (hostPath, hostNetwork/hostPID, privileged) - the spire-server namespace has no SCC bound until this runs, so it defaults to the restricted PodSecurity level and rejects the chart.
+            phase: pre
+            namespace: spire-server
+            enableRoutingViaHost: false
+
+          - name: openshift-scc
+            description: anyuid SCC for the telemetry stack - Tempo/Loki/kube-prometheus-stack all hardcode fixed non-root UIDs (e.g. 1000, 10001, 2000) that don't fall in this project's OpenShift-allocated UID range. Not a PSA concern (their pod specs already satisfy "restricted"), so the Pod Security label step is skipped.
+            phase: pre
+            namespace: telemetry
+            scc: anyuid
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
 
           - name: spire
             phase: pre
             certMode: self-signed
             trustDomain: '{{cluster.name}}.local'
             distinctRoots: true
+            platform: openshift
 
           - name: telemetry
             description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
             phase: post
             namespace: telemetry
+            platform: openshift
             chartVersions:
               kube-prom-stack: 88.0.1
               loki: 7.2.0
@@ -138,14 +159,14 @@ spec:
               otel: 0.165.0
             config:
               database:
-                storageClass: gp3
+                storageClass: gp3-csi
                 storageSize: 50Gi
               retention: 120h
               grafanaServiceType: LoadBalancer
 
           - name: solo-ui
             mode: management
-            version: 0.5.8
+            version: '{{env.soloUi.version}}'
             phase: post
             namespace: solo-enterprise
             serviceType: LoadBalancer
@@ -169,7 +190,7 @@ spec:
           - name: solo-ui
             mode: relay
             phase: post
-            version: 0.5.8
+            version: '{{env.soloUi.version}}'
             namespace: solo-enterprise
             tunnel:
               fqdn: solo-enterprise-ui.solo-enterprise.mesh.internal

@@ -52,6 +52,11 @@ const VALID_CERT_MODES = ['self-signed', 'cert-manager', 'manual'];
  *                               // peer cluster's root is added to this cluster's SPIRE bundle
  *                               // and to cacerts as an additional, unrelated trust anchor -
  *                               // not cross-signed, just listed alongside one another.
+ *   platform: string,           // 'openshift' turns on the chart's global.openshift Helm
+ *                               // value (dedicated per-component SCCs + SELinux socket
+ *                               // relabeling) - required on OpenShift/ROSA, must be left
+ *                               // unset elsewhere (the chart's OpenShift SCC templates use
+ *                               // the security.openshift.io/v1 API, absent on other clouds).
  * }
  *
  * self-signed and cert-manager modes both stamp the intermediate CA cert with a
@@ -71,6 +76,7 @@ export class SpireFeature extends AddonFeature {
     this.distinctRoots = config.distinctRoots === true;
     this.multiRoot = config.multiRoot === true || this.distinctRoots;
     this.kubeContext = config.kubeContext || null;
+    this.openshift = config.platform === 'openshift';
   }
 
   validate() {
@@ -511,6 +517,15 @@ export class SpireFeature extends AddonFeature {
     return {
       global: {
         spire: { trustDomain: this.trustDomain },
+        // Turns on the chart's built-in OpenShift support: dedicated per-component SCCs
+        // (scoped to each SPIRE component's own ServiceAccount, narrower than a blanket
+        // privileged grant) and a chcon init container that relabels the CSI-mounted
+        // workload API socket to container_file_t. Without the relabel, OpenShift's
+        // per-pod SELinux MCS categories block cross-container access to the socket even
+        // though SCC/PSA both already allow it - confirmed live (spiffe/spiffe-csi#54,
+        // still open upstream): spiffe-helper's init container got "permission denied"
+        // dialing /spiffe-workload-api/spire-agent.sock despite the pod being admitted.
+        ...(this.openshift ? { openshift: true } : {}),
       },
       'spire-agent': {
         authorizedDelegates: [`spiffe://${this.trustDomain}/ns/istio-system/sa/ztunnel`],
@@ -666,17 +681,22 @@ export class SpireFeature extends AddonFeature {
       {
         name: 'istio-ztunnel-reg',
         template: `spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}`,
-        matchLabels: { app: 'ztunnel' },
+        podSelector: { matchLabels: { app: 'ztunnel' } },
       },
       {
         name: 'istio-waypoint-reg',
         template: `spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}`,
-        matchLabels: { 'istio.io/gateway-name': 'waypoint' },
+        podSelector: { matchLabels: { 'istio.io/gateway-name': 'waypoint' } },
       },
       {
+        // istio.io/dataplane-mode=ambient is set on the NAMESPACE (the standard ambient
+        // opt-in convention), never on individual pods - a podSelector on this label
+        // matches nothing. Confirmed live: ordinary ambient workloads (e.g.
+        // bookinfo/productpage-v1) got "PermissionDenied: no identity issued" from SPIRE
+        // because no ClusterSPIFFEID actually covered them.
         name: 'istio-ambient-reg',
         template: `spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}`,
-        matchLabels: { 'istio.io/dataplane-mode': 'ambient' },
+        namespaceSelector: { matchLabels: { 'istio.io/dataplane-mode': 'ambient' } },
       },
     ];
 
@@ -687,7 +707,8 @@ export class SpireFeature extends AddonFeature {
         metadata: { name: id.name },
         spec: {
           spiffeIDTemplate: id.template,
-          podSelector: { matchLabels: id.matchLabels },
+          ...(id.podSelector ? { podSelector: id.podSelector } : {}),
+          ...(id.namespaceSelector ? { namespaceSelector: id.namespaceSelector } : {}),
         },
       };
       await this.applyResource(resource, this.kubeContext);
