@@ -60,3 +60,26 @@ test('validate() passes for managed mode on openshift with credentials set', () 
   delete process.env.GRAFANA_ADMIN_USERNAME;
   delete process.env.GRAFANA_ADMIN_PASSWORD;
 });
+
+test('buildPrometheusStackHelmArgs omits sub-component disables in embedded mode', () => {
+  const f = new TelemetryFeature('telemetry', {});
+  const args = f.buildPrometheusStackHelmArgs();
+  expect(args).not.toContain('prometheus.enabled=false');
+  expect(args).not.toContain('--skip-crds');
+});
+
+test('buildPrometheusStackHelmArgs disables prometheus/alertmanager/operator and skips CRDs in managed mode', () => {
+  const f = new TelemetryFeature('telemetry', { prometheusMode: 'managed', platform: 'openshift' });
+  const args = f.buildPrometheusStackHelmArgs();
+  expect(args).toContain('prometheus.enabled=false');
+  expect(args).toContain('alertmanager.enabled=false');
+  expect(args).toContain('prometheusOperator.enabled=false');
+  expect(args).toContain('--skip-crds');
+});
+
+test('buildPrometheusStackHelmArgs skips CRDs on openshift even in embedded mode', () => {
+  const f = new TelemetryFeature('telemetry', { platform: 'openshift' });
+  const args = f.buildPrometheusStackHelmArgs();
+  expect(args).toContain('--skip-crds');
+  expect(args).not.toContain('prometheus.enabled=false');
+});

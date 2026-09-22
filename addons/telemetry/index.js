@@ -848,21 +848,11 @@ export class TelemetryFeature extends AddonFeature {
   }
 
   /**
-   * Install kube-prometheus-stack (Prometheus + Grafana + Alertmanager)
-   * Grafana is pre-configured with datasources for Prometheus, Tempo, and Loki.
+   * Build the Helm args for installing kube-prometheus-stack.
+   * Extracted from installPrometheusStack() so the resulting array is unit-testable
+   * without making live Helm/kubectl calls.
    */
-  async installPrometheusStack() {
-    this.log('Installing Prometheus and Grafana (kube-prometheus-stack)...', 'info');
-
-    await CommandRunner.run(
-      'helm',
-      ['repo', 'add', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts'],
-      { ignoreError: true }
-    );
-    await CommandRunner.run('helm', ['repo', 'update', 'prometheus-community'], {
-      ignoreError: true,
-    });
-
+  buildPrometheusStackHelmArgs() {
     // The datasources sidecar reloads Grafana via its admin-only API, so the reload
     // URL must carry the same admin credentials. Credentials are URL-encoded because
     // they are operator-supplied and embedded in the userinfo section of a URL.
@@ -890,6 +880,18 @@ export class TelemetryFeature extends AddonFeature {
       // over field ownership. Confirmed live: "Error: failed to install CRD
       // crds/crd-alertmanagerconfigs.yaml: conflict ... conflicts with cluster-version-operator".
       ...(this.openshift ? ['--skip-crds'] : []),
+      // managed mode: OpenShift's own Prometheus/Alertmanager/operator (user-workload-monitoring)
+      // replace these entirely - this chart installs Grafana only.
+      ...(this.prometheusMode === 'managed'
+        ? [
+            '--set',
+            'prometheus.enabled=false',
+            '--set',
+            'alertmanager.enabled=false',
+            '--set',
+            'prometheusOperator.enabled=false',
+          ]
+        : []),
       '--set',
       `prometheus.prometheusSpec.retention=${this.retention}`,
       '--set',
@@ -929,6 +931,27 @@ export class TelemetryFeature extends AddonFeature {
     if (this.kubeContext) {
       helmArgs.push('--kube-context', this.kubeContext);
     }
+
+    return helmArgs;
+  }
+
+  /**
+   * Install kube-prometheus-stack (Prometheus + Grafana + Alertmanager)
+   * Grafana is pre-configured with datasources for Prometheus, Tempo, and Loki.
+   */
+  async installPrometheusStack() {
+    this.log('Installing Prometheus and Grafana (kube-prometheus-stack)...', 'info');
+
+    await CommandRunner.run(
+      'helm',
+      ['repo', 'add', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts'],
+      { ignoreError: true }
+    );
+    await CommandRunner.run('helm', ['repo', 'update', 'prometheus-community'], {
+      ignoreError: true,
+    });
+
+    const helmArgs = this.buildPrometheusStackHelmArgs();
 
     let oidcValuesFile = null;
     try {
