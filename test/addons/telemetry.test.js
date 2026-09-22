@@ -23,3 +23,40 @@ test('telemetry runbook emits --skip-crds for kube-prometheus-stack when platfor
   });
   expect(md).toContain('--skip-crds');
 });
+
+test('TelemetryFeature prometheusMode defaults to embedded', () => {
+  const f = new TelemetryFeature('telemetry', {});
+  expect(f.prometheusMode).toBe('embedded');
+});
+
+test('TelemetryFeature prometheusMode respects managed override', () => {
+  const f = new TelemetryFeature('telemetry', { prometheusMode: 'managed', platform: 'openshift' });
+  expect(f.prometheusMode).toBe('managed');
+});
+
+test('validate() throws when prometheusMode is managed but platform is not openshift', () => {
+  process.env.GRAFANA_ADMIN_USERNAME = 'admin';
+  process.env.GRAFANA_ADMIN_PASSWORD = 'pw';
+  const f = new TelemetryFeature('telemetry', { prometheusMode: 'managed' });
+  expect(() => f.validate()).toThrow(/prometheusMode: managed requires platform: openshift/);
+  delete process.env.GRAFANA_ADMIN_USERNAME;
+  delete process.env.GRAFANA_ADMIN_PASSWORD;
+});
+
+test('validate() throws on an unknown prometheusMode value', () => {
+  process.env.GRAFANA_ADMIN_USERNAME = 'admin';
+  process.env.GRAFANA_ADMIN_PASSWORD = 'pw';
+  const f = new TelemetryFeature('telemetry', { prometheusMode: 'bogus', platform: 'openshift' });
+  expect(() => f.validate()).toThrow(/Invalid prometheusMode/);
+  delete process.env.GRAFANA_ADMIN_USERNAME;
+  delete process.env.GRAFANA_ADMIN_PASSWORD;
+});
+
+test('validate() passes for managed mode on openshift with credentials set', () => {
+  process.env.GRAFANA_ADMIN_USERNAME = 'admin';
+  process.env.GRAFANA_ADMIN_PASSWORD = 'pw';
+  const f = new TelemetryFeature('telemetry', { prometheusMode: 'managed', platform: 'openshift' });
+  expect(f.validate()).toBe(true);
+  delete process.env.GRAFANA_ADMIN_USERNAME;
+  delete process.env.GRAFANA_ADMIN_PASSWORD;
+});

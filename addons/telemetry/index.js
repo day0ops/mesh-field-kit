@@ -80,6 +80,13 @@ const helmSetEscape = value => String(value).replace(/\\/g, '\\\\').replace(/,/g
  *                                 // monitoring.coreos.com CRD group (AlertmanagerConfig, Prometheus,
  *                                 // etc.); installing them again causes a field-manager conflict
  *                                 // with the cluster-version-operator. Confirmed live.
+ *   prometheusMode: string,       // Default: 'embedded'. 'managed' (requires platform: openshift)
+ *                                 // skips deploying Prometheus/Alertmanager/prometheus-operator
+ *                                 // entirely and integrates with OpenShift's user-workload-monitoring
+ *                                 // instead - see docs/superpowers/specs/2026-09-21-rosa-managed-
+ *                                 // prometheus-integration-design.md. Grafana is still deployed by
+ *                                 // this addon (OpenShift doesn't ship it); Tempo/Loki/Alloy are
+ *                                 // unaffected by this setting in either mode.
  *   enableLogs: boolean,          // Default: true  — install Loki + Alloy
  *   enableTraces: boolean,        // Default: true  — install Tempo
  *   enableMetrics: boolean,       // Default: true  — install Prometheus scrape configs
@@ -123,6 +130,7 @@ export class TelemetryFeature extends AddonFeature {
     this.soloUiNamespace = config.soloUiNamespace || 'solo-enterprise';
     this.clusterName = config.clusterName || '';
     this.openshift = config.platform === 'openshift';
+    this.prometheusMode = config.prometheusMode || 'embedded';
 
     if (this.mode === 'agent') {
       this.otelGatewayEndpoint = config.otelGatewayEndpoint || null;
@@ -158,6 +166,17 @@ export class TelemetryFeature extends AddonFeature {
         throw new Error(`telemetry agent mode requires: ${missing.join(', ')}`);
       }
       return true;
+    }
+    if (!['embedded', 'managed'].includes(this.prometheusMode)) {
+      throw new Error(
+        `Invalid prometheusMode '${this.prometheusMode}'. Must be: embedded, managed`
+      );
+    }
+    if (this.prometheusMode === 'managed' && !this.openshift) {
+      throw new Error(
+        "prometheusMode: managed requires platform: openshift - it integrates with OpenShift's " +
+          'user-workload-monitoring and Thanos Querier, which have no equivalent on other clouds.'
+      );
     }
     const missing = [
       !this.grafanaAdminUsername && 'GRAFANA_ADMIN_USERNAME',
