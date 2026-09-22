@@ -38,6 +38,14 @@ const SOLO_COP_DASHBOARDS = [
 // which would corrupt a credential that contains them.
 const helmSetEscape = value => String(value).replace(/\\/g, '\\\\').replace(/,/g, '\\,');
 
+// Exported for testing: merges enableUserWorkload: true into existing cluster-monitoring-config
+// YAML content without clobbering other keys the config may already carry.
+export function mergeUserWorkloadConfig(existingYaml, yamlLib) {
+  const config = existingYaml?.trim() ? yamlLib.load(existingYaml) || {} : {};
+  config.enableUserWorkload = true;
+  return config;
+}
+
 /**
  * Telemetry Feature
  *
@@ -381,6 +389,10 @@ export class TelemetryFeature extends AddonFeature {
       { quiet: true }
     );
     this.log(`Namespace '${this.namespace}' ready`, 'info');
+
+    if (this.prometheusMode === 'managed') {
+      await this.#enableUserWorkloadMonitoring();
+    }
 
     // Tempo first — Grafana datasource config needs its endpoint
     if (this.enableTraces) {
@@ -950,6 +962,58 @@ export class TelemetryFeature extends AddonFeature {
       : ['kube-prometheus-stack-operator', 'kube-prometheus-stack-grafana'];
     const statefulSets = managed ? [] : ['prometheus-kube-prometheus-stack-prometheus'];
     return { deployments, statefulSets };
+  }
+
+  /**
+   * Enable OpenShift's user-workload-monitoring, cluster-wide, via a one-time,
+   * idempotent patch to the openshift-monitoring/cluster-monitoring-config ConfigMap.
+   * Once enabled, the platform Prometheus (Thanos-backed) discovers ServiceMonitors/
+   * PodMonitors in user namespaces - this is what lets it scrape the mesh in managed mode.
+   * The ConfigMap is cluster-scoped, so this only needs to run once per cluster; the
+   * read-modify-write here preserves any other keys an operator may have already set.
+   */
+  async #enableUserWorkloadMonitoring() {
+    this.log('Enabling OpenShift user-workload-monitoring...', 'info');
+    const yaml = (await import('js-yaml')).default;
+    const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
+
+    const existing = await CommandRunner.run(
+      'oc',
+      [
+        ...ctxArgs,
+        'get',
+        'configmap',
+        'cluster-monitoring-config',
+        '-n',
+        'openshift-monitoring',
+        '-o',
+        'jsonpath={.data.config\\.yaml}',
+      ],
+      { ignoreError: true, captureOutput: true }
+    );
+
+    const alreadyEnabled =
+      existing.exitCode === 0 &&
+      existing.stdout?.trim() &&
+      (yaml.load(existing.stdout) || {}).enableUserWorkload === true;
+    if (alreadyEnabled) {
+      this.log('User-workload-monitoring already enabled', 'info');
+      return;
+    }
+
+    const config = mergeUserWorkloadConfig(existing.exitCode === 0 ? existing.stdout : '', yaml);
+    const configMapYaml = yaml.dump({
+      apiVersion: 'v1',
+      kind: 'ConfigMap',
+      metadata: { name: 'cluster-monitoring-config', namespace: 'openshift-monitoring' },
+      data: { 'config.yaml': yaml.dump(config) },
+    });
+
+    await CommandRunner.exec(`oc ${ctxArgs.join(' ')} apply -f -`, { input: configMapYaml });
+    this.log(
+      'User-workload-monitoring enabled - platform Prometheus will roll out shortly',
+      'success'
+    );
   }
 
   /**

@@ -2,7 +2,8 @@ import { test, expect, describe, spyOn, beforeEach, afterEach } from 'bun:test';
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { TelemetryFeature } from '../../addons/telemetry/index.js';
+import yaml from 'js-yaml';
+import { TelemetryFeature, mergeUserWorkloadConfig } from '../../addons/telemetry/index.js';
 import { generate as telemetryRunbookGenerate } from '../../addons/telemetry/runbook.js';
 
 test('TelemetryFeature openshift defaults to false', () => {
@@ -150,5 +151,20 @@ describe('installOtelCollectors() metrics values file selection', () => {
     expect(metricsCall).toBeDefined();
     expect(metricsCall.valuesContent).toContain('prometheusremotewrite');
     expect(metricsCall.valuesContent).not.toContain("endpoint: '0.0.0.0:8889'");
+  });
+});
+
+test('mergeUserWorkloadConfig sets enableUserWorkload on empty existing config', () => {
+  const result = mergeUserWorkloadConfig('', yaml);
+  expect(result).toEqual({ enableUserWorkload: true });
+});
+
+test('mergeUserWorkloadConfig preserves existing unrelated keys', () => {
+  const existing = yaml.dump({ someOtherSetting: 'value', nested: { a: 1 } });
+  const result = mergeUserWorkloadConfig(existing, yaml);
+  expect(result).toEqual({
+    someOtherSetting: 'value',
+    nested: { a: 1 },
+    enableUserWorkload: true,
   });
 });
