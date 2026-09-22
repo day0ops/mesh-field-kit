@@ -936,6 +936,21 @@ export class TelemetryFeature extends AddonFeature {
   }
 
   /**
+   * Determine which kube-prometheus-stack resources to wait on after install.
+   * Extracted from installPrometheusStack() so it's unit-testable without live kubectl calls.
+   * In managed mode buildPrometheusStackHelmArgs() disables prometheus/prometheusOperator, so
+   * the operator Deployment and Prometheus StatefulSet never get created - only Grafana does.
+   */
+  getPrometheusStackWaitTargets() {
+    const managed = this.prometheusMode === 'managed';
+    const deployments = managed
+      ? ['kube-prometheus-stack-grafana']
+      : ['kube-prometheus-stack-operator', 'kube-prometheus-stack-grafana'];
+    const statefulSets = managed ? [] : ['prometheus-kube-prometheus-stack-prometheus'];
+    return { deployments, statefulSets };
+  }
+
+  /**
    * Install kube-prometheus-stack (Prometheus + Grafana + Alertmanager)
    * Grafana is pre-configured with datasources for Prometheus, Tempo, and Loki.
    */
@@ -976,9 +991,13 @@ export class TelemetryFeature extends AddonFeature {
       this.kubeContext
     );
 
-    await this.waitForDeployment('kube-prometheus-stack-operator', 120);
-    await this.waitForDeployment('kube-prometheus-stack-grafana', 120);
-    await this.waitForStatefulSet('prometheus-kube-prometheus-stack-prometheus', 120);
+    const { deployments, statefulSets } = this.getPrometheusStackWaitTargets();
+    for (const name of deployments) {
+      await this.waitForDeployment(name, 120);
+    }
+    for (const name of statefulSets) {
+      await this.waitForStatefulSet(name, 120);
+    }
     this.log('kube-prometheus-stack installed', 'info');
   }
 

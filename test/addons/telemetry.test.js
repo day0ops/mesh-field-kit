@@ -83,3 +83,17 @@ test('buildPrometheusStackHelmArgs skips CRDs on openshift even in embedded mode
   expect(args).toContain('--skip-crds');
   expect(args).not.toContain('prometheus.enabled=false');
 });
+
+test('getPrometheusStackWaitTargets waits on operator and prometheus in embedded mode', () => {
+  const f = new TelemetryFeature('telemetry', {});
+  const { deployments, statefulSets } = f.getPrometheusStackWaitTargets();
+  expect(deployments).toEqual(['kube-prometheus-stack-operator', 'kube-prometheus-stack-grafana']);
+  expect(statefulSets).toEqual(['prometheus-kube-prometheus-stack-prometheus']);
+});
+
+test('getPrometheusStackWaitTargets skips operator and prometheus in managed mode', () => {
+  const f = new TelemetryFeature('telemetry', { prometheusMode: 'managed', platform: 'openshift' });
+  const { deployments, statefulSets } = f.getPrometheusStackWaitTargets();
+  expect(deployments).toEqual(['kube-prometheus-stack-grafana']);
+  expect(statefulSets).toEqual([]);
+});
