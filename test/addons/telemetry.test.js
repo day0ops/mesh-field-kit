@@ -3,8 +3,13 @@ import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
-import { TelemetryFeature, mergeUserWorkloadConfig } from '../../addons/telemetry/index.js';
+import {
+  TelemetryFeature,
+  mergeUserWorkloadConfig,
+  readClusterMonitoringConfigYaml,
+} from '../../addons/telemetry/index.js';
 import { generate as telemetryRunbookGenerate } from '../../addons/telemetry/runbook.js';
+import { CommandRunner } from '../../src/lib/common.js';
 
 test('TelemetryFeature openshift defaults to false', () => {
   const f = new TelemetryFeature('telemetry', {});
@@ -166,5 +171,58 @@ test('mergeUserWorkloadConfig preserves existing unrelated keys', () => {
     someOtherSetting: 'value',
     nested: { a: 1 },
     enableUserWorkload: true,
+  });
+});
+
+describe('readClusterMonitoringConfigYaml()', () => {
+  let runSpy;
+
+  afterEach(() => {
+    runSpy?.mockRestore();
+  });
+
+  test('returns the ConfigMap content when the read succeeds', async () => {
+    runSpy = spyOn(CommandRunner, 'run').mockResolvedValue({
+      exitCode: 0,
+      stdout: 'someOtherSetting: value\n',
+      stderr: '',
+    });
+    const result = await readClusterMonitoringConfigYaml([]);
+    expect(result).toBe('someOtherSetting: value\n');
+  });
+
+  test('returns empty string when the ConfigMap does not exist yet (NotFound)', async () => {
+    runSpy = spyOn(CommandRunner, 'run').mockResolvedValue({
+      exitCode: 1,
+      stdout: '',
+      stderr: 'Error from server (NotFound): configmaps "cluster-monitoring-config" not found',
+    });
+    const result = await readClusterMonitoringConfigYaml([]);
+    expect(result).toBe('');
+  });
+
+  test('throws instead of treating a non-NotFound failure as empty', async () => {
+    runSpy = spyOn(CommandRunner, 'run').mockResolvedValue({
+      exitCode: 1,
+      stdout: '',
+      stderr: 'Error from server (Forbidden): configmaps is forbidden: User "x" cannot get resource',
+    });
+    await expect(readClusterMonitoringConfigYaml([])).rejects.toThrow(
+      /cannot be safely merged/
+    );
+  });
+
+  test('threads context args into the oc get command', async () => {
+    runSpy = spyOn(CommandRunner, 'run').mockResolvedValue({
+      exitCode: 0,
+      stdout: '',
+      stderr: '',
+    });
+    await readClusterMonitoringConfigYaml(['--context=my-cluster']);
+    expect(runSpy).toHaveBeenCalledWith(
+      'oc',
+      expect.arrayContaining(['--context=my-cluster', 'get', 'configmap']),
+      expect.any(Object)
+    );
   });
 });

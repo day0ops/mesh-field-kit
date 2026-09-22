@@ -46,6 +46,40 @@ export function mergeUserWorkloadConfig(existingYaml, yamlLib) {
   return config;
 }
 
+// Exported for testing: reads the cluster-monitoring-config ConfigMap's config.yaml key.
+// NotFound (Kubernetes' standard reason string, present on stderr) means a genuinely fresh
+// cluster with no ConfigMap yet, so it's treated as empty content. Any other read failure
+// (RBAC denial, wrong context, transient API error, ...) throws rather than being treated as
+// empty, since this ConfigMap is cluster-wide and a blind merge could clobber real content.
+export async function readClusterMonitoringConfigYaml(ctxArgs) {
+  const existing = await CommandRunner.run(
+    'oc',
+    [
+      ...ctxArgs,
+      'get',
+      'configmap',
+      'cluster-monitoring-config',
+      '-n',
+      'openshift-monitoring',
+      '-o',
+      'jsonpath={.data.config\\.yaml}',
+    ],
+    { ignoreError: true, captureOutput: true }
+  );
+
+  if (existing.exitCode === 0) {
+    return existing.stdout ?? '';
+  }
+  if (/NotFound/.test(existing.stderr ?? '')) {
+    return '';
+  }
+  throw new Error(
+    'Failed to read openshift-monitoring/cluster-monitoring-config, so it cannot be safely ' +
+      'merged with enableUserWorkload: true. Refusing to proceed since this ConfigMap is ' +
+      `cluster-wide and applying blind could clobber it. Underlying error: ${existing.stderr?.trim() || existing.message}`
+  );
+}
+
 /**
  * Telemetry Feature
  *
@@ -971,37 +1005,24 @@ export class TelemetryFeature extends AddonFeature {
    * PodMonitors in user namespaces - this is what lets it scrape the mesh in managed mode.
    * The ConfigMap is cluster-scoped, so this only needs to run once per cluster; the
    * read-modify-write here preserves any other keys an operator may have already set.
+   * A read failure other than NotFound (RBAC denial, wrong context, transient API error) aborts
+   * loudly instead of falling through to an overwrite, since the merge can't be trusted blind.
    */
   async #enableUserWorkloadMonitoring() {
     this.log('Enabling OpenShift user-workload-monitoring...', 'info');
     const yaml = (await import('js-yaml')).default;
     const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
 
-    const existing = await CommandRunner.run(
-      'oc',
-      [
-        ...ctxArgs,
-        'get',
-        'configmap',
-        'cluster-monitoring-config',
-        '-n',
-        'openshift-monitoring',
-        '-o',
-        'jsonpath={.data.config\\.yaml}',
-      ],
-      { ignoreError: true, captureOutput: true }
-    );
+    const existingYaml = await readClusterMonitoringConfigYaml(ctxArgs);
 
     const alreadyEnabled =
-      existing.exitCode === 0 &&
-      existing.stdout?.trim() &&
-      (yaml.load(existing.stdout) || {}).enableUserWorkload === true;
+      existingYaml.trim() && (yaml.load(existingYaml) || {}).enableUserWorkload === true;
     if (alreadyEnabled) {
       this.log('User-workload-monitoring already enabled', 'info');
       return;
     }
 
-    const config = mergeUserWorkloadConfig(existing.exitCode === 0 ? existing.stdout : '', yaml);
+    const config = mergeUserWorkloadConfig(existingYaml, yaml);
     const configMapYaml = yaml.dump({
       apiVersion: 'v1',
       kind: 'ConfigMap',
