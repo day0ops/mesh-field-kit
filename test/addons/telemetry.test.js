@@ -117,6 +117,27 @@ test('telemetry runbook selects the pull-based metrics values file for managed m
   expect(embeddedMd).toContain('prometheusremotewrite/local');
 });
 
+test('telemetry runbook selects the pull-based gateway values file for managed mode', async () => {
+  const managedMd = await telemetryRunbookGenerate(
+    1,
+    { platform: 'openshift', prometheusMode: 'managed' },
+    'my-cluster',
+    {},
+    { spec: {} }
+  );
+  const embeddedMd = await telemetryRunbookGenerate(1, {}, 'my-cluster', {}, { spec: {} });
+
+  expect(managedMd).toContain("endpoint: '0.0.0.0:8890'");
+  // logs/traces pipelines are unaffected by prometheusMode
+  expect(managedMd).toContain('otlphttp/loki');
+  expect(managedMd).toContain('otlp/tempo');
+
+  expect(embeddedMd).not.toContain("endpoint: '0.0.0.0:8890'");
+  expect(embeddedMd).toContain(
+    "endpoint: 'http://kube-prometheus-stack-prometheus.telemetry.svc.cluster.local:9090/api/v1/write'"
+  );
+});
+
 test('telemetry runbook wires the Grafana datasource at Thanos Querier for managed mode', async () => {
   const md = await telemetryRunbookGenerate(
     1,
@@ -231,6 +252,31 @@ test('otel-metrics-managed-values.yaml exists and uses a pull-based prometheus e
   expect(content).not.toContain('prometheusremotewrite');
 });
 
+test('otel-gateway-managed-values.yaml exists, uses a pull-based prometheus exporter on a distinct port, and preserves logs/traces pipelines', () => {
+  const path = join(CONFIG_DIR, 'otel-gateway-managed-values.yaml');
+  expect(existsSync(path)).toBe(true);
+  const content = readFileSync(path, 'utf8');
+  expect(content).toContain('prometheus:');
+  expect(content).toContain("endpoint: '0.0.0.0:8890'");
+  expect(content).toContain('serviceMonitor:');
+  expect(content).toContain('enabled: true');
+  expect(content).not.toContain('prometheusremotewrite');
+
+  // Distinct port from the local metrics collector's 8889
+  const metricsContent = readFileSync(join(CONFIG_DIR, 'otel-metrics-managed-values.yaml'), 'utf8');
+  expect(metricsContent).not.toContain('8890');
+  expect(content).not.toContain('8889');
+
+  // Logs/traces exporters/pipelines untouched
+  expect(content).toContain('otlphttp/loki');
+  expect(content).toContain('otlp/tempo');
+  expect(content).toContain('otlp/solo-ui');
+  const parsed = yaml.load(content);
+  expect(parsed.config.service.pipelines.logs.exporters).toEqual(['otlphttp/loki']);
+  expect(parsed.config.service.pipelines.traces.exporters).toEqual(['otlp/tempo', 'otlp/solo-ui']);
+  expect(parsed.config.service.pipelines.metrics.exporters).toEqual(['prometheus']);
+});
+
 describe('installOtelCollectors() metrics values file selection', () => {
   let installOtelChartSpy;
   let calls;
@@ -270,6 +316,48 @@ describe('installOtelCollectors() metrics values file selection', () => {
     expect(metricsCall).toBeDefined();
     expect(metricsCall.valuesContent).toContain('prometheusremotewrite');
     expect(metricsCall.valuesContent).not.toContain("endpoint: '0.0.0.0:8889'");
+  });
+});
+
+describe('installOtelGateway() gateway values file selection', () => {
+  let installOtelChartSpy;
+  let calls;
+
+  beforeEach(() => {
+    calls = [];
+    // Stub the Helm-calling boundary so branching logic is exercised without touching a cluster.
+    installOtelChartSpy = spyOn(TelemetryFeature.prototype, 'installOtelChart').mockImplementation(
+      async (release, valuesContent, helmCtxArgs) => {
+        calls.push({ release, valuesContent, helmCtxArgs });
+      }
+    );
+  });
+
+  afterEach(() => {
+    installOtelChartSpy.mockRestore();
+  });
+
+  test('managed mode installs the gateway collector with the pull-based values file', async () => {
+    const f = new TelemetryFeature('telemetry', {
+      prometheusMode: 'managed',
+      platform: 'openshift',
+    });
+    await f.installOtelGateway();
+
+    const gatewayCall = calls.find(c => c.release === 'opentelemetry-collector-gateway');
+    expect(gatewayCall).toBeDefined();
+    expect(gatewayCall.valuesContent).toContain("endpoint: '0.0.0.0:8890'");
+    expect(gatewayCall.valuesContent).not.toContain('prometheusremotewrite');
+  });
+
+  test('embedded (default) mode installs the gateway collector with the prometheusremotewrite values file', async () => {
+    const f = new TelemetryFeature('telemetry', {});
+    await f.installOtelGateway();
+
+    const gatewayCall = calls.find(c => c.release === 'opentelemetry-collector-gateway');
+    expect(gatewayCall).toBeDefined();
+    expect(gatewayCall.valuesContent).toContain('prometheusremotewrite');
+    expect(gatewayCall.valuesContent).not.toContain("endpoint: '0.0.0.0:8890'");
   });
 });
 

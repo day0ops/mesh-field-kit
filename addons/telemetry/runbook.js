@@ -76,10 +76,12 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, env) 
 
 async function _generateGateway(addonCfg, clusterName, env) {
   const cfg = addonCfg.config || {};
-  // Read before Promise.all: it picks which otel-metrics values file to load.
+  // Read before Promise.all: it picks which otel-metrics/otel-gateway values files to load.
   const prometheusMode = addonCfg.prometheusMode || cfg.prometheusMode || 'embedded';
   const metricsValuesFile =
     prometheusMode === 'managed' ? 'otel-metrics-managed-values.yaml' : 'otel-metrics-values.yaml';
+  const gatewayValuesFile =
+    prometheusMode === 'managed' ? 'otel-gateway-managed-values.yaml' : 'otel-gateway-values.yaml';
 
   const [
     tempoValues,
@@ -99,7 +101,7 @@ async function _generateGateway(addonCfg, clusterName, env) {
     readConfig(metricsValuesFile),
     readConfig('otel-logs-values.yaml'),
     readConfig('otel-traces-values.yaml'),
-    readConfig('otel-gateway-values.yaml'),
+    readConfig(gatewayValuesFile),
     readConfig('grafana-datasources.yaml'),
   ]);
 

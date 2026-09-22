@@ -160,7 +160,12 @@ export async function waitForCaBundleConfigMap(cmName, namespace, ctxArgs, timeo
  *                                 // instead - see docs/superpowers/specs/2026-09-21-rosa-managed-
  *                                 // prometheus-integration-design.md. Grafana is still deployed by
  *                                 // this addon (OpenShift doesn't ship it); Tempo/Loki/Alloy are
- *                                 // unaffected by this setting in either mode.
+ *                                 // unaffected by this setting in either mode. Also switches the
+ *                                 // local metrics OTel collector AND the cross-cluster gateway
+ *                                 // collector's metrics exporter from prometheusremotewrite
+ *                                 // (targeting our own in-cluster Prometheus, which doesn't exist
+ *                                 // in managed mode) to a pull-based prometheus exporter scraped
+ *                                 // via each chart's serviceMonitor.enabled.
  *   enableLogs: boolean,          // Default: true  — install Loki + Alloy
  *   enableTraces: boolean,        // Default: true  — install Tempo
  *   enableMetrics: boolean,       // Default: true  — install Prometheus scrape configs
@@ -550,6 +555,8 @@ export class TelemetryFeature extends AddonFeature {
   /**
    * Install OTel gateway collector in full mode (east cluster only).
    * The gateway acts as central fan-out for cross-cluster signals from west cluster.
+   * In managed prometheusMode, its metrics exporter switches to pull-based (see
+   * otel-gateway-managed-values.yaml), same as installOtelCollectors()'s metrics collector.
    */
   async installOtelGateway() {
     this.log('Installing OTel gateway (cross-cluster receiver)...', 'info');
@@ -561,9 +568,13 @@ export class TelemetryFeature extends AddonFeature {
     const fill = tmpl =>
       Object.entries(replacements).reduce((s, [k, v]) => s.replaceAll(k, v), tmpl);
 
+    const gatewayValuesFile =
+      this.prometheusMode === 'managed'
+        ? 'otel-gateway-managed-values.yaml'
+        : 'otel-gateway-values.yaml';
     await this.installOtelChart(
       OTEL_GATEWAY_RELEASE,
-      fill(readFileSync(join(CONFIG_DIR, 'otel-gateway-values.yaml'), 'utf8')),
+      fill(readFileSync(join(CONFIG_DIR, gatewayValuesFile), 'utf8')),
       helmCtxArgs
     );
     this.log('OTel gateway installed', 'info');

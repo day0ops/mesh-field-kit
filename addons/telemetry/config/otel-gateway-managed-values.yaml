@@ -1,0 +1,59 @@
+# OTel Collector — Gateway (east/full mode only, managed prometheusMode)
+# Central fan-out: receives ALL signals from west cluster's OTel collectors via OTLP.
+# Exports:
+#   metrics → pull-based /metrics endpoint for OpenShift's platform Prometheus to scrape
+#   logs    → Loki OTLP (local)
+#   traces  → Tempo (local) + Solo UI telemetry collector (local)
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  exporters:
+    prometheus:
+      endpoint: '0.0.0.0:8890'
+    otlphttp/loki:
+      endpoint: 'http://loki.{{TELEMETRY_NAMESPACE}}.svc.cluster.local:3100/otlp'
+      tls:
+        insecure: true
+    otlp/tempo:
+      endpoint: 'tempo-distributor.{{TELEMETRY_NAMESPACE}}.svc.cluster.local:4317'
+      tls:
+        insecure: true
+    otlp/solo-ui:
+      endpoint: 'solo-enterprise-telemetry-collector.{{SOLO_UI_NAMESPACE}}.svc.cluster.local:4317'
+      tls:
+        insecure: true
+
+  service:
+    pipelines:
+      metrics:
+        receivers: [otlp]
+        processors: [batch]
+        exporters: [prometheus]
+      logs:
+        receivers: [otlp]
+        processors: [batch]
+        exporters: [otlphttp/loki]
+      traces:
+        receivers: [otlp]
+        processors: [batch]
+        exporters: [otlp/tempo, otlp/solo-ui]
+
+ports:
+  prometheus:
+    enabled: true
+    containerPort: 8890
+    servicePort: 8890
+    protocol: TCP
+
+serviceMonitor:
+  enabled: true
+  metricsEndpoints:
+    - port: prometheus
+      interval: 30s
