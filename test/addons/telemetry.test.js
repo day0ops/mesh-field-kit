@@ -41,6 +41,102 @@ test('telemetry runbook emits --skip-crds for kube-prometheus-stack when platfor
   expect(md).toContain('--skip-crds');
 });
 
+test('telemetry runbook disables prometheus/alertmanager/operator for managed mode', async () => {
+  const md = await telemetryRunbookGenerate(
+    1,
+    { platform: 'openshift', prometheusMode: 'managed' },
+    'my-cluster',
+    {},
+    { spec: {} }
+  );
+  expect(md).toContain('prometheus.enabled=false');
+  expect(md).toContain('alertmanager.enabled=false');
+  expect(md).toContain('prometheusOperator.enabled=false');
+});
+
+test('telemetry runbook documents enabling user-workload-monitoring for managed mode', async () => {
+  const md = await telemetryRunbookGenerate(
+    1,
+    { platform: 'openshift', prometheusMode: 'managed' },
+    'my-cluster',
+    {},
+    { spec: {} }
+  );
+  expect(md).toContain('user-workload-monitoring');
+  expect(md).toContain('grafana-thanos-reader');
+  expect(md).toContain('cluster-monitoring-view');
+});
+
+test('telemetry runbook omits managed-mode steps for embedded mode', async () => {
+  const md = await telemetryRunbookGenerate(
+    1,
+    { platform: 'openshift' },
+    'my-cluster',
+    {},
+    { spec: {} }
+  );
+  expect(md).not.toContain('grafana-thanos-reader');
+  expect(md).not.toContain('prometheus.enabled=false');
+});
+
+test('telemetry runbook orders managed-mode steps to match the real install sequence', async () => {
+  const md = await telemetryRunbookGenerate(
+    1,
+    { platform: 'openshift', prometheusMode: 'managed' },
+    'my-cluster',
+    {},
+    { spec: {} }
+  );
+  const uwmIndex = md.indexOf('user-workload-monitoring');
+  const prometheusInstallIndex = md.indexOf('Install Prometheus + Grafana (kube-prometheus-stack)');
+  const thanosCredsIndex = md.indexOf('Provision the ServiceAccount Grafana uses');
+  const datasourcesIndex = md.indexOf('Apply Grafana datasources');
+  // enableUserWorkloadMonitoring() runs before installPrometheusStack() in deployFull()
+  expect(uwmIndex).toBeGreaterThan(-1);
+  expect(uwmIndex).toBeLessThan(prometheusInstallIndex);
+  // the Thanos ServiceAccount/token/CA-bundle are minted inside installDatasources(),
+  // which runs after installPrometheusStack()
+  expect(thanosCredsIndex).toBeGreaterThan(prometheusInstallIndex);
+  expect(thanosCredsIndex).toBeLessThan(datasourcesIndex);
+});
+
+test('telemetry runbook selects the pull-based metrics values file for managed mode', async () => {
+  const managedMd = await telemetryRunbookGenerate(
+    1,
+    { platform: 'openshift', prometheusMode: 'managed' },
+    'my-cluster',
+    {},
+    { spec: {} }
+  );
+  const embeddedMd = await telemetryRunbookGenerate(1, {}, 'my-cluster', {}, { spec: {} });
+
+  expect(managedMd).toContain("endpoint: '0.0.0.0:8889'");
+  expect(managedMd).toContain('serviceMonitor:');
+
+  expect(embeddedMd).not.toContain("endpoint: '0.0.0.0:8889'");
+  expect(embeddedMd).toContain('prometheusremotewrite/local');
+});
+
+test('telemetry runbook wires the Grafana datasource at Thanos Querier for managed mode', async () => {
+  const md = await telemetryRunbookGenerate(
+    1,
+    { platform: 'openshift', prometheusMode: 'managed' },
+    'my-cluster',
+    {},
+    { spec: {} }
+  );
+  expect(md).toContain('url: https://thanos-querier.openshift-monitoring.svc:9092');
+  expect(md).toContain('httpHeaderName1: Authorization');
+  expect(md).toContain('tlsAuthWithCACert: true');
+  expect(md).not.toContain('{{');
+});
+
+test('telemetry runbook keeps the in-cluster Prometheus datasource URL for embedded mode with no unresolved placeholders', async () => {
+  const md = await telemetryRunbookGenerate(1, {}, 'my-cluster', {}, { spec: {} });
+  expect(md).toContain('url: http://kube-prometheus-stack-prometheus.telemetry:9090');
+  expect(md).not.toContain('{{');
+});
+
 test('TelemetryFeature prometheusMode defaults to embedded', () => {
   const f = new TelemetryFeature('telemetry', {});
   expect(f.prometheusMode).toBe('embedded');

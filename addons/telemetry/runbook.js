@@ -75,6 +75,12 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, env) 
 }
 
 async function _generateGateway(addonCfg, clusterName, env) {
+  const cfg = addonCfg.config || {};
+  // Read before Promise.all: it picks which otel-metrics values file to load.
+  const prometheusMode = addonCfg.prometheusMode || cfg.prometheusMode || 'embedded';
+  const metricsValuesFile =
+    prometheusMode === 'managed' ? 'otel-metrics-managed-values.yaml' : 'otel-metrics-values.yaml';
+
   const [
     tempoValues,
     lokiValues,
@@ -90,14 +96,13 @@ async function _generateGateway(addonCfg, clusterName, env) {
     readConfig('loki-values.yaml'),
     readConfig('alloy-values.yaml'),
     readConfig('prometheus-values.yaml'),
-    readConfig('otel-metrics-values.yaml'),
+    readConfig(metricsValuesFile),
     readConfig('otel-logs-values.yaml'),
     readConfig('otel-traces-values.yaml'),
     readConfig('otel-gateway-values.yaml'),
     readConfig('grafana-datasources.yaml'),
   ]);
 
-  const cfg = addonCfg.config || {};
   const ns = addonCfg.namespace || 'telemetry';
   const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   const soloUiNs = cfg.soloUiNamespace || 'solo-enterprise';
@@ -121,11 +126,31 @@ async function _generateGateway(addonCfg, clusterName, env) {
       .replaceAll('{{SOLO_UI_NAMESPACE}}', soloUiNs)
       .replaceAll('{{CLUSTER_NAME}}', clusterName);
 
+  // Grafana's Prometheus datasource: in-cluster Prometheus (embedded) vs. OpenShift's
+  // platform Thanos Querier authenticated with the token/CA cert minted further below (managed).
+  const prometheusDatasourceUrl =
+    prometheusMode === 'managed'
+      ? 'https://thanos-querier.openshift-monitoring.svc:9092'
+      : `http://kube-prometheus-stack-prometheus.${ns}:9090`;
+  const prometheusAuthJsonData =
+    prometheusMode === 'managed'
+      ? 'httpHeaderName1: Authorization\n      tlsAuthWithCACert: true'
+      : '';
+  const prometheusAuthSecureJsonData =
+    prometheusMode === 'managed'
+      ? 'secureJsonData:\n      httpHeaderValue1: "Bearer <THANOS_TOKEN minted above>"\n      tlsCACert: "<CA cert from configmap/thanos-querier-ca-bundle>"'
+      : '';
+  const fillDatasources = s =>
+    fillGateway(s)
+      .replaceAll('{{PROMETHEUS_DATASOURCE_URL}}', prometheusDatasourceUrl)
+      .replace('{{PROMETHEUS_AUTH_JSONDATA}}', prometheusAuthJsonData)
+      .replace('{{PROMETHEUS_AUTH_SECUREJSONDATA}}', prometheusAuthSecureJsonData);
+
   const metricsValues = fillGateway(metricsValuesRaw);
   const logsValues = fillGateway(logsValuesRaw);
   const tracesValues = fillGateway(tracesValuesRaw);
   const gatewayValues = fillGateway(gatewayValuesRaw);
-  const datasourcesYaml = fillGateway(datasourcesYamlRaw);
+  const datasourcesYaml = fillDatasources(datasourcesYamlRaw);
 
   // Indent datasources YAML for embedding inside ConfigMap data block
   const datasourcesIndented = datasourcesYaml
@@ -273,6 +298,85 @@ kubectl --context=${ctx} label svc opentelemetry-collector-gateway -n ${ns} solo
 \`\`\``
     : '';
 
+  // managed mode only: platform Prometheus (Thanos-backed) needs user-workload-monitoring
+  // enabled cluster-wide before it will discover ServiceMonitors/PodMonitors in this namespace.
+  // Idempotent - a read-modify-write that preserves any other keys already on the ConfigMap.
+  const userWorkloadMonitoringStep =
+    prometheusMode === 'managed'
+      ? `
+
+Enable OpenShift user-workload-monitoring (idempotent, cluster-wide, one-time — required so the platform Prometheus discovers ServiceMonitors/PodMonitors in this namespace):
+
+\`\`\`bash
+# Read the existing config, if any (NotFound is fine — merge starts from empty)
+oc --context=${ctx} get configmap cluster-monitoring-config -n openshift-monitoring \\
+  -o jsonpath='{.data.config\\.yaml}' > /tmp/cluster-monitoring-config.yaml
+
+# Merge in enableUserWorkload: true, preserving any other keys already present, then apply
+oc --context=${ctx} apply -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    enableUserWorkload: true
+    # ...plus any keys already present in /tmp/cluster-monitoring-config.yaml
+EOF
+\`\`\``
+      : '';
+
+  // managed mode only: Grafana's Prometheus datasource authenticates to the platform Thanos
+  // Querier with this ServiceAccount's token + the cluster's injected CA bundle.
+  const thanosQuerierCredentialsStep =
+    prometheusMode === 'managed'
+      ? `
+
+Provision the ServiceAccount Grafana uses to authenticate to the platform Thanos Querier, then mint a token and request its CA bundle:
+
+\`\`\`bash
+kubectl --context=${ctx} apply -n ${ns} -f - <<EOF
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana-thanos-reader
+  namespace: ${ns}
+EOF
+
+kubectl --context=${ctx} apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: grafana-thanos-reader-${ns}
+subjects:
+  - kind: ServiceAccount
+    name: grafana-thanos-reader
+    namespace: ${ns}
+roleRef:
+  kind: ClusterRole
+  name: cluster-monitoring-view
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+# Long-lived token (1 year) — Grafana's datasource config has no token-refresh mechanism
+THANOS_TOKEN=$(oc --context=${ctx} create token grafana-thanos-reader -n ${ns} --duration=8760h)
+
+# OpenShift's service-ca-operator injects the cluster serving CA into any ConfigMap
+# annotated with service.beta.openshift.io/inject-cabundle; poll until it's populated
+kubectl --context=${ctx} apply -n ${ns} -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: thanos-querier-ca-bundle
+  namespace: ${ns}
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+EOF
+oc --context=${ctx} get configmap thanos-querier-ca-bundle -n ${ns} -o jsonpath='{.data.service-ca\\.crt}'
+\`\`\``
+      : '';
+
   return `Install telemetry stack (Tempo, Loki, Alloy, Prometheus, Grafana, OTel collectors) on the **${clusterName}** cluster in gateway mode.
 
 \`\`\`bash
@@ -340,7 +444,7 @@ helm upgrade --install alloy grafana/alloy \\
   -f - <<'EOF'
 ${alloyValues.trimEnd()}
 EOF
-\`\`\`
+\`\`\`${userWorkloadMonitoringStep}
 
 Install Prometheus + Grafana (kube-prometheus-stack):
 
@@ -352,6 +456,13 @@ helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheu
     openshift
       ? `
   --skip-crds \\`
+      : ''
+  }${
+    prometheusMode === 'managed'
+      ? `
+  --set prometheus.enabled=false \\
+  --set alertmanager.enabled=false \\
+  --set prometheusOperator.enabled=false \\`
       : ''
   }
   --set prometheus.prometheusSpec.retention=${retention} \\
@@ -428,7 +539,7 @@ helm upgrade --install opentelemetry-collector-gateway opentelemetry-collector \
 ${gatewayValues.trimEnd()}
 EOF
 \`\`\`
-${grafanaTlsSection}
+${grafanaTlsSection}${thanosQuerierCredentialsStep}
 
 Apply Grafana datasources (Prometheus, Tempo, Loki):
 
