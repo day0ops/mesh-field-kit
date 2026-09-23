@@ -221,6 +221,7 @@ function _generateRelay(addonCfg, clusterName, _env) {
   const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   const tunnel = addon.tunnel || {};
   const telemetry = addon.telemetry || {};
+  const products = addon.products || {};
 
   // OCI chart URL — no helm repo add needed
   const relayChartOci = 'oci://us-docker.pkg.dev/solo-public/solo-enterprise-helm/charts/relay';
@@ -243,6 +244,7 @@ helm upgrade --install solo-relay ${relayChartOci} \\
   --set tunnel.fqdn="${tunnel.fqdn || ''}" \\
   --set tunnel.port=${tunnel.port || 9000} \\
   --set telemetry.fqdn="${telemetry.fqdn || ''}" \\
+  --set products.mesh.enabled=${products.mesh?.enabled === true} \\
   --set cluster=${clusterName} \\
   --wait \\
   --timeout 5m

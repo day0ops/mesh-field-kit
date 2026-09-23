@@ -113,10 +113,12 @@ spec:
 
   tests:
     - name: discovery-and-l7-get-rosa-to-eks
-      description: productpage on rosa-cluster reaches reviews on eks-cluster via mesh.internal and the waypoint's GET-allow policy - proves discovery rosa-to-eks and L7 enforcement for a cross-cluster caller. rosa-cluster's own local reviews are scaled to 0 first so the call is forced across the east-west gateway to eks-cluster's waypoint-fronted reviews, rather than being served locally.
+      description: Cross-cluster GET from rosa-cluster's productpage to eks-cluster's waypoint-fronted reviews succeeds
       clusters:
         - name: rosa-cluster
       setup:
+        # Scale local reviews to 0 so the call is forced across the east-west gateway
+        # instead of being served locally.
         - action: exec
           command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=0
           timeout: 30s
@@ -137,10 +139,12 @@ spec:
             contains: '200'
 
     - name: discovery-and-l4-allow-eks-to-rosa
-      description: ratings-v1 on eks-cluster reaches details on rosa-cluster via mesh.internal - proves discovery eks-to-rosa, that the L4 identity policy allows the correct caller, and that this legitimate cross-cluster call still succeeds under rosa-cluster's STRICT mTLS. eks-cluster's own local details is scaled to 0 first so the call is forced across the east-west gateway to rosa-cluster's details, rather than being served locally.
+      description: Cross-cluster call from eks-cluster's ratings-v1 to rosa-cluster's details succeeds under STRICT mTLS and the L4 identity policy
       clusters:
         - name: eks-cluster
       setup:
+        # Scale local details to 0 so the call is forced across the east-west gateway
+        # instead of being served locally.
         - action: exec
           command: kubectl scale deploy/details-v1 -n bookinfo --replicas=0
           timeout: 30s
@@ -164,7 +168,7 @@ spec:
             contains: '200'
 
     - name: mtls-non-mesh-client-rejected
-      description: A client with no mesh identity on rosa-cluster cannot reach details once STRICT mTLS is enforced there - connection-level rejection, not an HTTP response.
+      description: Non-mesh client on rosa-cluster is connection-level rejected by STRICT mTLS
       clusters:
         - name: rosa-cluster
       setup:
@@ -198,10 +202,12 @@ spec:
           timeout: 30s
 
     - name: l4-wrong-identity-denied
-      description: A mesh-authenticated caller in bookinfo on eks-cluster with a different identity than bookinfo-ratings (here, bookinfo-reviews) is denied by the L4 policy on rosa-cluster's details service - proves the policy enforces identity, not just mesh membership. Connection-level rejection, not an HTTP response. eks-cluster's own local details is scaled to 0 first so the call is forced across the east-west gateway to rosa-cluster's details, rather than being served locally.
+      description: Wrong-identity caller (bookinfo-reviews) is connection-level denied by the L4 policy on rosa-cluster's details
       clusters:
         - name: eks-cluster
       setup:
+        # Scale local details to 0 so the call is forced across the east-west gateway
+        # instead of being served locally.
         - action: exec
           command: kubectl scale deploy/details-v1 -n bookinfo --replicas=0
           timeout: 30s
@@ -238,7 +244,7 @@ spec:
             contains: '000'
 
     - name: l7-local-get-allowed
-      description: A local GET request to reviews on eks-cluster succeeds under the waypoint's L7 policy.
+      description: Local GET to reviews on eks-cluster succeeds under the L7 waypoint policy
       clusters:
         - name: eks-cluster
       steps:
@@ -250,7 +256,7 @@ spec:
             contains: '200'
 
     - name: l7-local-delete-denied
-      description: A local DELETE request to reviews on eks-cluster is rejected by the waypoint's L7 policy - HTTP-level rejection.
+      description: Local DELETE to reviews on eks-cluster is HTTP-rejected (403) by the L7 waypoint policy
       clusters:
         - name: eks-cluster
       steps:
@@ -267,10 +273,12 @@ spec:
             contains: '403'
 
     - name: l7-cross-cluster-delete-denied
-      description: A DELETE request from rosa-cluster (via the global hostname) is also rejected by eks-cluster's waypoint policy - proves L7 enforcement is identical for local and cross-cluster callers. rosa-cluster's own local reviews are scaled to 0 first, same reasoning as discovery-and-l7-get-rosa-to-eks.
+      description: Cross-cluster DELETE from rosa-cluster is also rejected, proving L7 enforcement is identical for local and cross-cluster callers
       clusters:
         - name: rosa-cluster
       setup:
+        # Scale local reviews to 0 so the call is forced across the east-west gateway
+        # instead of being served locally.
         - action: exec
           command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=0
           timeout: 30s

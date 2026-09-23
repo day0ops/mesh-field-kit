@@ -378,6 +378,7 @@ export class SoloUIFeature extends AddonFeature {
       '--set',
       `telemetry.fqdn=${this.telemetryFqdn}`,
       ...(this.clusterName ? ['--set', `cluster=${this.clusterName}`] : []),
+      ...this.buildProductArgs(),
       ...(this.kubeContext ? ['--kube-context', this.kubeContext] : []),
     ];
 

@@ -120,22 +120,34 @@ spec:
     clusters:
       - name: rosa-cluster
         addons:
+          # Testing istio-system instead of the kube-system Istio's own docs call for - see
+          # the componentValues comment above for why.
           - name: openshift-scc
-            description: Privileged SCC for istio-cni/ztunnel's node agents (hostPath, hostNetwork/hostPID, privileged) - testing istio-system instead of the kube-system Istio's docs call for.
+            description: Privileged SCC for istio-cni/ztunnel node agents in istio-system
             phase: pre
             namespace: istio-system
 
           - name: openshift-scc
-            description: Privileged SCC for SPIRE's spiffe-csi-driver/agent DaemonSet (hostPath, hostNetwork/hostPID, privileged) - the spire-server namespace has no SCC bound until this runs, so it defaults to the restricted PodSecurity level and rejects the chart.
+            description: Privileged SCC for SPIRE's spiffe-csi-driver/agent DaemonSet in spire-server
             phase: pre
             namespace: spire-server
             enableRoutingViaHost: false
 
+          # anyuid would be the least-privileged fit, but confirmed live on managed ROSA that
+          # group additions to anyuid don't persist (grant reports success, then silently
+          # reverts within minutes) while privileged persists reliably - so privileged is used
+          # here and below too, matching istio-system/spire-server above.
           - name: openshift-scc
-            description: anyuid SCC for the telemetry stack - Tempo/Loki/kube-prometheus-stack all hardcode fixed non-root UIDs (e.g. 1000, 10001, 2000) that don't fall in this project's OpenShift-allocated UID range. Not a PSA concern (their pod specs already satisfy "restricted"), so the Pod Security label step is skipped.
+            description: Privileged SCC for the telemetry stack's fixed non-root container UIDs
             phase: pre
             namespace: telemetry
-            scc: anyuid
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
+
+          - name: openshift-scc
+            description: Privileged SCC for Solo UI's ClickHouse fixed non-root UID
+            phase: pre
+            namespace: solo-enterprise
             enableRoutingViaHost: false
             enablePodSecurityLabel: false
 
@@ -198,3 +210,6 @@ spec:
               port: 9000
             telemetry:
               fqdn: solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal
+            products:
+              mesh:
+                enabled: true

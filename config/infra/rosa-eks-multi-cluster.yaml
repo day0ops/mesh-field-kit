@@ -15,7 +15,7 @@ spec:
       settings:
         nodes:
           desired: 2
-          type: m5.xlarge
+          type: m5.2xlarge
 
     - name: eks-cluster
       cloud: eks
@@ -24,4 +24,4 @@ spec:
       settings:
         nodes:
           desired: 2
-          type: t3.medium
+          type: t3.large

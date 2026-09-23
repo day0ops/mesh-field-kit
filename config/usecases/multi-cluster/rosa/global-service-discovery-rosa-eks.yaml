@@ -82,7 +82,7 @@ spec:
               - Healthy
 
     - name: cross-cluster-global-service
-      description: Verify reviews is reachable from productpage on rosa-cluster via the mesh.internal hostname, proving genuine cross-cluster ambient connectivity with no ingress gateway involved
+      description: productpage on rosa-cluster reaches reviews via mesh.internal, no ingress gateway involved
       clusters:
         - name: rosa-cluster
       steps:

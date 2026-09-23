@@ -162,7 +162,11 @@ export class OpenshiftSccFeature extends AddonFeature {
         'success'
       );
     } catch (error) {
-      if (!/not found/i.test(error.message)) throw error;
+      // "unable to find target [...]" is oc's phrasing when the group was never bound to this
+      // SCC (e.g. cleanup running against a cluster where install never got this far, or a
+      // group that reverted on its own - confirmed live for anyuid on managed ROSA). Same
+      // idempotent-cleanup tolerance as "not found", just oc's actual wording for this case.
+      if (!/not found|unable to find target/i.test(error.message)) throw error;
     }
   }
 }

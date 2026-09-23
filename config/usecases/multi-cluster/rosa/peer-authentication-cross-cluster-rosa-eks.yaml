@@ -47,10 +47,11 @@ spec:
 
   tests:
     - name: cross-cluster-request-succeeds-under-strict-mtls
-      description: A workload in bookinfo/eks-cluster reaches reviews on rosa-cluster over the east-west gateway even though rosa-cluster now requires STRICT mTLS - the connection is genuinely mTLS-authenticated across the trust domain boundary. Uses ratings-v1 (not productpage-v1, whose image has no curl binary) as the client.
+      description: Cross-cluster call from eks-cluster to rosa-cluster's reviews succeeds, mTLS-authenticated across the trust domain boundary, under STRICT mTLS
       clusters:
         - name: eks-cluster
       steps:
+        # ratings-v1, not productpage-v1, since productpage-v1's image has no curl binary.
         - action: exec
           command: >-
             kubectl exec -n bookinfo deploy/ratings-v1 --
@@ -64,7 +65,7 @@ spec:
             contains: '200'
 
     - name: non-mesh-client-rejected-on-rosa
-      description: A client with no mesh identity on rosa-cluster cannot reach reviews once STRICT mTLS is enforced there - same failure mode as the single-cluster peer-authentication-strict usecase, now verified against ztunnel running on OpenShift/ROSA.
+      description: Non-mesh client on rosa-cluster is rejected by STRICT mTLS, verified against ztunnel on OpenShift/ROSA
       clusters:
         - name: rosa-cluster
       setup:
