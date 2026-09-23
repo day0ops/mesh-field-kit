@@ -1062,3 +1062,28 @@ export function formatDescription(text, indent = '  ') {
   flushList();
   return result.join('\n');
 }
+
+/**
+ * Build the annotation set that drives the AWS Load Balancer Controller to provision a
+ * client-IP-preserving, internet-facing NLB for a Gateway API Gateway's
+ * spec.infrastructure.annotations. Two non-obvious details, both required for the source
+ * IP restriction to actually take effect:
+ *   - load-balancer-source-ranges has no "aws-" prefix, unlike its sibling annotations.
+ *   - with nlb-target-type=ip, client IP preservation is disabled by default and
+ *     source-ranges is silently ignored unless re-enabled via target-group-attributes.
+ */
+export function nlbSourceRangeAnnotations(sourceRanges) {
+  const ranges = (Array.isArray(sourceRanges) ? sourceRanges : [sourceRanges])
+    .flat()
+    .filter(Boolean);
+  return {
+    'service.beta.kubernetes.io/aws-load-balancer-type': 'external',
+    'service.beta.kubernetes.io/aws-load-balancer-nlb-target-type': 'ip',
+    'service.beta.kubernetes.io/aws-load-balancer-scheme': 'internet-facing',
+    'service.beta.kubernetes.io/aws-load-balancer-target-group-attributes':
+      'preserve_client_ip.enabled=true',
+    ...(ranges.length > 0
+      ? { 'service.beta.kubernetes.io/load-balancer-source-ranges': ranges.join(',') }
+      : {}),
+  };
+}
