@@ -151,6 +151,39 @@ spec:
             enableRoutingViaHost: false
             enablePodSecurityLabel: false
 
+          - name: openshift-scc
+            description: Privileged SCC for the AWS Load Balancer Controller's fixed non-root UID
+            phase: pre
+            namespace: aws-load-balancer-controller
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
+
+          - name: aws-load-balancer-controller
+            description: Provisions the public NLB for Solo UI via Gateway API infrastructure.annotations
+            phase: pre
+            namespace: aws-load-balancer-controller
+            clusterName: '{{cluster.name}}'
+            serviceAccountRoleArn: '{{infra.clusters.rosa-cluster.iam.albControllerRoleArn}}'
+            vpcId: '{{infra.clusters.rosa-cluster.network.vpcId}}'
+
+          - name: external-dns
+            description: Automatic DNS record management via Route53
+            namespace: external-dns
+            config:
+              provider: route53
+              domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
+              region: '{{env.aws.region}}'
+              txtOwnerId: '{{env.dns.txtOwnerId}}'
+
+          - name: cert-manager
+            description: Certificate management for TLS
+            namespace: cert-manager
+            config:
+              letsencrypt:
+                enabled: true
+                email: '{{env.acme.email}}'
+                region: '{{env.aws.region}}'
+
           - name: spire
             phase: pre
             certMode: self-signed
@@ -184,6 +217,12 @@ spec:
             namespace: solo-enterprise
             serviceType: LoadBalancer
             telemetryNamespace: telemetry
+            hostname: '{{env.domains.core.soloUi}}'
+            tls:
+              enabled: true
+              secretName: solo-ui-tls
+              issuer: letsencrypt-dns
+            sourceRanges: '{{env.security.vpnSourceRanges}}'
 
       - name: eks-cluster
         addons:
