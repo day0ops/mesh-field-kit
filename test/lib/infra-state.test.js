@@ -59,6 +59,44 @@ test('setProvisioned without network block does not store undefined', async () =
   expect(state.status.clusters[0].network).toBeUndefined();
 });
 
+test('setProvisioned stores iam block per cluster', async () => {
+  const clusters = [
+    {
+      name: 'rosa-cluster',
+      context: 'rosa-context',
+      cluster: 'rosa-eks',
+      kubeconfig: '/tmp/rosa.yaml',
+      provisioned: true,
+      iam: {
+        albControllerRoleArn: 'arn:aws:iam::123456789012:role/rosa-alb-controller-role',
+      },
+    },
+  ];
+
+  const state = await InfraStateManager.setProvisioned(TEST_INFRA_NAME, 'rosa', clusters);
+
+  expect(state.status.clusters[0].iam).toBeDefined();
+  expect(state.status.clusters[0].iam.albControllerRoleArn).toBe(
+    'arn:aws:iam::123456789012:role/rosa-alb-controller-role'
+  );
+});
+
+test('setProvisioned without iam block does not store undefined', async () => {
+  const clusters = [
+    {
+      name: 'eks-cluster',
+      context: 'eks-context',
+      cluster: 'eks-cluster',
+      kubeconfig: '/tmp/eks.yaml',
+      provisioned: true,
+    },
+  ];
+
+  const state = await InfraStateManager.setProvisioned(TEST_INFRA_NAME, 'eks', clusters);
+
+  expect(state.status.clusters[0].iam).toBeUndefined();
+});
+
 test('getClusterNetwork returns network for named cluster', async () => {
   const clusters = [
     {
