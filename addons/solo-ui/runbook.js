@@ -1,4 +1,5 @@
 // addons/solo-ui/runbook.js
+import { nlbSourceRangeAnnotations } from '../../src/lib/common.js';
 
 // tpl: return v if it's a real value (not an unresolved {{...}} template), otherwise fb
 const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
@@ -53,6 +54,7 @@ function _generateManagement(addonCfg, clusterName, env) {
   const products = addon.products || {};
   const telNs = addon.telemetryNamespace || 'telemetry';
   const tls = addon.tls || {};
+  const sourceRanges = addon.sourceRanges || null;
 
   const keycloakHostname = env.spec?.domains?.keycloak || '$KEYCLOAK_HOSTNAME';
   const oidcIssuerUrl =
@@ -118,6 +120,9 @@ kubectl --context=${ctx} create secret generic ui-backend-oidc-secret \\
   if (hostname && tls.enabled) {
     const tlsSecret = tls.secretName || 'solo-ui-tls';
     const tlsIssuer = tls.issuer || 'letsencrypt-dns';
+    const gatewayAnnotations = Object.entries(nlbSourceRangeAnnotations(sourceRanges))
+      .map(([key, value]) => `      ${key}: ${value}`)
+      .join('\n');
     httpsBlock = `
 Apply HTTPS resources (Certificate, Gateway, HTTPRoute):
 
@@ -145,6 +150,9 @@ metadata:
   namespace: ${ns}
 spec:
   gatewayClassName: istio
+  infrastructure:
+    annotations:
+${gatewayAnnotations}
   listeners:
     - name: https
       port: 443

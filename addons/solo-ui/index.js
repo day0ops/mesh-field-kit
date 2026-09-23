@@ -1,5 +1,10 @@
 import { AddonFeature } from '../../src/lib/feature.js';
-import { KubernetesHelper, CommandRunner, waitForPublicUrl } from '../../src/lib/common.js';
+import {
+  KubernetesHelper,
+  CommandRunner,
+  waitForPublicUrl,
+  nlbSourceRangeAnnotations,
+} from '../../src/lib/common.js';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { writeFile, unlink } from 'fs/promises';
@@ -104,6 +109,7 @@ export class SoloUIFeature extends AddonFeature {
     this.hostname = config.hostname || null;
     this.tls = config.tls || null;
     this.oidc = config.oidc || null;
+    this.sourceRanges = config.sourceRanges || null;
     // Relay mode config
     this.tunnelFqdn = config.tunnel?.fqdn || DEFAULT_TUNNEL_FQDN;
     this.tunnelPort = config.tunnel?.port || DEFAULT_TUNNEL_PORT;
@@ -687,6 +693,9 @@ export class SoloUIFeature extends AddonFeature {
       'https-gateway.yaml',
       {
         spec: {
+          infrastructure: {
+            annotations: nlbSourceRangeAnnotations(this.sourceRanges),
+          },
           listeners: [
             {
               name: 'https',

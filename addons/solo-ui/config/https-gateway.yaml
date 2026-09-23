@@ -5,6 +5,8 @@ metadata:
   namespace: istio-system
 spec:
   gatewayClassName: istio
+  infrastructure:
+    annotations: {}
   listeners:
     - name: https
       port: 443
