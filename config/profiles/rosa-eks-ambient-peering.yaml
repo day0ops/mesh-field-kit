@@ -133,10 +133,6 @@ spec:
             namespace: spire-server
             enableRoutingViaHost: false
 
-          # anyuid would be the least-privileged fit, but confirmed live on managed ROSA that
-          # group additions to anyuid don't persist (grant reports success, then silently
-          # reverts within minutes) while privileged persists reliably - so privileged is used
-          # here and below too, matching istio-system/spire-server above.
           - name: openshift-scc
             description: Privileged SCC for the telemetry stack's fixed non-root container UIDs
             phase: pre
@@ -158,6 +154,20 @@ spec:
             enableRoutingViaHost: false
             enablePodSecurityLabel: false
 
+          - name: openshift-scc
+            description: Privileged SCC for external-dns's fixed non-root UID/GID
+            phase: pre
+            namespace: external-dns
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
+
+          - name: openshift-scc
+            description: Privileged SCC for external-dns's fixed non-root UID/GID
+            phase: pre
+            namespace: cert-manager
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
+
           - name: aws-load-balancer-controller
             description: Provisions the public NLB for Solo UI via Gateway API infrastructure.annotations
             phase: pre
@@ -166,16 +176,10 @@ spec:
             serviceAccountRoleArn: '{{infra.clusters.rosa-cluster.iam.albControllerRoleArn}}'
             vpcId: '{{infra.clusters.rosa-cluster.network.vpcId}}'
 
-          - name: openshift-scc
-            description: Privileged SCC for external-dns's fixed non-root UID/GID
-            phase: pre
-            namespace: external-dns
-            enableRoutingViaHost: false
-            enablePodSecurityLabel: false
-
           - name: external-dns
             description: Automatic DNS record management via Route53
             namespace: external-dns
+            serviceAccountRoleArn: '{{infra.clusters.rosa-cluster.iam.externalDnsRoleArn}}'
             config:
               provider: route53
               domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'

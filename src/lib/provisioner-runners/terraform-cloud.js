@@ -812,13 +812,27 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
 
   async extractIamInfo(terraform, prefix, clusterIndex) {
     try {
-      const roleArns = await terraform.getOutput(
+      const albRoleArns = await terraform.getOutput(
         this.stateFile,
         `${prefix}_aws_load_balancer_controller_role_arns`
       );
-      const albControllerRoleArn = Array.isArray(roleArns) ? roleArns[clusterIndex] || null : null;
-      if (!albControllerRoleArn) return null;
-      return { albControllerRoleArn };
+      const externalDnsRoleArns = await terraform.getOutput(
+        this.stateFile,
+        `${prefix}_external_dns_role_arns`
+      );
+      const albControllerRoleArn = Array.isArray(albRoleArns)
+        ? albRoleArns[clusterIndex] || null
+        : null;
+      const externalDnsRoleArn = Array.isArray(externalDnsRoleArns)
+        ? externalDnsRoleArns[clusterIndex] || null
+        : null;
+
+      if (!albControllerRoleArn && !externalDnsRoleArn) return null;
+
+      return {
+        ...(albControllerRoleArn ? { albControllerRoleArn } : {}),
+        ...(externalDnsRoleArn ? { externalDnsRoleArn } : {}),
+      };
     } catch {
       this.logWarn(`Could not extract IAM outputs for cluster index ${clusterIndex}`);
       return null;

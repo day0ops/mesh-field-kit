@@ -252,3 +252,39 @@ test('extractIamInfo returns null when the output is missing', async () => {
   const iam = await runner.extractIamInfo(terraform, 'eks', 0);
   expect(iam).toBeNull();
 });
+
+test('extractIamInfo returns both albControllerRoleArn and externalDnsRoleArn when present', async () => {
+  const runner = makeRunner();
+  const terraform = {
+    getOutput: async (_stateFile, key) => {
+      if (key === 'rosa_aws_load_balancer_controller_role_arns') {
+        return ['arn:aws:iam::111111111111:role/rosa-lbc-role'];
+      }
+      if (key === 'rosa_external_dns_role_arns') {
+        return ['arn:aws:iam::111111111111:role/rosa-external-dns-role'];
+      }
+      return null;
+    },
+  };
+
+  const iam = await runner.extractIamInfo(terraform, 'rosa', 0);
+  expect(iam).toEqual({
+    albControllerRoleArn: 'arn:aws:iam::111111111111:role/rosa-lbc-role',
+    externalDnsRoleArn: 'arn:aws:iam::111111111111:role/rosa-external-dns-role',
+  });
+});
+
+test('extractIamInfo returns externalDnsRoleArn alone when the LBC role is absent', async () => {
+  const runner = makeRunner();
+  const terraform = {
+    getOutput: async (_stateFile, key) => {
+      if (key === 'rosa_external_dns_role_arns') {
+        return ['arn:aws:iam::111111111111:role/rosa-external-dns-role'];
+      }
+      return null;
+    },
+  };
+
+  const iam = await runner.extractIamInfo(terraform, 'rosa', 0);
+  expect(iam).toEqual({ externalDnsRoleArn: 'arn:aws:iam::111111111111:role/rosa-external-dns-role' });
+});

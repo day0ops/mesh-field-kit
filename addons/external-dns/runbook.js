@@ -47,6 +47,7 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, env) 
   );
   const zoneId = tpl(cfg.zoneId, env.spec.dns?.parentZone?.hostedZoneId || '$DNS_HOSTED_ZONE_ID');
   const txtOwnerId = tpl(cfg.txtOwnerId, null) || '$EXTERNAL_DNS_TXT_OWNER_ID';
+  const serviceAccountRoleArn = tpl(addonCfg.serviceAccountRoleArn, '<IAM_ROLE_ARN>');
   const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
 
   // external-dns helm chart uses 'aws' for the Route53 provider (not 'route53')
@@ -74,7 +75,7 @@ helm upgrade --install external-dns external-dns/external-dns \\
   --set "sources[0]=service" \\
   --set "sources[1]=ingress" \\
   --set "sources[2]=gateway-httproute" \\
-  --set serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"="<IAM_ROLE_ARN>" \\
+  --set serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"="${serviceAccountRoleArn}" \\
   --wait
 \`\`\`
 
