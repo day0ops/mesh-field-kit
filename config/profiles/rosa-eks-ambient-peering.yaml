@@ -166,6 +166,13 @@ spec:
             serviceAccountRoleArn: '{{infra.clusters.rosa-cluster.iam.albControllerRoleArn}}'
             vpcId: '{{infra.clusters.rosa-cluster.network.vpcId}}'
 
+          - name: openshift-scc
+            description: Privileged SCC for external-dns's fixed non-root UID/GID
+            phase: pre
+            namespace: external-dns
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
+
           - name: external-dns
             description: Automatic DNS record management via Route53
             namespace: external-dns
