@@ -56,6 +56,7 @@ function _generateManagement(addonCfg, clusterName, env) {
   const tls = addon.tls || {};
   const sourceRanges = addon.sourceRanges || null;
   const subnetIds = addon.subnetIds || null;
+  const nlbTargetType = addon.nlbTargetType || 'ip';
 
   const keycloakHostname = env.spec?.domains?.keycloak || '$KEYCLOAK_HOSTNAME';
   const oidcIssuerUrl =
@@ -123,7 +124,7 @@ kubectl --context=${ctx} create secret generic ui-backend-oidc-secret \\
     const tlsEnabled = tls.enabled === true;
     const gatewayName = tlsEnabled ? 'solo-enterprise-ui-https' : 'solo-enterprise-ui-http';
     const gatewayAnnotations = Object.entries({
-      ...nlbSourceRangeAnnotations(sourceRanges),
+      ...nlbSourceRangeAnnotations(sourceRanges, { targetType: nlbTargetType }),
       ...(Array.isArray(subnetIds) && subnetIds.length > 0
         ? { 'service.beta.kubernetes.io/aws-load-balancer-subnets': subnetIds.join(',') }
         : {}),

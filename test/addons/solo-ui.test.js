@@ -21,6 +21,35 @@ test('SoloUIFeature subnetIds respects config override', () => {
   expect(f.subnetIds).toEqual(['subnet-abc', 'subnet-def']);
 });
 
+test('SoloUIFeature nlbTargetType defaults to ip', () => {
+  const f = new SoloUIFeature('solo-ui', {});
+  expect(f.nlbTargetType).toBe('ip');
+});
+
+test('SoloUIFeature nlbTargetType respects config override', () => {
+  const f = new SoloUIFeature('solo-ui', { nlbTargetType: 'instance' });
+  expect(f.nlbTargetType).toBe('instance');
+});
+
+test('applyGatewayResources omits the ip-mode-only target-group-attributes annotation when nlbTargetType is instance', async () => {
+  const f = new SoloUIFeature('solo-ui', {
+    hostname: 'soloui.mesh-demo.kasunt.apac.fe.solo.io',
+    nlbTargetType: 'instance',
+  });
+  const applyYamlFileSpy = spyOn(f, 'applyYamlFile').mockResolvedValue();
+
+  await f.applyGatewayResources();
+
+  const [, gatewayOverrides] = applyYamlFileSpy.mock.calls[0];
+  const annotations = gatewayOverrides.spec.infrastructure.annotations;
+  expect(annotations['service.beta.kubernetes.io/aws-load-balancer-nlb-target-type']).toBe(
+    'instance'
+  );
+  expect(
+    annotations['service.beta.kubernetes.io/aws-load-balancer-target-group-attributes']
+  ).toBeUndefined();
+});
+
 test('applyGatewayResources applies the HTTP gateway/route and skips the Certificate when tls is not enabled', async () => {
   const f = new SoloUIFeature('solo-ui', {
     hostname: 'soloui.mesh-demo.kasunt.apac.fe.solo.io',

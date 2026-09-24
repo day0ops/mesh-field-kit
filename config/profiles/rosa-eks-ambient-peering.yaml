@@ -235,6 +235,11 @@ spec:
             # that ROSA's own public subnets carry a kubernetes.io/cluster/<rosa-infra-id>
             # tag that never matches our clusterName, so auto-discovery excludes them.
             subnetIds: '{{infra.clusters.rosa-cluster.network.publicSubnetIds}}'
+            # ROSA's OVN-Kubernetes pod IPs aren't real, ENI-attachable VPC addresses like
+            # EKS's VPC-CNI gives pods - target-type ip fails every health check outright
+            # (confirmed live: Target.FailedHealthChecks on every port). instance routes
+            # to the real worker node's VPC IP + NodePort instead.
+            nlbTargetType: instance
 
       - name: eks-cluster
         addons:

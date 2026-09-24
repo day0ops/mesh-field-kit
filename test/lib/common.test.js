@@ -37,3 +37,13 @@ test('nlbSourceRangeAnnotations omits the source-ranges key entirely when all en
   const result = nlbSourceRangeAnnotations([null, undefined, false]);
   expect(result['service.beta.kubernetes.io/load-balancer-source-ranges']).toBeUndefined();
 });
+
+test('nlbSourceRangeAnnotations targetType instance omits the ip-mode-only target-group-attributes annotation', () => {
+  const result = nlbSourceRangeAnnotations('165.99.148.61/32', { targetType: 'instance' });
+  expect(result).toEqual({
+    'service.beta.kubernetes.io/aws-load-balancer-type': 'external',
+    'service.beta.kubernetes.io/aws-load-balancer-nlb-target-type': 'instance',
+    'service.beta.kubernetes.io/aws-load-balancer-scheme': 'internet-facing',
+    'service.beta.kubernetes.io/load-balancer-source-ranges': '165.99.148.61/32',
+  });
+});
