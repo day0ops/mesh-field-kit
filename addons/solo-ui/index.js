@@ -211,6 +211,7 @@ export class SoloUIFeature extends AddonFeature {
     if (this.hostname) {
       await this.applyGatewayResources();
       await waitForPublicUrl(this.hostname, {
+        protocol: this.tls?.enabled ? 'https' : 'http',
         spinner: this.spinner,
         log: (msg, level) => this.log(msg, level),
       });
