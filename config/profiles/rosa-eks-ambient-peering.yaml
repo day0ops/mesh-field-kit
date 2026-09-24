@@ -234,6 +234,10 @@ spec:
               secretName: solo-ui-tls
               issuer: letsencrypt-dns
             sourceRanges: '{{env.security.vpnSourceRanges}}'
+            # Bypasses the AWS LBC's tag-based subnet auto-discovery - confirmed live
+            # that ROSA's own public subnets carry a kubernetes.io/cluster/<rosa-infra-id>
+            # tag that never matches our clusterName, so auto-discovery excludes them.
+            subnetIds: '{{infra.clusters.rosa-cluster.network.publicSubnetIds}}'
 
       - name: eks-cluster
         addons:

@@ -227,6 +227,40 @@ test('standalone rosa provider writeTerraformVars emits rosa_* vars', () => {
   expect(content).toContain('rosa_compute_machine_type = "m5.xlarge"');
 });
 
+test('extractNetworkInfo returns vpcId, privateSubnetIds, and publicSubnetIds for the given cluster index', async () => {
+  const runner = makeRunner();
+  const terraform = {
+    getOutput: async (_stateFile, key) => {
+      if (key === 'rosa_vpc_ids') return ['vpc-0abc123'];
+      if (key === 'rosa_private_subnet_ids') return [['subnet-private1', 'subnet-private2']];
+      if (key === 'rosa_public_subnet_ids') return [['subnet-public1', 'subnet-public2']];
+      if (key === 'rosa_worker_security_group_ids') return [null];
+      return null;
+    },
+  };
+
+  const network = await runner.extractNetworkInfo(terraform, 'rosa', 0);
+  expect(network).toEqual({
+    vpcId: 'vpc-0abc123',
+    privateSubnetIds: ['subnet-private1', 'subnet-private2'],
+    publicSubnetIds: ['subnet-public1', 'subnet-public2'],
+    workerSgId: null,
+  });
+});
+
+test('extractNetworkInfo defaults publicSubnetIds to an empty array when the output is missing', async () => {
+  const runner = makeRunner();
+  const terraform = {
+    getOutput: async (_stateFile, key) => {
+      if (key === 'eks_vpc_ids') return ['vpc-0abc123'];
+      return null;
+    },
+  };
+
+  const network = await runner.extractNetworkInfo(terraform, 'eks', 0);
+  expect(network.publicSubnetIds).toEqual([]);
+});
+
 test('extractIamInfo returns albControllerRoleArn for the given cluster index', async () => {
   const runner = makeRunner();
   const terraform = {

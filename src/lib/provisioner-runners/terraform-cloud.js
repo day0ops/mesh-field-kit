@@ -788,6 +788,10 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
         this.stateFile,
         `${prefix}_private_subnet_ids`
       );
+      const allPublicSubnetIds = await terraform.getOutput(
+        this.stateFile,
+        `${prefix}_public_subnet_ids`
+      );
       const sgIds = await terraform.getOutput(
         this.stateFile,
         `${prefix}_worker_security_group_ids`
@@ -795,6 +799,9 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
 
       const vpcId = Array.isArray(vpcIds) ? vpcIds[clusterIndex] || null : null;
       const privateSubnetIds = Array.isArray(allSubnetIds) ? allSubnetIds[clusterIndex] || [] : [];
+      const publicSubnetIds = Array.isArray(allPublicSubnetIds)
+        ? allPublicSubnetIds[clusterIndex] || []
+        : [];
       const workerSgId = Array.isArray(sgIds) ? sgIds[clusterIndex] || null : null;
 
       if (!vpcId) return null;
@@ -802,6 +809,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       return {
         vpcId,
         privateSubnetIds,
+        publicSubnetIds,
         workerSgId,
       };
     } catch {

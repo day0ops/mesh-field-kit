@@ -10,3 +10,13 @@ test('SoloUIFeature sourceRanges respects config override', () => {
   const f = new SoloUIFeature('solo-ui', { sourceRanges: ['165.99.148.61/32'] });
   expect(f.sourceRanges).toEqual(['165.99.148.61/32']);
 });
+
+test('SoloUIFeature subnetIds defaults to null', () => {
+  const f = new SoloUIFeature('solo-ui', {});
+  expect(f.subnetIds).toBeNull();
+});
+
+test('SoloUIFeature subnetIds respects config override', () => {
+  const f = new SoloUIFeature('solo-ui', { subnetIds: ['subnet-abc', 'subnet-def'] });
+  expect(f.subnetIds).toEqual(['subnet-abc', 'subnet-def']);
+});

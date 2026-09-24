@@ -110,6 +110,7 @@ export class SoloUIFeature extends AddonFeature {
     this.tls = config.tls || null;
     this.oidc = config.oidc || null;
     this.sourceRanges = config.sourceRanges || null;
+    this.subnetIds = config.subnetIds || null;
     // Relay mode config
     this.tunnelFqdn = config.tunnel?.fqdn || DEFAULT_TUNNEL_FQDN;
     this.tunnelPort = config.tunnel?.port || DEFAULT_TUNNEL_PORT;
@@ -694,7 +695,16 @@ export class SoloUIFeature extends AddonFeature {
       {
         spec: {
           infrastructure: {
-            annotations: nlbSourceRangeAnnotations(this.sourceRanges),
+            annotations: {
+              ...nlbSourceRangeAnnotations(this.sourceRanges),
+              // Bypasses the AWS Load Balancer Controller's tag-based subnet
+              // auto-discovery - confirmed live that ROSA's VPC subnets carry a
+              // kubernetes.io/cluster/<rosa-infra-id> tag that never matches our
+              // own clusterName, so auto-discovery excludes them outright.
+              ...(Array.isArray(this.subnetIds) && this.subnetIds.length > 0
+                ? { 'service.beta.kubernetes.io/aws-load-balancer-subnets': this.subnetIds.join(',') }
+                : {}),
+            },
           },
           listeners: [
             {
