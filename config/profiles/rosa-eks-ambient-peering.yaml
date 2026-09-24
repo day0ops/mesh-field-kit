@@ -228,11 +228,8 @@ spec:
             namespace: solo-enterprise
             serviceType: LoadBalancer
             telemetryNamespace: telemetry
+            # Plain HTTP, no cert-manager Certificate needed - internal demo domain only.
             hostname: '{{env.domains.core.soloUi}}'
-            tls:
-              enabled: true
-              secretName: solo-ui-tls
-              issuer: letsencrypt-dns
             sourceRanges: '{{env.security.vpnSourceRanges}}'
             # Bypasses the AWS LBC's tag-based subnet auto-discovery - confirmed live
             # that ROSA's own public subnets carry a kubernetes.io/cluster/<rosa-infra-id>

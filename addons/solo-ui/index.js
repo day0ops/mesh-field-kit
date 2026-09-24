@@ -208,8 +208,8 @@ export class SoloUIFeature extends AddonFeature {
       await this.patchTelemetryCollectorForFanout();
     }
 
-    if (this.hostname && this.tls?.enabled) {
-      await this.applyHttpsResources();
+    if (this.hostname) {
+      await this.applyGatewayResources();
       await waitForPublicUrl(this.hostname, {
         spinner: this.spinner,
         log: (msg, level) => this.log(msg, level),
@@ -223,7 +223,8 @@ export class SoloUIFeature extends AddonFeature {
 
     let accessHint;
     if (this.hostname) {
-      accessHint = `Access at https://${this.hostname}/`;
+      const scheme = this.tls?.enabled ? 'https' : 'http';
+      accessHint = `Access at ${scheme}://${this.hostname}/`;
     } else if (this.serviceType) {
       const address = await this.getServiceAddress('solo-enterprise-ui');
       accessHint = address
@@ -671,70 +672,96 @@ export class SoloUIFeature extends AddonFeature {
     this.log('OIDC secret created', 'info');
   }
 
-  async applyHttpsResources() {
-    this.log(`Configuring HTTPS for Solo UI at https://${this.hostname}...`, 'info');
+  async applyGatewayResources() {
+    const tlsEnabled = this.tls?.enabled === true;
+    const scheme = tlsEnabled ? 'https' : 'http';
+    this.log(`Configuring ${scheme.toUpperCase()} for Solo UI at ${scheme}://${this.hostname}...`, 'info');
 
-    const secretName = this.tls.secretName || 'solo-ui-tls';
-    const issuerName = this.tls.issuer || 'letsencrypt-dns';
+    const gatewayName = tlsEnabled ? 'solo-enterprise-ui-https' : 'solo-enterprise-ui-http';
+    const infrastructureAnnotations = {
+      ...nlbSourceRangeAnnotations(this.sourceRanges),
+      // Bypasses the AWS Load Balancer Controller's tag-based subnet
+      // auto-discovery - confirmed live that ROSA's VPC subnets carry a
+      // kubernetes.io/cluster/<rosa-infra-id> tag that never matches our
+      // own clusterName, so auto-discovery excludes them outright.
+      ...(Array.isArray(this.subnetIds) && this.subnetIds.length > 0
+        ? { 'service.beta.kubernetes.io/aws-load-balancer-subnets': this.subnetIds.join(',') }
+        : {}),
+    };
 
-    await this.applyYamlFile(
-      'certificate.yaml',
-      {
-        spec: {
-          secretName,
-          issuerRef: { name: issuerName },
-          dnsNames: [this.hostname],
-        },
-      },
-      this.kubeContext
-    );
+    if (tlsEnabled) {
+      const secretName = this.tls.secretName || 'solo-ui-tls';
+      const issuerName = this.tls.issuer || 'letsencrypt-dns';
 
-    // Pass complete listener object — deepMerge replaces arrays wholesale
-    await this.applyYamlFile(
-      'https-gateway.yaml',
-      {
-        spec: {
-          infrastructure: {
-            annotations: {
-              ...nlbSourceRangeAnnotations(this.sourceRanges),
-              // Bypasses the AWS Load Balancer Controller's tag-based subnet
-              // auto-discovery - confirmed live that ROSA's VPC subnets carry a
-              // kubernetes.io/cluster/<rosa-infra-id> tag that never matches our
-              // own clusterName, so auto-discovery excludes them outright.
-              ...(Array.isArray(this.subnetIds) && this.subnetIds.length > 0
-                ? { 'service.beta.kubernetes.io/aws-load-balancer-subnets': this.subnetIds.join(',') }
-                : {}),
-            },
+      await this.applyYamlFile(
+        'certificate.yaml',
+        {
+          spec: {
+            secretName,
+            issuerRef: { name: issuerName },
+            dnsNames: [this.hostname],
           },
-          listeners: [
-            {
-              name: 'https',
-              port: 443,
-              protocol: 'HTTPS',
-              hostname: this.hostname,
-              tls: {
-                mode: 'Terminate',
-                certificateRefs: [{ name: secretName, kind: 'Secret' }],
-              },
-              allowedRoutes: {
-                namespaces: { from: 'All' },
-              },
-            },
-          ],
         },
-      },
-      this.kubeContext
-    );
+        this.kubeContext
+      );
+
+      // Pass complete listener object — deepMerge replaces arrays wholesale
+      await this.applyYamlFile(
+        'https-gateway.yaml',
+        {
+          spec: {
+            infrastructure: { annotations: infrastructureAnnotations },
+            listeners: [
+              {
+                name: 'https',
+                port: 443,
+                protocol: 'HTTPS',
+                hostname: this.hostname,
+                tls: {
+                  mode: 'Terminate',
+                  certificateRefs: [{ name: secretName, kind: 'Secret' }],
+                },
+                allowedRoutes: {
+                  namespaces: { from: 'All' },
+                },
+              },
+            ],
+          },
+        },
+        this.kubeContext
+      );
+    } else {
+      await this.applyYamlFile(
+        'http-gateway.yaml',
+        {
+          spec: {
+            infrastructure: { annotations: infrastructureAnnotations },
+            listeners: [
+              {
+                name: 'http',
+                port: 80,
+                protocol: 'HTTP',
+                hostname: this.hostname,
+                allowedRoutes: {
+                  namespaces: { from: 'All' },
+                },
+              },
+            ],
+          },
+        },
+        this.kubeContext
+      );
+    }
 
     await this.applyYamlFile(
-      'https-route.yaml',
+      tlsEnabled ? 'https-route.yaml' : 'http-route.yaml',
       {
         spec: {
           parentRefs: [
             {
               group: 'gateway.networking.k8s.io',
               kind: 'Gateway',
-              name: 'solo-enterprise-ui-https',
+              name: gatewayName,
               namespace: this.namespace,
             },
           ],
@@ -752,7 +779,7 @@ export class SoloUIFeature extends AddonFeature {
 
     await this.applyYamlFile('gateway-tracing-suppress-policy.yaml', {}, this.kubeContext);
 
-    this.log('HTTPS resources applied', 'info');
+    this.log(`${scheme.toUpperCase()} resources applied`, 'info');
   }
 
   async cleanup() {
@@ -777,7 +804,8 @@ export class SoloUIFeature extends AddonFeature {
       );
     }
 
-    if (this.hostname && this.tls?.enabled) {
+    if (this.hostname) {
+      const tlsEnabled = this.tls?.enabled === true;
       await this.deleteResource(
         'HTTPRoute',
         'solo-enterprise-ui',
@@ -786,11 +814,13 @@ export class SoloUIFeature extends AddonFeature {
       );
       await this.deleteResource(
         'Gateway',
-        'solo-enterprise-ui-https',
+        tlsEnabled ? 'solo-enterprise-ui-https' : 'solo-enterprise-ui-http',
         this.namespace,
         this.kubeContext
       );
-      await this.deleteResource('Certificate', 'solo-ui-tls', this.namespace, this.kubeContext);
+      if (tlsEnabled) {
+        await this.deleteResource('Certificate', 'solo-ui-tls', this.namespace, this.kubeContext);
+      }
     }
 
     try {

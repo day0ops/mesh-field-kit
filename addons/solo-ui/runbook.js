@@ -116,11 +116,12 @@ kubectl --context=${ctx} create secret generic ui-backend-oidc-secret \\
     .join('\n')
     .replace(/ \\$/, '')}`;
 
-  // HTTPS resources when TLS is enabled
+  // Gateway/HTTPRoute resources when a public hostname is configured - HTTPS with
+  // a cert-manager Certificate when tls.enabled, otherwise a plain HTTP listener
   let httpsBlock = '';
-  if (hostname && tls.enabled) {
-    const tlsSecret = tls.secretName || 'solo-ui-tls';
-    const tlsIssuer = tls.issuer || 'letsencrypt-dns';
+  if (hostname) {
+    const tlsEnabled = tls.enabled === true;
+    const gatewayName = tlsEnabled ? 'solo-enterprise-ui-https' : 'solo-enterprise-ui-http';
     const gatewayAnnotations = Object.entries({
       ...nlbSourceRangeAnnotations(sourceRanges),
       ...(Array.isArray(subnetIds) && subnetIds.length > 0
@@ -129,11 +130,20 @@ kubectl --context=${ctx} create secret generic ui-backend-oidc-secret \\
     })
       .map(([key, value]) => `      ${key}: ${value}`)
       .join('\n');
-    httpsBlock = `
-Apply HTTPS resources (Certificate, Gateway, HTTPRoute):
 
-\`\`\`bash
-kubectl --context=${ctx} apply -f - <<EOF
+    let certificateBlock = '';
+    let listenerBlock = `    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: ${hostname}
+      allowedRoutes:
+        namespaces:
+          from: All`;
+
+    if (tlsEnabled) {
+      const tlsSecret = tls.secretName || 'solo-ui-tls';
+      const tlsIssuer = tls.issuer || 'letsencrypt-dns';
+      certificateBlock = `kubectl --context=${ctx} apply -f - <<EOF
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -148,19 +158,8 @@ spec:
     - ${hostname}
 EOF
 
-kubectl --context=${ctx} apply -f - <<EOF
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: solo-enterprise-ui-https
-  namespace: ${ns}
-spec:
-  gatewayClassName: istio
-  infrastructure:
-    annotations:
-${gatewayAnnotations}
-  listeners:
-    - name: https
+`;
+      listenerBlock = `    - name: https
       port: 443
       protocol: HTTPS
       hostname: ${hostname}
@@ -171,7 +170,26 @@ ${gatewayAnnotations}
             kind: Secret
       allowedRoutes:
         namespaces:
-          from: All
+          from: All`;
+    }
+
+    httpsBlock = `
+Apply ${tlsEnabled ? 'HTTPS' : 'HTTP'} resources (${tlsEnabled ? 'Certificate, ' : ''}Gateway, HTTPRoute):
+
+\`\`\`bash
+${certificateBlock}kubectl --context=${ctx} apply -f - <<EOF
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: ${gatewayName}
+  namespace: ${ns}
+spec:
+  gatewayClassName: istio
+  infrastructure:
+    annotations:
+${gatewayAnnotations}
+  listeners:
+${listenerBlock}
 EOF
 
 kubectl --context=${ctx} apply -f - <<EOF
@@ -184,7 +202,7 @@ spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
-      name: solo-enterprise-ui-https
+      name: ${gatewayName}
       namespace: ${ns}
   hostnames:
     - ${hostname}
