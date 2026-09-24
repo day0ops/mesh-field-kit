@@ -169,6 +169,40 @@ test('writeTerraformVars for eks-rosa emits eks_* and rosa_* vars, omits gke/aks
   expect(content).not.toContain('aks_cluster_count');
 });
 
+test('writeTerraformVars for eks-rosa emits dns_* vars when dnsConfig is route53 with a parentZone', () => {
+  const runner = new TerraformCloudRunner('rosa-eks-multi-cluster', eksRosaClusters(), {
+    outputDir: dir,
+    kubeconfigDir: join(dir, 'kubeconfig'),
+    dnsConfig: {
+      provider: 'route53',
+      parentZone: { domain: 'kasunt.apac.fe.solo.io', hostedZoneId: 'Z08818701HDZ6PBD6LPXU' },
+      childZone: 'mesh-demo',
+      txtOwnerId: 'mesh-demo',
+    },
+  });
+  runner.ensureDirectories();
+  runner.writeTerraformVars(runner.resolveConfiguration());
+
+  const content = readFileSync(runner.varFile, 'utf8');
+  expect(content).toContain('enable_dns = true');
+  expect(content).toContain('dns_parent_zone_id = "Z08818701HDZ6PBD6LPXU"');
+  expect(content).toContain('dns_parent_domain = "kasunt.apac.fe.solo.io"');
+  expect(content).toContain('dns_child_zone_name = "mesh-demo"');
+});
+
+test('writeTerraformVars for eks-rosa omits dns_* vars when dnsConfig is absent', () => {
+  const runner = new TerraformCloudRunner('rosa-eks-multi-cluster', eksRosaClusters(), {
+    outputDir: dir,
+    kubeconfigDir: join(dir, 'kubeconfig'),
+  });
+  runner.ensureDirectories();
+  runner.writeTerraformVars(runner.resolveConfiguration());
+
+  const content = readFileSync(runner.varFile, 'utf8');
+  expect(content).not.toContain('enable_dns');
+  expect(content).not.toContain('dns_parent_zone_id');
+});
+
 test('standalone rosa provider writeTerraformVars emits rosa_* vars', () => {
   const runner = new TerraformCloudRunner(
     'rosa-single-cluster',

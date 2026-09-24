@@ -176,7 +176,10 @@ const PROVIDER_CONFIGS = {
 
   'eks-rosa': {
     environment: 'eks-rosa',
-    outputPrefix: null,
+    // Not per-cloud like 'eks'/'rosa' below - the DNS child zone is the one thing
+    // this combined environment owns that's genuinely shared, not owned by either
+    // cloud's own module instance.
+    outputPrefix: 'shared',
     label: 'EKS + ROSA',
     defaultRegion: null,
     defaultNodeType: null,
@@ -621,6 +624,22 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       lines.push(`aks_cluster_count = 0`);
       lines.push(`aks_cluster_name = "none"`);
       lines.push(`aks_service_principal = null`);
+      lines.push('');
+    }
+
+    // Only eks-rosa declares dns_* variables today - writing them for other
+    // multicluster environments would produce "value for undeclared variable"
+    // warnings, same reasoning as supportsGkeAks above.
+    if (
+      this.dnsConfig?.provider === 'route53' &&
+      this.dnsConfig?.parentZone &&
+      this.providerConfig.environment === 'eks-rosa'
+    ) {
+      lines.push(`# DNS`);
+      lines.push(`enable_dns = true`);
+      lines.push(`dns_parent_zone_id = ${formatTfValue(this.dnsConfig.parentZone.hostedZoneId)}`);
+      lines.push(`dns_parent_domain = ${formatTfValue(this.dnsConfig.parentZone.domain)}`);
+      lines.push(`dns_child_zone_name = ${formatTfValue(this.dnsConfig.childZone)}`);
       lines.push('');
     }
 
