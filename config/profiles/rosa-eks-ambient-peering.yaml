@@ -76,6 +76,11 @@ spec:
           eastwest:
             cluster: '{{cluster.name}}'
             network: '{{cluster.name}}'
+            # Istio copies Gateway annotations onto the generated Service by default.
+            # AWS LBC's default scheme is internal - confirmed live via an unreachable
+            # private-IP NLB. No-op on EKS (in-tree provider uses a different key).
+            annotations:
+              service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
             deployment:
               spec:
                 template:
