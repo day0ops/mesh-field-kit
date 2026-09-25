@@ -49,11 +49,11 @@ mesh base install --profile eks-single-cluster-mesh-with-cilium --infra eks-sing
 make all INFRA=eks-single-cluster MESH_PROFILE=eks-single-cluster-mesh-with-cilium
 ```
 
-Every `mesh` command above has an equivalent `make` target, and `make all` wraps the provision + install sequence into a single call. For the full CLI command reference, Makefile targets, and troubleshooting tips, see [docs/reference.md](docs/reference.md).
+Every `mesh` command above has an equivalent `make` target, and `make all` wraps the provision + install sequence into a single call.
 
 ## Configuration
 
-### Three-layer config system
+Three-layer config system:
 
 ```
 config/
@@ -64,36 +64,7 @@ config/
     └── local.yaml
 ```
 
-Profiles reference an infra profile via `spec.infra` and an environment via `spec.environment`.
-
-### Available infra profiles
-
-| Profile                   | Provider         | Clusters                                    |
-| ------------------------- | ---------------- | ------------------------------------------- |
-| `eks-single-cluster`      | EKS              | 1                                           |
-| `eks-single-cluster-ipv6` | EKS IPv6         | 1                                           |
-| `eks-multi-cluster`       | EKS              | 2 (east, west)                              |
-| `eks-multi-cluster-ipv6`  | EKS IPv6         | 2 (east, west)                              |
-| `gke-single-cluster`      | GKE              | 1                                           |
-| `gke-multi-cluster`       | GKE              | 2 (east, west)                              |
-| `aks-single-cluster`      | AKS              | 1                                           |
-| `aks-multi-cluster`       | AKS              | 2 (east, west)                              |
-| `hybrid-multi-cloud`      | EKS + GKE + AKS  | 3 (mgmt on EKS, workload on GKE + AKS)      |
-| `rosa-eks-multi-cluster`  | ROSA (HCP) + EKS | 2 (rosa-cluster mgmt, eks-cluster workload) |
-
-### Available installation profiles
-
-| Profile                                        | Description                                                                                                            |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `eks-single-cluster-mesh-with-cilium`          | Single-cluster ambient mesh with Cilium CNI chaining, plus the telemetry stack                                         |
-| `eks-single-cluster-mesh-with-calico`          | Single-cluster ambient mesh with Calico CNI chaining (Tigera operator install)                                         |
-| `eks-single-cluster-mesh-with-spire`           | Single-cluster ambient mesh with SPIRE workload identity attestation                                                   |
-| `eks-single-cluster-mesh-with-crl`             | Single-cluster ambient mesh with a plugged-in CA and certificate revocation list (CRL) enforcement                     |
-| `eks-single-cluster-mesh-sidecar`              | Single-cluster classic sidecar mesh (no ambient components)                                                            |
-| `eks-multi-cluster-peering-with-istio-ingress` | Multi-cluster ambient mesh, helm-based peering, Istio's built-in ingress gateway                                       |
-| `eks-multi-cluster-peering-with-kgateway`      | Multi-cluster ambient mesh, helm-based peering, kgateway ingress, Keycloak OIDC                                        |
-| `eks-multi-cluster-auto-peering-operator`      | Multi-cluster ambient mesh installed and peered via the Solo operator, kgateway ingress                                |
-| `rosa-eks-ambient-peering`                     | Multi-cluster ambient mesh, ROSA + EKS, helm-based Solo peering, SPIRE, managed telemetry, Solo UI behind a public NLB |
+Profiles reference an infra profile via `spec.infra` and an environment via `spec.environment`. See [docs/reference.md](docs/reference.md) for the full list of built-in infra and installation profiles.
 
 ## Step-by-Step Workflow
 
@@ -154,66 +125,6 @@ mesh base infra cloud destroy -p eks-single-cluster -y
 make infra-destroy PROFILE=eks-single-cluster
 ```
 
-## Environment Variables
+## More
 
-| Variable                                                                                      | Required                              | Description                                                 |
-| --------------------------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------- |
-| `ENTERPRISE_ISTIO_LICENSE`                                                                    | Yes (install)                         | Solo Istio enterprise license key                           |
-| `AWS_PROFILE`                                                                                 | Yes (EKS)                             | AWS SSO profile name                                        |
-| `GCP_PROJECT`                                                                                 | Yes (GKE)                             | GCP project ID                                              |
-| `GOOGLE_APPLICATION_CREDENTIALS`                                                              | Yes (GKE)                             | Path to GCP service account credentials                     |
-| `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_OBJECT_ID`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID` | Yes (AKS)                             | Azure service principal credentials                         |
-| `RHCS_CLIENT_ID`, `RHCS_CLIENT_SECRET`                                                        | Yes (ROSA)                            | Red Hat Hybrid Cloud Console service account credentials    |
-| `KEYCLOAK_ADMIN_USERNAME`                                                                     | Yes (keycloak addon)                  | Keycloak master realm bootstrap admin username              |
-| `KEYCLOAK_ADMIN_PASSWORD`                                                                     | Yes (keycloak addon)                  | Keycloak master realm bootstrap admin password              |
-| `KEYCLOAK_POSTGRES_USER`                                                                      | Yes (keycloak addon)                  | Postgres superuser backing Keycloak's DB                    |
-| `KEYCLOAK_POSTGRES_PASSWORD`                                                                  | Yes (keycloak addon)                  | Postgres superuser password                                 |
-| `SOLO_UI_DEFAULT_PASSWORD`                                                                    | Yes (soloUIClients)                   | solo-admin/solo-reader/solo-writer bootstrap password       |
-| `GRAFANA_REALM_ADMIN_USERNAME`                                                                | No (default: grafana-admin)           | Grafana OIDC demo admin username (keycloak 'grafana' realm) |
-| `GRAFANA_REALM_ADMIN_PASSWORD`                                                                | Yes (when 'grafana' realm configured) | Grafana OIDC demo admin password                            |
-| `GRAFANA_ADMIN_USERNAME`                                                                      | Yes (telemetry addon, full mode)      | Grafana admin login username                                |
-| `GRAFANA_ADMIN_PASSWORD`                                                                      | Yes (telemetry addon, full mode)      | Grafana admin login password                                |
-
-## Project Structure
-
-```
-.
-├── src/
-│   ├── cli.js                  # CLI entry point
-│   └── lib/                    # Core libraries
-│       ├── installer.js        # Mesh installation logic
-│       ├── infra-manager.js    # Cloud infra orchestration
-│       ├── infra-state.js      # Provisioned state management
-│       ├── environment.js      # Environment resolution + templating
-│       ├── feature.js          # Feature/addon base classes + registry
-│       └── usecase.js          # Use case deployment
-├── features/                   # Feature implementations
-│   ├── traffic-management/
-│   ├── security/
-│   ├── multicluster/
-│   ├── observability/
-│   ├── migration/
-│   └── hybrid/
-├── addons/                     # Addon implementations
-│   ├── aws-load-balancer-controller/
-│   ├── cert-manager/
-│   ├── external-dns/
-│   ├── keycloak/
-│   ├── openshift-scc/
-│   ├── solo-ui/
-│   ├── cilium/
-│   ├── calico/
-│   ├── kgateway/
-│   ├── spire/
-│   └── telemetry/
-├── config/
-│   ├── infra/                  # InfraProfile YAMLs
-│   ├── profiles/               # Installation Profile YAMLs
-│   ├── environments/           # Environment YAMLs
-│   └── usecases/               # UseCase specs
-├── extras/
-│   └── applications/           # Reusable demo apps (bookinfo, httpbin, grpcbin, grpcurl, curl)
-└── cloud-provisioner/          # Terraform provisioner (git submodule)
-```
-
-See [docs/reference.md](docs/reference.md) for the full CLI reference, Makefile targets, and troubleshooting tips.
+See [docs/reference.md](docs/reference.md) for the full CLI reference, Makefile targets, built-in infra/installation profiles, environment variables, project structure, and troubleshooting tips.
