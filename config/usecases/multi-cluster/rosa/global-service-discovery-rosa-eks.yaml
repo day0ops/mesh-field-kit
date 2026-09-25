@@ -86,11 +86,9 @@ spec:
       clusters:
         - name: rosa-cluster
       steps:
+        # productpage-v1's image has no curl binary - use python3 (already present) instead.
         - action: exec
-          command: >-
-            kubectl exec -n bookinfo deploy/productpage-v1 --
-            curl -s -o /dev/null -w '%{http_code}' --max-time 10
-            http://reviews.bookinfo.mesh.internal:9080/reviews/1
+          command: kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "import urllib.request; print(urllib.request.urlopen('http://reviews.bookinfo.mesh.internal:9080/reviews/1', timeout=5).getcode())"
           timeout: 30s
           retries: 5
           retryDelay: 6000
