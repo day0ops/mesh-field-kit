@@ -41,6 +41,10 @@ bun run src/cli.js check-deps
 export ENTERPRISE_ISTIO_LICENSE=<key>    # Required for install
 export ISTIO_VERSION=1.30.3              # Optional, defaults to profile spec.mesh.istioVersion
 
+# ROSA infra profiles (rosa, eks-rosa providers) - also requires the rosa/oc CLIs
+export RHCS_CLIENT_ID=                   # Red Hat Hybrid Cloud Console service account
+export RHCS_CLIENT_SECRET=               # https://console.redhat.com/iam/service-accounts
+
 # keycloak addon (required when the profile installs it)
 export KEYCLOAK_ADMIN_USERNAME=          # Keycloak master realm bootstrap admin username
 export KEYCLOAK_ADMIN_PASSWORD=          # Keycloak master realm bootstrap admin password
@@ -82,7 +86,7 @@ Provisioned infra state written to `._output/infra/<name>/state.yaml`. Kubeconfi
 - **Observability** (`features/observability/`): ztunnel-metrics, istiod-metrics, tracing-provider
 - **Migration** (`features/migration/`): gloo-migrate-check, sidecar-cutover, enable-ambient
 - **Hybrid** (`features/hybrid/`): vm-integration
-- **Addons** (`addons/`): cilium, calico, cert-manager, external-dns, keycloak, solo-ui, kgateway, spire, telemetry
+- **Addons** (`addons/`): cilium, calico, cert-manager, external-dns, keycloak, solo-ui, kgateway, spire, telemetry, openshift-scc, aws-load-balancer-controller
 
 Cross-cluster trust setup (root/intermediate CA generation, east-west gateway, cluster linking) is not part of the Feature registry - it lives in `src/lib/multicluster.js` (`CertificateManager`, `EastWestGateway`, `ClusterLinker`, `PeeringInstaller`) and runs as part of `base install` for multicluster profiles.
 
