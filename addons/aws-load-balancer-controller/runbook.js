@@ -39,6 +39,10 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, _env)
     ? ` \\
   --set vpcId=${vpcId}`
     : '';
+  const clusterTagCheckFlag = cfg.disableSubnetClusterTagCheck
+    ? ` \\
+  --set controllerConfig.featureGates.SubnetsClusterTagCheck=false`
+    : '';
 
   return `Install the AWS Load Balancer Controller on the **${clusterName}** cluster.
 
@@ -51,7 +55,7 @@ helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-contro
   --namespace ${ns} \\
   --version $AWS_LOAD_BALANCER_CONTROLLER_VERSION \\
   --set clusterName=${clusterNameValue} \\
-  --set serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"=${roleArn}${vpcIdFlag} \\
+  --set serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"=${roleArn}${vpcIdFlag}${clusterTagCheckFlag} \\
   --wait
 \`\`\``;
 }

@@ -20,6 +20,7 @@ export class AwsLoadBalancerControllerFeature extends AddonFeature {
     this.serviceAccountRoleArn = config.serviceAccountRoleArn || null;
     this.clusterName = config.clusterName || null;
     this.vpcId = config.vpcId || null;
+    this.disableSubnetClusterTagCheck = config.disableSubnetClusterTagCheck === true;
     this.kubeContext = config.kubeContext || null;
   }
 
@@ -89,6 +90,12 @@ export class AwsLoadBalancerControllerFeature extends AddonFeature {
 
     if (this.vpcId) {
       helmArgs.push('--set', `vpcId=${this.vpcId}`);
+    }
+
+    if (this.disableSubnetClusterTagCheck) {
+      // Confirmed live on ROSA: matching cluster tags alone don't fix subnet
+      // auto-discovery. Disabling the check falls back to role-tag-only discovery.
+      helmArgs.push('--set', 'controllerConfig.featureGates.SubnetsClusterTagCheck=false');
     }
 
     if (this.kubeContext) {

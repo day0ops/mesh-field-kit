@@ -169,12 +169,15 @@ spec:
             enablePodSecurityLabel: false
 
           - name: aws-load-balancer-controller
-            description: Provisions the public NLB for Solo UI via Gateway API infrastructure.annotations
+            description: Provisions public NLBs cluster-wide via Gateway/Service subnet auto-discovery
             phase: pre
             namespace: aws-load-balancer-controller
             clusterName: '{{cluster.name}}'
             serviceAccountRoleArn: '{{infra.clusters.rosa-cluster.iam.albControllerRoleArn}}'
             vpcId: '{{infra.clusters.rosa-cluster.network.vpcId}}'
+            # ROSA's subnets still get rejected as "tagged for other clusters" even with
+            # a matching tag added (confirmed live). Fixes subnet resolution cluster-wide.
+            disableSubnetClusterTagCheck: true
 
           - name: external-dns
             description: Automatic DNS record management via Route53

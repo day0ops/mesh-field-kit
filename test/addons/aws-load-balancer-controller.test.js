@@ -9,6 +9,7 @@ test('AwsLoadBalancerControllerFeature constructor sets defaults', () => {
   expect(f.lbControllerNamespace).toBe('kube-system');
   expect(f.chartVersion).toBe('3.5.0');
   expect(f.vpcId).toBeNull();
+  expect(f.disableSubnetClusterTagCheck).toBe(false);
   expect(f.kubeContext).toBeNull();
 });
 
@@ -19,6 +20,7 @@ test('AwsLoadBalancerControllerFeature constructor respects overrides', () => {
     serviceAccountRoleArn: 'arn:aws:iam::111111111111:role/lbc-role',
     clusterName: 'my-cluster',
     vpcId: 'vpc-123',
+    disableSubnetClusterTagCheck: true,
     kubeContext: 'ctx1',
   });
   expect(f.lbControllerNamespace).toBe('custom-ns');
@@ -26,6 +28,7 @@ test('AwsLoadBalancerControllerFeature constructor respects overrides', () => {
   expect(f.serviceAccountRoleArn).toBe('arn:aws:iam::111111111111:role/lbc-role');
   expect(f.clusterName).toBe('my-cluster');
   expect(f.vpcId).toBe('vpc-123');
+  expect(f.disableSubnetClusterTagCheck).toBe(true);
   expect(f.kubeContext).toBe('ctx1');
 });
 
