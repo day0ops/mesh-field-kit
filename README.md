@@ -83,17 +83,17 @@ Profiles reference an infra profile via `spec.infra` and an environment via `spe
 
 ### Available installation profiles
 
-| Profile                                        | Description                                                                                        |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `eks-single-cluster-mesh-with-cilium`          | Single-cluster ambient mesh with Cilium CNI chaining, plus the telemetry stack                     |
-| `eks-single-cluster-mesh-with-calico`          | Single-cluster ambient mesh with Calico CNI chaining (Tigera operator install)                     |
-| `eks-single-cluster-mesh-with-spire`           | Single-cluster ambient mesh with SPIRE workload identity attestation                               |
-| `eks-single-cluster-mesh-with-crl`             | Single-cluster ambient mesh with a plugged-in CA and certificate revocation list (CRL) enforcement |
-| `eks-single-cluster-mesh-sidecar`              | Single-cluster classic sidecar mesh (no ambient components)                                        |
-| `eks-multi-cluster-peering-with-istio-ingress` | Multi-cluster ambient mesh, helm-based peering, Istio's built-in ingress gateway                   |
-| `eks-multi-cluster-peering-with-kgateway`      | Multi-cluster ambient mesh, helm-based peering, kgateway ingress, Keycloak OIDC                    |
-| `eks-multi-cluster-auto-peering-operator`      | Multi-cluster ambient mesh installed and peered via the Solo operator, kgateway ingress            |
-| `rosa-eks-ambient-peering`                     | Multi-cluster ambient mesh, ROSA + EKS, helm-based Solo peering (POC-minimal)                      |
+| Profile                                        | Description                                                                                                            |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `eks-single-cluster-mesh-with-cilium`          | Single-cluster ambient mesh with Cilium CNI chaining, plus the telemetry stack                                         |
+| `eks-single-cluster-mesh-with-calico`          | Single-cluster ambient mesh with Calico CNI chaining (Tigera operator install)                                         |
+| `eks-single-cluster-mesh-with-spire`           | Single-cluster ambient mesh with SPIRE workload identity attestation                                                   |
+| `eks-single-cluster-mesh-with-crl`             | Single-cluster ambient mesh with a plugged-in CA and certificate revocation list (CRL) enforcement                     |
+| `eks-single-cluster-mesh-sidecar`              | Single-cluster classic sidecar mesh (no ambient components)                                                            |
+| `eks-multi-cluster-peering-with-istio-ingress` | Multi-cluster ambient mesh, helm-based peering, Istio's built-in ingress gateway                                       |
+| `eks-multi-cluster-peering-with-kgateway`      | Multi-cluster ambient mesh, helm-based peering, kgateway ingress, Keycloak OIDC                                        |
+| `eks-multi-cluster-auto-peering-operator`      | Multi-cluster ambient mesh installed and peered via the Solo operator, kgateway ingress                                |
+| `rosa-eks-ambient-peering`                     | Multi-cluster ambient mesh, ROSA + EKS, helm-based Solo peering, SPIRE, managed telemetry, Solo UI behind a public NLB |
 
 ## Step-by-Step Workflow
 
@@ -163,6 +163,7 @@ make infra-destroy PROFILE=eks-single-cluster
 | `GCP_PROJECT`                                                                                 | Yes (GKE)                             | GCP project ID                                              |
 | `GOOGLE_APPLICATION_CREDENTIALS`                                                              | Yes (GKE)                             | Path to GCP service account credentials                     |
 | `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_OBJECT_ID`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID` | Yes (AKS)                             | Azure service principal credentials                         |
+| `RHCS_CLIENT_ID`, `RHCS_CLIENT_SECRET`                                                        | Yes (ROSA)                            | Red Hat Hybrid Cloud Console service account credentials    |
 | `KEYCLOAK_ADMIN_USERNAME`                                                                     | Yes (keycloak addon)                  | Keycloak master realm bootstrap admin username              |
 | `KEYCLOAK_ADMIN_PASSWORD`                                                                     | Yes (keycloak addon)                  | Keycloak master realm bootstrap admin password              |
 | `KEYCLOAK_POSTGRES_USER`                                                                      | Yes (keycloak addon)                  | Postgres superuser backing Keycloak's DB                    |
@@ -194,9 +195,11 @@ make infra-destroy PROFILE=eks-single-cluster
 │   ├── migration/
 │   └── hybrid/
 ├── addons/                     # Addon implementations
+│   ├── aws-load-balancer-controller/
 │   ├── cert-manager/
 │   ├── external-dns/
 │   ├── keycloak/
+│   ├── openshift-scc/
 │   ├── solo-ui/
 │   ├── cilium/
 │   ├── calico/
