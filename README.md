@@ -19,6 +19,7 @@ Ensure you have the following installed:
 - **helm** - Kubernetes package manager
 - **[Terraform](https://www.terraform.io/) or [OpenTofu](https://opentofu.org/)** - for cloud cluster provisioning
 - **jq** - JSON processor
+- **[rosa](https://console.redhat.com/openshift/downloads) and [oc](https://console.redhat.com/openshift/downloads)** - only needed for ROSA infra profiles (`rosa`, `eks-rosa` providers); also requires a Red Hat Hybrid Cloud Console service account exported as `RHCS_CLIENT_ID`/`RHCS_CLIENT_SECRET` (https://console.redhat.com/iam/service-accounts)
 
 ## Install
 
@@ -67,17 +68,18 @@ Profiles reference an infra profile via `spec.infra` and an environment via `spe
 
 ### Available infra profiles
 
-| Profile                   | Provider        | Clusters                               |
-| ------------------------- | --------------- | -------------------------------------- |
-| `eks-single-cluster`      | EKS             | 1                                      |
-| `eks-single-cluster-ipv6` | EKS IPv6        | 1                                      |
-| `eks-multi-cluster`       | EKS             | 2 (east, west)                         |
-| `eks-multi-cluster-ipv6`  | EKS IPv6        | 2 (east, west)                         |
-| `gke-single-cluster`      | GKE             | 1                                      |
-| `gke-multi-cluster`       | GKE             | 2 (east, west)                         |
-| `aks-single-cluster`      | AKS             | 1                                      |
-| `aks-multi-cluster`       | AKS             | 2 (east, west)                         |
-| `hybrid-multi-cloud`      | EKS + GKE + AKS | 3 (mgmt on EKS, workload on GKE + AKS) |
+| Profile                   | Provider         | Clusters                                    |
+| ------------------------- | ---------------- | ------------------------------------------- |
+| `eks-single-cluster`      | EKS              | 1                                           |
+| `eks-single-cluster-ipv6` | EKS IPv6         | 1                                           |
+| `eks-multi-cluster`       | EKS              | 2 (east, west)                              |
+| `eks-multi-cluster-ipv6`  | EKS IPv6         | 2 (east, west)                              |
+| `gke-single-cluster`      | GKE              | 1                                           |
+| `gke-multi-cluster`       | GKE              | 2 (east, west)                              |
+| `aks-single-cluster`      | AKS              | 1                                           |
+| `aks-multi-cluster`       | AKS              | 2 (east, west)                              |
+| `hybrid-multi-cloud`      | EKS + GKE + AKS  | 3 (mgmt on EKS, workload on GKE + AKS)      |
+| `rosa-eks-multi-cluster`  | ROSA (HCP) + EKS | 2 (rosa-cluster mgmt, eks-cluster workload) |
 
 ### Available installation profiles
 
@@ -91,6 +93,7 @@ Profiles reference an infra profile via `spec.infra` and an environment via `spe
 | `eks-multi-cluster-peering-with-istio-ingress` | Multi-cluster ambient mesh, helm-based peering, Istio's built-in ingress gateway                   |
 | `eks-multi-cluster-peering-with-kgateway`      | Multi-cluster ambient mesh, helm-based peering, kgateway ingress, Keycloak OIDC                    |
 | `eks-multi-cluster-auto-peering-operator`      | Multi-cluster ambient mesh installed and peered via the Solo operator, kgateway ingress            |
+| `rosa-eks-ambient-peering`                     | Multi-cluster ambient mesh, ROSA + EKS, helm-based Solo peering (POC-minimal)                      |
 
 ## Step-by-Step Workflow
 

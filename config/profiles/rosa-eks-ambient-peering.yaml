@@ -1,0 +1,278 @@
+apiVersion: mesh.demo/v1
+kind: Profile
+metadata:
+  name: rosa-eks-ambient-peering
+  description: |
+    Solo Istio Ambient Enterprise on both a ROSA (HCP) cluster and an EKS cluster, linked via this framework's normal Solo peering multicluster mechanism.
+    SPIRE (independent root per cluster, federated) provides workload identity attestation on both clusters.
+    Solo UI + telemetry run on the ROSA (management) cluster.
+
+spec:
+  infra: rosa-eks-multi-cluster
+  environment: aws-dev
+
+  mesh:
+    istioVersion: 1.30.4
+    gatewayApiVersion: v1.5.0
+    profile: ambient
+    peering: helm
+
+    certificates:
+      mode: self-signed
+
+    image:
+      istioRepo: us-docker.pkg.dev/soloio-img/istio
+      helmIstioRepo: us-docker.pkg.dev/soloio-img/istio-helm
+      tag: 1.30.4-solo
+
+    components:
+      - name: base
+
+      - name: istiod
+        values:
+          global:
+            multiCluster:
+              clusterName: '{{cluster.name}}'
+            network: '{{cluster.name}}'
+            proxy:
+              clusterDomain: cluster.local
+            gateways:
+              spire:
+                workloads: true
+          meshConfig:
+            accessLogFile: /dev/stdout
+            trustDomain: '{{cluster.name}}.local'
+          platforms:
+            peering:
+              enabled: true
+          env:
+            PILOT_SKIP_VALIDATE_TRUST_DOMAIN: 'true'
+
+      - name: cni
+        values:
+          ambient:
+            dnsCapture: true
+          excludeNamespaces:
+            - istio-system
+            - kube-system
+
+      - name: ztunnel
+        values:
+          istioNamespace: istio-system
+          namespace: istio-system
+          multiCluster:
+            clusterName: '{{cluster.name}}'
+          network: '{{cluster.name}}'
+          proxy:
+            clusterDomain: cluster.local
+          variant: distroless
+          spire:
+            enabled: true
+          env:
+            SKIP_VALIDATE_TRUST_DOMAIN: 'true'
+
+      - name: peering-eastwest
+        values:
+          eastwest:
+            cluster: '{{cluster.name}}'
+            network: '{{cluster.name}}'
+            # Istio copies Gateway annotations onto the generated Service by default.
+            # AWS LBC's default scheme is internal - confirmed live via an unreachable
+            # private-IP NLB. No-op on EKS (in-tree provider uses a different key).
+            annotations:
+              service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+            deployment:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: istio-proxy
+                        env:
+                          - name: SPIRE_ENABLED
+                            value: 'false'
+
+      - name: peering-remote
+        values:
+          trustDomain: '{{cluster.name}}.local'
+          addressType: Hostname
+          preferredDataplaneServiceType: LoadBalancer
+
+    clusters:
+      - name: rosa-cluster
+        # Deviates from Istio's own ambient platform-prerequisites docs, which state
+        # (without explaining why) that OpenShift requires istio-cni/ztunnel in
+        # kube-system. Testing istio-system instead: managed ROSA's SRE admission
+        # webhooks permanently block Helm from cleaning up their ServiceAccount/
+        # ClusterRoleBinding when they live in kube-system - istio-system doesn't
+        # carry that restriction. The openshift-scc addon below grants the same
+        # privileged SCC + Pod Security labeling to istio-system directly, so this
+        # doesn't depend on kube-system's built-in exemptions.
+        componentValues:
+          base:
+            global:
+              platform: openshift
+          istiod:
+            global:
+              platform: openshift
+          cni:
+            global:
+              platform: openshift
+          ztunnel:
+            global:
+              platform: openshift
+
+  addons:
+    clusters:
+      - name: rosa-cluster
+        addons:
+          # Testing istio-system instead of the kube-system Istio's own docs call for - see
+          # the componentValues comment above for why.
+          - name: openshift-scc
+            description: Privileged SCC for istio-cni/ztunnel node agents in istio-system
+            phase: pre
+            namespace: istio-system
+
+          - name: openshift-scc
+            description: Privileged SCC for SPIRE's spiffe-csi-driver/agent DaemonSet in spire-server
+            phase: pre
+            namespace: spire-server
+            enableRoutingViaHost: false
+
+          - name: openshift-scc
+            description: Privileged SCC for the telemetry stack's fixed non-root container UIDs
+            phase: pre
+            namespace: telemetry
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
+
+          - name: openshift-scc
+            description: Privileged SCC for Solo UI's ClickHouse fixed non-root UID
+            phase: pre
+            namespace: solo-enterprise
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
+
+          - name: openshift-scc
+            description: Privileged SCC for the AWS Load Balancer Controller's fixed non-root UID
+            phase: pre
+            namespace: aws-load-balancer-controller
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
+
+          - name: openshift-scc
+            description: Privileged SCC for external-dns's fixed non-root UID/GID
+            phase: pre
+            namespace: external-dns
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
+
+          - name: openshift-scc
+            description: Privileged SCC for cert-manager's fixed non-root UID/GID
+            phase: pre
+            namespace: cert-manager
+            enableRoutingViaHost: false
+            enablePodSecurityLabel: false
+
+          - name: aws-load-balancer-controller
+            description: Provisions public NLBs cluster-wide via Gateway/Service subnet auto-discovery
+            phase: pre
+            namespace: aws-load-balancer-controller
+            clusterName: '{{cluster.name}}'
+            serviceAccountRoleArn: '{{infra.clusters.rosa-cluster.iam.albControllerRoleArn}}'
+            vpcId: '{{infra.clusters.rosa-cluster.network.vpcId}}'
+            # ROSA's subnets still get rejected as "tagged for other clusters" even with
+            # a matching tag added (confirmed live). Fixes subnet resolution cluster-wide.
+            disableSubnetClusterTagCheck: true
+
+          - name: external-dns
+            description: Automatic DNS record management via Route53
+            namespace: external-dns
+            serviceAccountRoleArn: '{{infra.clusters.rosa-cluster.iam.externalDnsRoleArn}}'
+            config:
+              provider: route53
+              domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
+              region: '{{env.aws.region}}'
+              txtOwnerId: '{{env.dns.txtOwnerId}}'
+
+          - name: cert-manager
+            description: Certificate management for TLS
+            namespace: cert-manager
+            config:
+              letsencrypt:
+                enabled: true
+                email: '{{env.acme.email}}'
+                region: '{{env.aws.region}}'
+
+          - name: spire
+            phase: pre
+            certMode: self-signed
+            trustDomain: '{{cluster.name}}.local'
+            distinctRoots: true
+            platform: openshift
+
+          - name: telemetry
+            description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo). prometheusMode managed integrates with OpenShift's own user-workload-monitoring instead of deploying a redundant Prometheus/Alertmanager/operator.
+            phase: post
+            namespace: telemetry
+            platform: openshift
+            prometheusMode: managed
+            chartVersions:
+              kube-prom-stack: 88.0.1
+              loki: 7.2.0
+              tempo: 1.61.3
+              alloy: 1.11.0
+              otel: 0.165.0
+            config:
+              database:
+                storageClass: gp3-csi
+                storageSize: 50Gi
+              retention: 120h
+              grafanaServiceType: LoadBalancer
+
+          - name: solo-ui
+            mode: management
+            version: '{{env.soloUi.version}}'
+            phase: post
+            namespace: solo-enterprise
+            serviceType: LoadBalancer
+            telemetryNamespace: telemetry
+            hostname: '{{env.domains.core.soloUi}}'
+            sourceRanges: '{{env.security.vpnSourceRanges}}'
+            # Bypasses the AWS LBC's tag-based subnet auto-discovery - confirmed live
+            # that ROSA's own public subnets carry a kubernetes.io/cluster/<rosa-infra-id>
+            # tag that never matches our clusterName, so auto-discovery excludes them.
+            subnetIds: '{{infra.clusters.rosa-cluster.network.publicSubnetIds}}'
+            # ROSA's OVN-Kubernetes pod IPs aren't real, ENI-attachable VPC addresses like
+            # EKS's VPC-CNI gives pods - target-type ip fails every health check outright
+            # (confirmed live: Target.FailedHealthChecks on every port). instance routes
+            # to the real worker node's VPC IP + NodePort instead.
+            nlbTargetType: instance
+
+      - name: eks-cluster
+        addons:
+          - name: cilium
+            description: eBPF-based CNI in chaining mode for network policy and observability
+            version: 1.19.4
+            mode: chaining
+            chainingTarget: aws-cni
+            enableHealthProbePolicy: true
+
+          - name: spire
+            phase: pre
+            certMode: self-signed
+            trustDomain: '{{cluster.name}}.local'
+            distinctRoots: true
+
+          - name: solo-ui
+            mode: relay
+            phase: post
+            version: '{{env.soloUi.version}}'
+            namespace: solo-enterprise
+            tunnel:
+              fqdn: solo-enterprise-ui.solo-enterprise.mesh.internal
+              port: 9000
+            telemetry:
+              fqdn: solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal
+            products:
+              mesh:
+                enabled: true

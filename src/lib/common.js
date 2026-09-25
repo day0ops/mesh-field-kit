@@ -834,6 +834,10 @@ export class KubernetesHelper {
 
 export async function checkDependencies() {
   const required = ['kubectl', 'helm', 'terraform', 'ssh', 'scp', 'istioctl'];
+  const optional = [
+    { cmd: 'rosa', note: 'needed for ROSA infra profiles (rosa, eks-rosa providers)' },
+    { cmd: 'oc', note: 'needed for ROSA infra profiles (rosa, eks-rosa providers)' },
+  ];
   const missing = [];
 
   Logger.info('Checking dependencies...');
@@ -845,6 +849,15 @@ export async function checkDependencies() {
     } catch {
       console.log(chalk.yellow('✗'), cmd, chalk.dim('(missing)'));
       missing.push(cmd);
+    }
+  }
+
+  for (const { cmd, note } of optional) {
+    try {
+      await CommandRunner.run('command', ['-v', cmd], { ignoreError: true });
+      console.log(chalk.green('✓'), cmd);
+    } catch {
+      console.log(chalk.yellow('✗'), cmd, chalk.dim(`(optional - ${note})`));
     }
   }
 
@@ -1048,4 +1061,42 @@ export function formatDescription(text, indent = '  ') {
   }
   flushList();
   return result.join('\n');
+}
+
+/**
+ * Build the annotation set that drives the AWS Load Balancer Controller to provision an
+ * internet-facing NLB for a Gateway API Gateway's spec.infrastructure.annotations.
+ * Two non-obvious details, both required for the source IP restriction to actually
+ * take effect under the default targetType ('ip'):
+ *   - load-balancer-source-ranges has no "aws-" prefix, unlike its sibling annotations.
+ *   - with nlb-target-type=ip, client IP preservation is disabled by default and
+ *     source-ranges is silently ignored unless re-enabled via target-group-attributes.
+ *
+ * targetType 'ip' requires pod IPs to be real, ENI-attachable VPC addresses (true for
+ * EKS's VPC-CNI, NOT true for OpenShift/ROSA's OVN-Kubernetes SDN, whose pod network is
+ * an internal overlay AWS can't attach to at all - confirmed live via
+ * Target.FailedHealthChecks on every port, since AWS can't deliver traffic to the
+ * address in the first place). Pass targetType: 'instance' on ROSA/OpenShift to route to
+ * the real worker node's VPC IP + NodePort instead; the preserve_client_ip attribute is
+ * 'ip'-mode-specific and is omitted for 'instance' (which preserves client IP via the
+ * Service's own externalTrafficPolicy instead, a separate mechanism).
+ */
+export function nlbSourceRangeAnnotations(sourceRanges, { targetType = 'ip' } = {}) {
+  const ranges = (Array.isArray(sourceRanges) ? sourceRanges : [sourceRanges])
+    .flat()
+    .filter(Boolean);
+  return {
+    'service.beta.kubernetes.io/aws-load-balancer-type': 'external',
+    'service.beta.kubernetes.io/aws-load-balancer-nlb-target-type': targetType,
+    'service.beta.kubernetes.io/aws-load-balancer-scheme': 'internet-facing',
+    ...(targetType === 'ip'
+      ? {
+          'service.beta.kubernetes.io/aws-load-balancer-target-group-attributes':
+            'preserve_client_ip.enabled=true',
+        }
+      : {}),
+    ...(ranges.length > 0
+      ? { 'service.beta.kubernetes.io/load-balancer-source-ranges': ranges.join(',') }
+      : {}),
+  };
 }

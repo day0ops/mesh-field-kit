@@ -49,6 +49,22 @@ const COMPONENT_NAMESPACE_MAP = {
   'peering-eastwest': 'istio-eastwest',
 };
 
+/**
+ * Resolve the Kubernetes namespace a component installs into: a per-cluster
+ * override (spec.mesh.clusters[].componentNamespaces - e.g. OpenShift's
+ * requirement that istio-cni/ztunnel run in kube-system while istiod/base
+ * stay in the mesh's normal namespace), then the global COMPONENT_NAMESPACE_MAP
+ * (e.g. peering-eastwest -> istio-eastwest), then the mesh's own namespace.
+ */
+export function resolveComponentNamespace(profile, cluster, component, cfg) {
+  const override = ProfileSchema.getClusterOverride(profile, cluster.name);
+  return (
+    override?.componentNamespaces?.[component] ||
+    COMPONENT_NAMESPACE_MAP[component] ||
+    cfg.namespace
+  );
+}
+
 // Components that are deferred to the installAll() post-install phase
 // (require cross-cluster info not available during per-cluster install)
 const DEFERRED_COMPONENTS = new Set(['peering-remote']);
@@ -624,7 +640,7 @@ export class InstallerManager {
           quotingType: '"',
           forceQuotes: false,
         });
-        const componentNamespace = COMPONENT_NAMESPACE_MAP[component] || cfg.namespace;
+        const componentNamespace = resolveComponentNamespace(profile, cluster, component, cfg);
 
         await this.#installHelmChart(releaseName, chartName, cfg, flags, {
           values: valuesYaml,
@@ -896,8 +912,15 @@ export class InstallerManager {
       const msg = `Removing ${crds.length} orphaned addon CRD(s)...`;
       if (spinner) spinner.log(msg);
       else Logger.info(msg);
+      // ignoreError: some clusters (e.g. OpenShift/ROSA) manage their own copy of the
+      // Gateway API CRDs via a platform operator and block deletion with a
+      // ValidatingAdmissionPolicy - kubectl still deletes every CRD it's allowed to in
+      // the same batch, but exits non-zero overall, which would otherwise abort cleanup
+      // for CRDs we DO own. Matches the tolerance already applied to the sibling
+      // ValidatingAdmissionPolicy/Binding cleanup immediately below.
       await CommandRunner.exec(
-        `kubectl ${flags.kubectl} delete crd ${crds.join(' ')} --ignore-not-found=true`
+        `kubectl ${flags.kubectl} delete crd ${crds.join(' ')} --ignore-not-found=true`,
+        { ignoreError: true }
       );
     }
 
@@ -952,11 +975,49 @@ export class InstallerManager {
       }
 
       const flags = contextFlags(context);
+      const RELEASE_TO_COMPONENT = {
+        ztunnel: 'ztunnel',
+        'istio-cni': 'cni',
+        istiod: 'istiod',
+        'istio-base': 'base',
+      };
+      // istio-cni/ztunnel run as DaemonSets. On managed ROSA/OSD, Red Hat's own SRE
+      // admission webhooks permanently block Helm from deleting their ServiceAccount/
+      // ClusterRoleBinding in kube-system ("failed to delete release") - confirmed live,
+      // no workaround exists short of a Red Hat support case. Deleting the DaemonSet
+      // directly first at least removes the actual running workload before Helm's
+      // release-bookkeeping delete inevitably fails on those two RBAC objects.
+      const RELEASE_TO_DAEMONSET = {
+        ztunnel: 'ztunnel',
+        'istio-cni': 'istio-cni-node',
+      };
       for (const release of ['ztunnel', 'istio-cni', 'istiod', 'istio-base']) {
+        // Mirrors the install path's per-component namespace resolution (see
+        // resolveComponentNamespace above) - without it, a cluster override like
+        // OpenShift's componentNamespaces: { cni: kube-system, ztunnel: kube-system }
+        // leaves those two releases behind, since uninstall would look in the wrong
+        // namespace for them. Confirmed live.
+        const releaseNamespace =
+          profile && cluster
+            ? resolveComponentNamespace(profile, cluster, RELEASE_TO_COMPONENT[release], {
+                namespace,
+              })
+            : namespace;
+
+        const daemonsetName = RELEASE_TO_DAEMONSET[release];
+        if (daemonsetName) {
+          await CommandRunner.exec(
+            `kubectl ${flags.kubectl} delete daemonset ${daemonsetName} -n ${releaseNamespace} --ignore-not-found`
+          );
+        }
+
         try {
-          await CommandRunner.exec(`helm ${flags.helm} uninstall ${release} -n ${namespace}`);
+          await CommandRunner.exec(
+            `helm ${flags.helm} uninstall ${release} -n ${releaseNamespace}`
+          );
         } catch (err) {
-          if (!/not found|no deployed releases/i.test(err.message)) throw err;
+          if (!/not found|no deployed releases|failed to delete release/i.test(err.message))
+            throw err;
         }
       }
 

@@ -1,0 +1,304 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: mtls-l4-l7-discovery-rosa-eks
+  description: |
+    Zero-trust demonstration across ROSA and EKS, both running Solo Istio
+    Ambient Enterprise: bidirectional service discovery, enforced mTLS, L4
+    identity policy, and L7 waypoint policy, each on a distinct bookinfo
+    service.
+    - productpage/reviews/ratings/details globally scoped on both clusters
+    - STRICT mTLS enforced on rosa-cluster's bookinfo namespace
+    - An AuthorizationPolicy on details (rosa-cluster) allows only
+      ratings-v1's identity from eks-cluster - L4, ztunnel-enforced,
+      rejections are connection-level, not HTTP 403. Local productpage on
+      rosa-cluster loses access to details too, by design.
+    - A waypoint + AuthorizationPolicy on reviews (eks-cluster) allows only
+      GET requests, enforced identically for local and cross-cluster callers
+
+spec:
+  infra: rosa-eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: rosa-cluster
+          - name: eks-cluster
+
+  features:
+    - name: global-service
+      description: Make productpage/reviews/ratings globally accessible for bidirectional discovery
+      config:
+        namespace: bookinfo
+        services:
+          - name: productpage
+            scope: global
+          - name: reviews
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: Any
+          - name: ratings
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: Any
+          - name: details
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: Any
+      clusters:
+        - name: rosa-cluster
+        - name: eks-cluster
+
+    - name: peer-authentication
+      description: Require STRICT mTLS for all workloads in bookinfo on rosa-cluster
+      config:
+        policyName: bookinfo-strict-mtls
+        namespace: bookinfo
+        mtls:
+          mode: STRICT
+      clusters:
+        - name: rosa-cluster
+
+    - name: authorization-policy
+      description: L4 - only ratings-v1's identity from eks-cluster may reach details on rosa-cluster
+      config:
+        policyName: details-allow-eks-ratings
+        namespace: bookinfo
+        selector:
+          matchLabels:
+            app: details
+        action: ALLOW
+        rules:
+          - from:
+              - source:
+                  principals:
+                    - 'eks-cluster.local/ns/bookinfo/sa/bookinfo-ratings'
+      clusters:
+        - name: rosa-cluster
+
+    - name: waypoint
+      description: Deploy waypoint for reviews on eks-cluster
+      config:
+        waypointName: reviews-waypoint
+        namespace: bookinfo
+        labels:
+          target: service
+          serviceName: reviews
+      clusters:
+        - name: eks-cluster
+
+    - name: authorization-policy
+      description: L7 - restrict reviews to GET requests only, enforced at the waypoint on eks-cluster
+      config:
+        policyName: reviews-l7-get-only
+        namespace: bookinfo
+        # Target the waypoint Gateway itself, not the Service - a Service-scoped
+        # targetRef crashes Solo's control plane (confirmed bug, see
+        # docs/cross-mesh-federation/instructions.md Test 4a) and only covers the
+        # cluster-local hostname anyway, letting cross-cluster global-service
+        # callers bypass the policy entirely.
+        targetRefs:
+          - kind: Gateway
+            group: gateway.networking.k8s.io
+            name: reviews-waypoint
+        action: ALLOW
+        rules:
+          - to:
+              - operation:
+                  methods: ['GET']
+      clusters:
+        - name: eks-cluster
+
+  tests:
+    - name: discovery-and-l7-get-rosa-to-eks
+      description: Cross-cluster GET from rosa-cluster's productpage to eks-cluster's waypoint-fronted reviews succeeds
+      clusters:
+        - name: rosa-cluster
+      setup:
+        # Scale local reviews to 0 so the call is forced across the east-west gateway
+        # instead of being served locally.
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=1
+          timeout: 30s
+      steps:
+        - action: exec
+          command: kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "import urllib.request; print(urllib.request.urlopen('http://reviews.bookinfo.mesh.internal:9080/reviews/0', timeout=5).getcode())"
+          timeout: 20s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: '200'
+
+    - name: discovery-and-l4-allow-eks-to-rosa
+      description: Cross-cluster call from eks-cluster's ratings-v1 to rosa-cluster's details succeeds under STRICT mTLS and the L4 identity policy
+      clusters:
+        - name: eks-cluster
+      setup:
+        # Scale local details to 0 so the call is forced across the east-west gateway
+        # instead of being served locally.
+        - action: exec
+          command: kubectl scale deploy/details-v1 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/details-v1 -n bookinfo --replicas=1
+          timeout: 30s
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec -n bookinfo deploy/ratings-v1 --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://details.bookinfo.mesh.internal:9080/details/0
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: '200'
+
+    - name: mtls-non-mesh-client-rejected
+      description: Non-mesh client on rosa-cluster is connection-level rejected by STRICT mTLS
+      clusters:
+        - name: rosa-cluster
+      setup:
+        - action: exec
+          command: kubectl create namespace no-mesh --dry-run=client -o yaml | kubectl apply -f -
+          timeout: 15s
+        - action: exec
+          command: >-
+            kubectl run plaintext-client -n no-mesh
+            --image=curlimages/curl:8.11.0 --restart=Never
+            --command -- sleep 3600
+          timeout: 15s
+        - action: exec
+          command: kubectl wait --for=condition=ready pod/plaintext-client -n no-mesh --timeout=60s
+          timeout: 70s
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec plaintext-client -n no-mesh --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 5
+            http://details.bookinfo.svc.cluster.local:9080/details/0
+          timeout: 15s
+          retries: 1
+          retryDelay: 3000
+        - action: verify
+          expect:
+            contains: '000'
+      teardown:
+        - action: exec
+          command: kubectl delete namespace no-mesh --ignore-not-found
+          timeout: 30s
+
+    - name: l4-wrong-identity-denied
+      description: Wrong-identity caller (bookinfo-reviews) is connection-level denied by the L4 policy on rosa-cluster's details
+      clusters:
+        - name: eks-cluster
+      setup:
+        # Scale local details to 0 so the call is forced across the east-west gateway
+        # instead of being served locally.
+        - action: exec
+          command: kubectl scale deploy/details-v1 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+        - action: exec
+          command: >-
+            kubectl run wrong-identity-client -n bookinfo
+            --image=curlimages/curl:8.11.0 --restart=Never
+            --overrides='{"spec":{"serviceAccountName":"bookinfo-reviews"}}'
+            --command -- sleep 3600
+          timeout: 15s
+        - action: exec
+          command: kubectl wait --for=condition=ready pod/wrong-identity-client -n bookinfo --timeout=60s
+          timeout: 70s
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/details-v1 -n bookinfo --replicas=1
+          timeout: 30s
+        - action: exec
+          command: kubectl delete pod wrong-identity-client -n bookinfo --ignore-not-found
+          timeout: 30s
+      steps:
+        - action: exec
+          command: >-
+            kubectl exec wrong-identity-client -n bookinfo --
+            curl -s -o /dev/null -w '%{http_code}' --max-time 10
+            http://details.bookinfo.mesh.internal:9080/details/0
+          timeout: 15s
+          retries: 1
+          retryDelay: 3000
+        - action: verify
+          expect:
+            contains: '000'
+
+    - name: l7-local-get-allowed
+      description: Local GET to reviews on eks-cluster succeeds under the L7 waypoint policy
+      clusters:
+        - name: eks-cluster
+      steps:
+        - action: exec
+          command: kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "import urllib.request; print(urllib.request.urlopen('http://reviews:9080/reviews/0', timeout=5).getcode())"
+          timeout: 20s
+        - action: verify
+          expect:
+            contains: '200'
+
+    - name: l7-local-delete-denied
+      description: Local DELETE to reviews on eks-cluster is HTTP-rejected (403) by the L7 waypoint policy
+      clusters:
+        - name: eks-cluster
+      steps:
+        - action: exec
+          command: |
+            kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "
+            import urllib.request, urllib.error
+            req = urllib.request.Request('http://reviews:9080/reviews/0', method='DELETE')
+            try: print(urllib.request.urlopen(req, timeout=5).getcode())
+            except urllib.error.HTTPError as e: print(e.code)"
+          timeout: 20s
+        - action: verify
+          expect:
+            contains: '403'
+
+    - name: l7-cross-cluster-delete-denied
+      description: Cross-cluster DELETE from rosa-cluster is also rejected, proving L7 enforcement is identical for local and cross-cluster callers
+      clusters:
+        - name: rosa-cluster
+      setup:
+        # Scale local reviews to 0 so the call is forced across the east-west gateway
+        # instead of being served locally.
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=0
+          timeout: 30s
+        - action: wait
+          duration: 8000
+      teardown:
+        - action: exec
+          command: kubectl scale deploy/reviews-v1 deploy/reviews-v2 deploy/reviews-v3 -n bookinfo --replicas=1
+          timeout: 30s
+      steps:
+        - action: exec
+          command: |
+            kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "
+            import urllib.request, urllib.error
+            req = urllib.request.Request('http://reviews.bookinfo.mesh.internal:9080/reviews/0', method='DELETE')
+            try: print(urllib.request.urlopen(req, timeout=5).getcode())
+            except urllib.error.HTTPError as e: print(e.code)"
+          timeout: 20s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: '403'

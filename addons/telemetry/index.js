@@ -38,6 +38,80 @@ const SOLO_COP_DASHBOARDS = [
 // which would corrupt a credential that contains them.
 const helmSetEscape = value => String(value).replace(/\\/g, '\\\\').replace(/,/g, '\\,');
 
+// Exported for testing: merges enableUserWorkload: true into existing cluster-monitoring-config
+// YAML content without clobbering other keys the config may already carry.
+export function mergeUserWorkloadConfig(existingYaml, yamlLib) {
+  const config = existingYaml?.trim() ? yamlLib.load(existingYaml) || {} : {};
+  config.enableUserWorkload = true;
+  return config;
+}
+
+// Exported for testing: reads the cluster-monitoring-config ConfigMap's config.yaml key.
+// NotFound (Kubernetes' standard reason string, present on stderr) means a genuinely fresh
+// cluster with no ConfigMap yet, so it's treated as empty content. Any other read failure
+// (RBAC denial, wrong context, transient API error, ...) throws rather than being treated as
+// empty, since this ConfigMap is cluster-wide and a blind merge could clobber real content.
+export async function readClusterMonitoringConfigYaml(ctxArgs) {
+  const existing = await CommandRunner.run(
+    'oc',
+    [
+      ...ctxArgs,
+      'get',
+      'configmap',
+      'cluster-monitoring-config',
+      '-n',
+      'openshift-monitoring',
+      '-o',
+      'jsonpath={.data.config\\.yaml}',
+    ],
+    { ignoreError: true, captureOutput: true }
+  );
+
+  if (existing.exitCode === 0) {
+    return existing.stdout ?? '';
+  }
+  if (/NotFound/.test(existing.stderr ?? '')) {
+    return '';
+  }
+  throw new Error(
+    'Failed to read openshift-monitoring/cluster-monitoring-config, so it cannot be safely ' +
+      'merged with enableUserWorkload: true. Refusing to proceed since this ConfigMap is ' +
+      `cluster-wide and applying blind could clobber it. Underlying error: ${existing.stderr?.trim() || existing.message}`
+  );
+}
+
+// Exported for testing: polls the given ConfigMap until OpenShift's service-ca-operator
+// populates its service-ca.crt key (injected via the service.beta.openshift.io/inject-cabundle
+// annotation on the ConfigMap), then returns the CA bundle. Mirrors the #waitForSecret polling
+// pattern in addons/spire/index.js.
+export async function waitForCaBundleConfigMap(cmName, namespace, ctxArgs, timeoutMs = 120000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const result = await CommandRunner.run(
+      'oc',
+      [
+        ...ctxArgs,
+        'get',
+        'configmap',
+        cmName,
+        '-n',
+        namespace,
+        '-o',
+        'jsonpath={.data.service-ca\\.crt}',
+      ],
+      { ignoreError: true, captureOutput: true }
+    );
+    if (result.exitCode === 0 && result.stdout?.trim()) {
+      return result.stdout;
+    }
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+  throw new Error(
+    `ConfigMap '${cmName}' in '${namespace}' was not populated with service-ca.crt ` +
+      'within timeout - the OpenShift service-ca-operator may not be running'
+  );
+}
+
 /**
  * Telemetry Feature
  *
@@ -75,6 +149,23 @@ const helmSetEscape = value => String(value).replace(/\\/g, '\\\\').replace(/,/g
  *     otel: string,               // opentelemetry-collector (default: 0.165.0)
  *   },
  *   namespace: string,            // Default: 'telemetry'
+ *   platform: string,             // 'openshift' passes --skip-crds to kube-prometheus-stack -
+ *                                 // OpenShift's own cluster-monitoring-operator already owns the
+ *                                 // monitoring.coreos.com CRD group (AlertmanagerConfig, Prometheus,
+ *                                 // etc.); installing them again causes a field-manager conflict
+ *                                 // with the cluster-version-operator. Confirmed live.
+ *   prometheusMode: string,       // Default: 'embedded'. 'managed' (requires platform: openshift)
+ *                                 // skips deploying Prometheus/Alertmanager/prometheus-operator
+ *                                 // entirely and integrates with OpenShift's user-workload-monitoring
+ *                                 // instead - see docs/superpowers/specs/2026-09-21-rosa-managed-
+ *                                 // prometheus-integration-design.md. Grafana is still deployed by
+ *                                 // this addon (OpenShift doesn't ship it); Tempo/Loki/Alloy are
+ *                                 // unaffected by this setting in either mode. Also switches the
+ *                                 // local metrics OTel collector AND the cross-cluster gateway
+ *                                 // collector's metrics exporter from prometheusremotewrite
+ *                                 // (targeting our own in-cluster Prometheus, which doesn't exist
+ *                                 // in managed mode) to a pull-based prometheus exporter scraped
+ *                                 // via each chart's serviceMonitor.enabled.
  *   enableLogs: boolean,          // Default: true  — install Loki + Alloy
  *   enableTraces: boolean,        // Default: true  — install Tempo
  *   enableMetrics: boolean,       // Default: true  — install Prometheus scrape configs
@@ -117,6 +208,8 @@ export class TelemetryFeature extends AddonFeature {
     this.kubeContext = config.kubeContext || null;
     this.soloUiNamespace = config.soloUiNamespace || 'solo-enterprise';
     this.clusterName = config.clusterName || '';
+    this.openshift = config.platform === 'openshift';
+    this.prometheusMode = config.prometheusMode || 'embedded';
 
     if (this.mode === 'agent') {
       this.otelGatewayEndpoint = config.otelGatewayEndpoint || null;
@@ -152,6 +245,17 @@ export class TelemetryFeature extends AddonFeature {
         throw new Error(`telemetry agent mode requires: ${missing.join(', ')}`);
       }
       return true;
+    }
+    if (!['embedded', 'managed'].includes(this.prometheusMode)) {
+      throw new Error(
+        `Invalid prometheusMode '${this.prometheusMode}'. Must be: embedded, managed`
+      );
+    }
+    if (this.prometheusMode === 'managed' && !this.openshift) {
+      throw new Error(
+        "prometheusMode: managed requires platform: openshift - it integrates with OpenShift's " +
+          'user-workload-monitoring and Thanos Querier, which have no equivalent on other clouds.'
+      );
     }
     const missing = [
       !this.grafanaAdminUsername && 'GRAFANA_ADMIN_USERNAME',
@@ -357,6 +461,10 @@ export class TelemetryFeature extends AddonFeature {
     );
     this.log(`Namespace '${this.namespace}' ready`, 'info');
 
+    if (this.prometheusMode === 'managed') {
+      await this.#enableUserWorkloadMonitoring();
+    }
+
     // Tempo first — Grafana datasource config needs its endpoint
     if (this.enableTraces) {
       await this.installTempo();
@@ -422,9 +530,13 @@ export class TelemetryFeature extends AddonFeature {
     const fill = tmpl =>
       Object.entries(replacements).reduce((s, [k, v]) => s.replaceAll(k, v), tmpl);
 
+    const metricsValuesFile =
+      this.prometheusMode === 'managed'
+        ? 'otel-metrics-managed-values.yaml'
+        : 'otel-metrics-values.yaml';
     await this.installOtelChart(
       OTEL_METRICS_RELEASE,
-      fill(readFileSync(join(CONFIG_DIR, 'otel-metrics-values.yaml'), 'utf8')),
+      fill(readFileSync(join(CONFIG_DIR, metricsValuesFile), 'utf8')),
       helmCtxArgs
     );
     await this.installOtelChart(
@@ -443,6 +555,8 @@ export class TelemetryFeature extends AddonFeature {
   /**
    * Install OTel gateway collector in full mode (east cluster only).
    * The gateway acts as central fan-out for cross-cluster signals from west cluster.
+   * In managed prometheusMode, its metrics exporter switches to pull-based (see
+   * otel-gateway-managed-values.yaml), same as installOtelCollectors()'s metrics collector.
    */
   async installOtelGateway() {
     this.log('Installing OTel gateway (cross-cluster receiver)...', 'info');
@@ -454,9 +568,13 @@ export class TelemetryFeature extends AddonFeature {
     const fill = tmpl =>
       Object.entries(replacements).reduce((s, [k, v]) => s.replaceAll(k, v), tmpl);
 
+    const gatewayValuesFile =
+      this.prometheusMode === 'managed'
+        ? 'otel-gateway-managed-values.yaml'
+        : 'otel-gateway-values.yaml';
     await this.installOtelChart(
       OTEL_GATEWAY_RELEASE,
-      fill(readFileSync(join(CONFIG_DIR, 'otel-gateway-values.yaml'), 'utf8')),
+      fill(readFileSync(join(CONFIG_DIR, gatewayValuesFile), 'utf8')),
       helmCtxArgs
     );
     this.log('OTel gateway installed', 'info');
@@ -823,21 +941,11 @@ export class TelemetryFeature extends AddonFeature {
   }
 
   /**
-   * Install kube-prometheus-stack (Prometheus + Grafana + Alertmanager)
-   * Grafana is pre-configured with datasources for Prometheus, Tempo, and Loki.
+   * Build the Helm args for installing kube-prometheus-stack.
+   * Extracted from installPrometheusStack() so the resulting array is unit-testable
+   * without making live Helm/kubectl calls.
    */
-  async installPrometheusStack() {
-    this.log('Installing Prometheus and Grafana (kube-prometheus-stack)...', 'info');
-
-    await CommandRunner.run(
-      'helm',
-      ['repo', 'add', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts'],
-      { ignoreError: true }
-    );
-    await CommandRunner.run('helm', ['repo', 'update', 'prometheus-community'], {
-      ignoreError: true,
-    });
-
+  buildPrometheusStackHelmArgs() {
     // The datasources sidecar reloads Grafana via its admin-only API, so the reload
     // URL must carry the same admin credentials. Credentials are URL-encoded because
     // they are operator-supplied and embedded in the userinfo section of a URL.
@@ -860,6 +968,23 @@ export class TelemetryFeature extends AddonFeature {
       '--wait',
       '--timeout',
       '10m',
+      // OpenShift's own cluster-monitoring-operator already owns the monitoring.coreos.com
+      // CRD group - installing this chart's copy conflicts with the cluster-version-operator
+      // over field ownership. Confirmed live: "Error: failed to install CRD
+      // crds/crd-alertmanagerconfigs.yaml: conflict ... conflicts with cluster-version-operator".
+      ...(this.openshift ? ['--skip-crds'] : []),
+      // managed mode: OpenShift's own Prometheus/Alertmanager/operator (user-workload-monitoring)
+      // replace these entirely - this chart installs Grafana only.
+      ...(this.prometheusMode === 'managed'
+        ? [
+            '--set',
+            'prometheus.enabled=false',
+            '--set',
+            'alertmanager.enabled=false',
+            '--set',
+            'prometheusOperator.enabled=false',
+          ]
+        : []),
       '--set',
       `prometheus.prometheusSpec.retention=${this.retention}`,
       '--set',
@@ -900,6 +1025,165 @@ export class TelemetryFeature extends AddonFeature {
       helmArgs.push('--kube-context', this.kubeContext);
     }
 
+    return helmArgs;
+  }
+
+  /**
+   * Determine which kube-prometheus-stack resources to wait on after install.
+   * Extracted from installPrometheusStack() so it's unit-testable without live kubectl calls.
+   * In managed mode buildPrometheusStackHelmArgs() disables prometheus/prometheusOperator, so
+   * the operator Deployment and Prometheus StatefulSet never get created - only Grafana does.
+   */
+  getPrometheusStackWaitTargets() {
+    const managed = this.prometheusMode === 'managed';
+    const deployments = managed
+      ? ['kube-prometheus-stack-grafana']
+      : ['kube-prometheus-stack-operator', 'kube-prometheus-stack-grafana'];
+    const statefulSets = managed ? [] : ['prometheus-kube-prometheus-stack-prometheus'];
+    return { deployments, statefulSets };
+  }
+
+  /**
+   * Enable OpenShift's user-workload-monitoring, cluster-wide, via a one-time,
+   * idempotent patch to the openshift-monitoring/cluster-monitoring-config ConfigMap.
+   * Once enabled, the platform Prometheus (Thanos-backed) discovers ServiceMonitors/
+   * PodMonitors in user namespaces - this is what lets it scrape the mesh in managed mode.
+   * The ConfigMap is cluster-scoped, so this only needs to run once per cluster; the
+   * read-modify-write here preserves any other keys an operator may have already set.
+   * A read failure other than NotFound (RBAC denial, wrong context, transient API error) aborts
+   * loudly instead of falling through to an overwrite, since the merge can't be trusted blind.
+   */
+  async #enableUserWorkloadMonitoring() {
+    this.log('Enabling OpenShift user-workload-monitoring...', 'info');
+    const yaml = (await import('js-yaml')).default;
+    const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
+
+    const existingYaml = await readClusterMonitoringConfigYaml(ctxArgs);
+
+    const alreadyEnabled =
+      existingYaml.trim() && (yaml.load(existingYaml) || {}).enableUserWorkload === true;
+    if (alreadyEnabled) {
+      this.log('User-workload-monitoring already enabled', 'info');
+      return;
+    }
+
+    const config = mergeUserWorkloadConfig(existingYaml, yaml);
+    const configMapYaml = yaml.dump({
+      apiVersion: 'v1',
+      kind: 'ConfigMap',
+      metadata: { name: 'cluster-monitoring-config', namespace: 'openshift-monitoring' },
+      data: { 'config.yaml': yaml.dump(config) },
+    });
+
+    await CommandRunner.exec(`oc ${ctxArgs.join(' ')} apply -f -`, { input: configMapYaml });
+    this.log(
+      'User-workload-monitoring enabled - platform Prometheus will roll out shortly',
+      'success'
+    );
+  }
+
+  /**
+   * Provision the ServiceAccount + ClusterRoleBinding Grafana uses to authenticate to
+   * OpenShift's platform Thanos Querier, then mint a long-lived token and fetch the
+   * querier's CA bundle. cluster-monitoring-view is the platform's own read-only
+   * ClusterRole for the Thanos Querier API - the same one `oc adm` tooling grants
+   * to human users who need query access without write/admin rights.
+   * Consumed by installDatasources() to wire Grafana's Prometheus datasource to the
+   * platform Thanos Querier in managed mode.
+   */
+  async #getThanosQuerierCredentials() {
+    this.log('Provisioning Grafana ServiceAccount for Thanos Querier access...', 'info');
+    const saName = 'grafana-thanos-reader';
+    const crbName = `grafana-thanos-reader-${this.namespace}`;
+    const ctxArgs = this.kubeContext ? [`--context=${this.kubeContext}`] : [];
+
+    await this.applyResource(
+      {
+        apiVersion: 'v1',
+        kind: 'ServiceAccount',
+        metadata: { name: saName, namespace: this.namespace },
+      },
+      this.kubeContext
+    );
+
+    await this.applyResource(
+      {
+        apiVersion: 'rbac.authorization.k8s.io/v1',
+        kind: 'ClusterRoleBinding',
+        metadata: { name: crbName },
+        subjects: [{ kind: 'ServiceAccount', name: saName, namespace: this.namespace }],
+        roleRef: {
+          kind: 'ClusterRole',
+          name: 'cluster-monitoring-view',
+          apiGroup: 'rbac.authorization.k8s.io',
+        },
+      },
+      this.kubeContext
+    );
+
+    // 8760h (1 year) — long enough that Grafana's datasource config doesn't need a
+    // token-refresh mechanism for the life of a typical demo/POC deployment.
+    const tokenResult = await CommandRunner.run(
+      'oc',
+      [...ctxArgs, 'create', 'token', saName, '-n', this.namespace, '--duration=8760h'],
+      { captureOutput: true }
+    );
+    const token = tokenResult.stdout.trim();
+    if (!token) {
+      throw new Error(
+        `'oc create token' for ServiceAccount '${saName}' in '${this.namespace}' returned an empty token`
+      );
+    }
+
+    const caCert = await this.#getThanosQuerierCaCert(ctxArgs);
+
+    this.log('Thanos Querier credentials ready', 'info');
+    return { token, caCert };
+  }
+
+  /**
+   * Get the CA that signed the Thanos Querier's serving certificate, so Grafana can validate
+   * it over TLS. OpenShift's service-ca-operator injects the cluster's serving CA bundle into
+   * any ConfigMap annotated with service.beta.openshift.io/inject-cabundle - this creates that
+   * ConfigMap, then delegates to waitForCaBundleConfigMap() to poll until the operator
+   * populates it.
+   */
+  async #getThanosQuerierCaCert(ctxArgs, timeoutMs = 120000) {
+    const cmName = 'thanos-querier-ca-bundle';
+    await this.applyResource(
+      {
+        apiVersion: 'v1',
+        kind: 'ConfigMap',
+        metadata: {
+          name: cmName,
+          namespace: this.namespace,
+          annotations: { 'service.beta.openshift.io/inject-cabundle': 'true' },
+        },
+      },
+      this.kubeContext
+    );
+
+    return waitForCaBundleConfigMap(cmName, this.namespace, ctxArgs, timeoutMs);
+  }
+
+  /**
+   * Install kube-prometheus-stack (Prometheus + Grafana + Alertmanager)
+   * Grafana is pre-configured with datasources for Prometheus, Tempo, and Loki.
+   */
+  async installPrometheusStack() {
+    this.log('Installing Prometheus and Grafana (kube-prometheus-stack)...', 'info');
+
+    await CommandRunner.run(
+      'helm',
+      ['repo', 'add', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts'],
+      { ignoreError: true }
+    );
+    await CommandRunner.run('helm', ['repo', 'update', 'prometheus-community'], {
+      ignoreError: true,
+    });
+
+    const helmArgs = this.buildPrometheusStackHelmArgs();
+
     let oidcValuesFile = null;
     try {
       if (this.grafanaOidc?.enabled && this.grafanaHostname) {
@@ -923,9 +1207,13 @@ export class TelemetryFeature extends AddonFeature {
       this.kubeContext
     );
 
-    await this.waitForDeployment('kube-prometheus-stack-operator', 120);
-    await this.waitForDeployment('kube-prometheus-stack-grafana', 120);
-    await this.waitForStatefulSet('prometheus-kube-prometheus-stack-prometheus', 120);
+    const { deployments, statefulSets } = this.getPrometheusStackWaitTargets();
+    for (const name of deployments) {
+      await this.waitForDeployment(name, 120);
+    }
+    for (const name of statefulSets) {
+      await this.waitForStatefulSet(name, 120);
+    }
     this.log('kube-prometheus-stack installed', 'info');
   }
 
@@ -937,12 +1225,41 @@ export class TelemetryFeature extends AddonFeature {
    * before Grafana starts — no reload race condition.
    *
    * Datasource URLs use the configured telemetry namespace (supports non-default namespaces).
+   *
+   * In managed mode, the Prometheus datasource points at OpenShift's platform Thanos Querier
+   * instead of an in-cluster Prometheus, authenticating with the Bearer token and CA cert from
+   * #getThanosQuerierCredentials().
    */
   async installDatasources() {
     this.log('Installing Grafana datasources...', 'info');
 
     const template = await readFile(join(CONFIG_DIR, 'grafana-datasources.yaml'), 'utf8');
-    const content = template.replaceAll('{{TELEMETRY_NAMESPACE}}', this.namespace);
+    let content = template.replaceAll('{{TELEMETRY_NAMESPACE}}', this.namespace);
+
+    if (this.prometheusMode === 'managed') {
+      const { token, caCert } = await this.#getThanosQuerierCredentials();
+      content = content
+        .replaceAll(
+          '{{PROMETHEUS_DATASOURCE_URL}}',
+          'https://thanos-querier.openshift-monitoring.svc:9092'
+        )
+        .replace(
+          '{{PROMETHEUS_AUTH_JSONDATA}}',
+          'httpHeaderName1: Authorization\n      tlsAuthWithCACert: true'
+        )
+        .replace(
+          '{{PROMETHEUS_AUTH_SECUREJSONDATA}}',
+          `secureJsonData:\n      httpHeaderValue1: ${JSON.stringify(`Bearer ${token}`)}\n      tlsCACert: ${JSON.stringify(caCert)}`
+        );
+    } else {
+      content = content
+        .replaceAll(
+          '{{PROMETHEUS_DATASOURCE_URL}}',
+          `http://kube-prometheus-stack-prometheus.${this.namespace}:9090`
+        )
+        .replace('{{PROMETHEUS_AUTH_JSONDATA}}', '')
+        .replace('{{PROMETHEUS_AUTH_SECUREJSONDATA}}', '');
+    }
 
     await this.applyResource(
       {

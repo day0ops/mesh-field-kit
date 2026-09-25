@@ -126,3 +126,201 @@ test('writeTerraformVars emits vm_cluster_index when enabled', () => {
   const content = readFileSync(runner.varFile, 'utf8');
   expect(content).toContain('vm_cluster_index = 1');
 });
+
+function eksRosaClusters() {
+  return [
+    {
+      name: 'rosa-cluster',
+      provisioner: {
+        type: 'eks-rosa',
+        cloud: 'rosa',
+        owner: 'kasunt',
+        cluster_name: 'ridge',
+        nodes: { desired: 2 },
+      },
+    },
+    {
+      name: 'eks-cluster',
+      provisioner: {
+        type: 'eks-rosa',
+        cloud: 'eks',
+        owner: 'kasunt',
+        region: 'ap-southeast-2',
+        cluster_name: 'ridge',
+        nodes: { desired: 2 },
+      },
+    },
+  ];
+}
+
+test('writeTerraformVars for eks-rosa emits eks_* and rosa_* vars, omits gke/aks', () => {
+  const runner = new TerraformCloudRunner('rosa-eks-multi-cluster', eksRosaClusters(), {
+    outputDir: dir,
+    kubeconfigDir: join(dir, 'kubeconfig'),
+  });
+  runner.ensureDirectories();
+  runner.writeTerraformVars(runner.resolveConfiguration());
+
+  const content = readFileSync(runner.varFile, 'utf8');
+  expect(content).toContain('eks_cluster_count = 1');
+  expect(content).toContain('rosa_cluster_count = 1');
+  expect(content).toContain('rosa_cluster_name = "ridge"');
+  expect(content).not.toContain('gke_cluster_count');
+  expect(content).not.toContain('aks_cluster_count');
+});
+
+test('writeTerraformVars for eks-rosa emits dns_* vars when dnsConfig is route53 with a parentZone', () => {
+  const runner = new TerraformCloudRunner('rosa-eks-multi-cluster', eksRosaClusters(), {
+    outputDir: dir,
+    kubeconfigDir: join(dir, 'kubeconfig'),
+    dnsConfig: {
+      provider: 'route53',
+      parentZone: { domain: 'kasunt.apac.fe.solo.io', hostedZoneId: 'Z08818701HDZ6PBD6LPXU' },
+      childZone: 'mesh-demo',
+      txtOwnerId: 'mesh-demo',
+    },
+  });
+  runner.ensureDirectories();
+  runner.writeTerraformVars(runner.resolveConfiguration());
+
+  const content = readFileSync(runner.varFile, 'utf8');
+  expect(content).toContain('enable_dns = true');
+  expect(content).toContain('dns_parent_zone_id = "Z08818701HDZ6PBD6LPXU"');
+  expect(content).toContain('dns_parent_domain = "kasunt.apac.fe.solo.io"');
+  expect(content).toContain('dns_child_zone_name = "mesh-demo"');
+});
+
+test('writeTerraformVars for eks-rosa omits dns_* vars when dnsConfig is absent', () => {
+  const runner = new TerraformCloudRunner('rosa-eks-multi-cluster', eksRosaClusters(), {
+    outputDir: dir,
+    kubeconfigDir: join(dir, 'kubeconfig'),
+  });
+  runner.ensureDirectories();
+  runner.writeTerraformVars(runner.resolveConfiguration());
+
+  const content = readFileSync(runner.varFile, 'utf8');
+  expect(content).not.toContain('enable_dns');
+  expect(content).not.toContain('dns_parent_zone_id');
+});
+
+test('standalone rosa provider writeTerraformVars emits rosa_* vars', () => {
+  const runner = new TerraformCloudRunner(
+    'rosa-single-cluster',
+    [
+      {
+        name: 'rosa-demo',
+        provisioner: {
+          type: 'rosa',
+          owner: 'kasunt',
+          cluster_name: 'rosa-poc',
+          nodes: { desired: 2 },
+        },
+      },
+    ],
+    { outputDir: dir, kubeconfigDir: join(dir, 'kubeconfig') }
+  );
+  runner.ensureDirectories();
+  runner.writeTerraformVars(runner.resolveConfiguration());
+
+  const content = readFileSync(runner.varFile, 'utf8');
+  expect(content).toContain('rosa_cluster_name = "rosa-poc"');
+  expect(content).toContain('rosa_compute_machine_type = "m5.xlarge"');
+});
+
+test('extractNetworkInfo returns vpcId, privateSubnetIds, and publicSubnetIds for the given cluster index', async () => {
+  const runner = makeRunner();
+  const terraform = {
+    getOutput: async (_stateFile, key) => {
+      if (key === 'rosa_vpc_ids') return ['vpc-0abc123'];
+      if (key === 'rosa_private_subnet_ids') return [['subnet-private1', 'subnet-private2']];
+      if (key === 'rosa_public_subnet_ids') return [['subnet-public1', 'subnet-public2']];
+      if (key === 'rosa_worker_security_group_ids') return [null];
+      return null;
+    },
+  };
+
+  const network = await runner.extractNetworkInfo(terraform, 'rosa', 0);
+  expect(network).toEqual({
+    vpcId: 'vpc-0abc123',
+    privateSubnetIds: ['subnet-private1', 'subnet-private2'],
+    publicSubnetIds: ['subnet-public1', 'subnet-public2'],
+    workerSgId: null,
+  });
+});
+
+test('extractNetworkInfo defaults publicSubnetIds to an empty array when the output is missing', async () => {
+  const runner = makeRunner();
+  const terraform = {
+    getOutput: async (_stateFile, key) => {
+      if (key === 'eks_vpc_ids') return ['vpc-0abc123'];
+      return null;
+    },
+  };
+
+  const network = await runner.extractNetworkInfo(terraform, 'eks', 0);
+  expect(network.publicSubnetIds).toEqual([]);
+});
+
+test('extractIamInfo returns albControllerRoleArn for the given cluster index', async () => {
+  const runner = makeRunner();
+  const terraform = {
+    getOutput: async (_stateFile, key) => {
+      if (key === 'eks_aws_load_balancer_controller_role_arns') {
+        return ['arn:aws:iam::111111111111:role/east-lbc-role', null];
+      }
+      return null;
+    },
+  };
+
+  const iam0 = await runner.extractIamInfo(terraform, 'eks', 0);
+  expect(iam0).toEqual({ albControllerRoleArn: 'arn:aws:iam::111111111111:role/east-lbc-role' });
+
+  const iam1 = await runner.extractIamInfo(terraform, 'eks', 1);
+  expect(iam1).toBeNull();
+});
+
+test('extractIamInfo returns null when the output is missing', async () => {
+  const runner = makeRunner();
+  const terraform = { getOutput: async () => null };
+
+  const iam = await runner.extractIamInfo(terraform, 'eks', 0);
+  expect(iam).toBeNull();
+});
+
+test('extractIamInfo returns both albControllerRoleArn and externalDnsRoleArn when present', async () => {
+  const runner = makeRunner();
+  const terraform = {
+    getOutput: async (_stateFile, key) => {
+      if (key === 'rosa_aws_load_balancer_controller_role_arns') {
+        return ['arn:aws:iam::111111111111:role/rosa-lbc-role'];
+      }
+      if (key === 'rosa_external_dns_role_arns') {
+        return ['arn:aws:iam::111111111111:role/rosa-external-dns-role'];
+      }
+      return null;
+    },
+  };
+
+  const iam = await runner.extractIamInfo(terraform, 'rosa', 0);
+  expect(iam).toEqual({
+    albControllerRoleArn: 'arn:aws:iam::111111111111:role/rosa-lbc-role',
+    externalDnsRoleArn: 'arn:aws:iam::111111111111:role/rosa-external-dns-role',
+  });
+});
+
+test('extractIamInfo returns externalDnsRoleArn alone when the LBC role is absent', async () => {
+  const runner = makeRunner();
+  const terraform = {
+    getOutput: async (_stateFile, key) => {
+      if (key === 'rosa_external_dns_role_arns') {
+        return ['arn:aws:iam::111111111111:role/rosa-external-dns-role'];
+      }
+      return null;
+    },
+  };
+
+  const iam = await runner.extractIamInfo(terraform, 'rosa', 0);
+  expect(iam).toEqual({
+    externalDnsRoleArn: 'arn:aws:iam::111111111111:role/rosa-external-dns-role',
+  });
+});

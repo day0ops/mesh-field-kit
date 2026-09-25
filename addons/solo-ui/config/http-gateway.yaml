@@ -1,22 +1,17 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: solo-enterprise-ui-https
+  name: solo-enterprise-ui-http
   namespace: istio-system
 spec:
   gatewayClassName: istio
   infrastructure:
     annotations: {}
   listeners:
-    - name: https
-      port: 443
-      protocol: HTTPS
+    - name: http
+      port: 80
+      protocol: HTTP
       hostname: example.com
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - name: solo-ui-tls
-            kind: Secret
       allowedRoutes:
         namespaces:
           from: All

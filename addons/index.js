@@ -16,6 +16,8 @@ import { CalicoFeature } from './calico/index.js';
 import { TelemetryFeature } from './telemetry/index.js';
 import { KgatewayFeature } from './kgateway/index.js';
 import { SpireFeature } from './spire/index.js';
+import { OpenshiftSccFeature } from './openshift-scc/index.js';
+import { AwsLoadBalancerControllerFeature } from './aws-load-balancer-controller/index.js';
 
 // Register all addons
 FeatureManager.register('cert-manager', CertManagerFeature);
@@ -27,6 +29,8 @@ FeatureManager.register('calico', CalicoFeature);
 FeatureManager.register('telemetry', TelemetryFeature);
 FeatureManager.register('kgateway', KgatewayFeature);
 FeatureManager.register('spire', SpireFeature);
+FeatureManager.register('openshift-scc', OpenshiftSccFeature);
+FeatureManager.register('aws-load-balancer-controller', AwsLoadBalancerControllerFeature);
 
 // Export for direct use if needed
 export {
@@ -39,4 +43,6 @@ export {
   TelemetryFeature,
   KgatewayFeature,
   SpireFeature,
+  OpenshiftSccFeature,
+  AwsLoadBalancerControllerFeature,
 };

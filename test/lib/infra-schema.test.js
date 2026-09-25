@@ -131,3 +131,35 @@ test('getVmClusterName returns null when there are no clusters', () => {
   const profile = baseProfile({ clusters: [] });
   expect(InfraSchema.getVmClusterName(profile, { name: 'vm1' })).toBeNull();
 });
+
+test('validate accepts rosa provider', () => {
+  const profile = baseProfile({ provider: 'rosa' });
+  const result = InfraSchema.validate(profile);
+  expect(result.valid).toBe(true);
+  expect(result.errors).toEqual([]);
+});
+
+test('validate accepts eks-rosa provider with cloud set on each cluster', () => {
+  const profile = baseProfile({
+    provider: 'eks-rosa',
+    clusters: [
+      { name: 'rosa-cluster', role: 'management', cloud: 'rosa' },
+      { name: 'eks-cluster', role: 'workload', cloud: 'eks' },
+    ],
+  });
+  const result = InfraSchema.validate(profile);
+  expect(result.valid).toBe(true);
+  expect(result.errors).toEqual([]);
+});
+
+test('validate rejects an eks-rosa cluster missing cloud', () => {
+  const profile = baseProfile({
+    provider: 'eks-rosa',
+    clusters: [{ name: 'rosa-cluster', role: 'management' }],
+  });
+  const result = InfraSchema.validate(profile);
+  expect(result.valid).toBe(false);
+  expect(result.errors).toContain(
+    "spec.clusters[0]: Missing required field 'cloud' for multicluster provider"
+  );
+});

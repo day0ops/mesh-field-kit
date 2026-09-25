@@ -26,9 +26,10 @@ spec:
 
   keycloak:
     scheme: https
+    loginTheme: keycloak-soloio-login-theme
 
   soloUi:
-    version: 0.5.6
+    version: 0.5.7
 
   images:
     keycloak: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/keycloak:26.7.0
@@ -55,3 +56,10 @@ spec:
   # Okta tenant
   okta:
     domain: integrator-1335842.okta.com
+
+  # CIDR allowlist applied to public-facing NLBs (aws-load-balancer-source-ranges).
+  # Checkpoint Harmony SASE documented egress range.
+  security:
+    vpnSourceRanges:
+      - 165.99.148.61/32
+      - 64.226.138.86/32

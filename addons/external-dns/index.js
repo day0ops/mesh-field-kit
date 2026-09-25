@@ -28,6 +28,7 @@ export class ExternalDnsFeature extends AddonFeature {
     this.txtOwnerId = config.txtOwnerId || 'mesh-demo';
     this.namespace = config.namespace || 'external-dns';
     this.version = config.version || EXTERNAL_DNS_VERSION;
+    this.serviceAccountRoleArn = config.serviceAccountRoleArn || null;
     this.kubeContext = config.kubeContext || null;
   }
 
@@ -101,6 +102,13 @@ export class ExternalDnsFeature extends AddonFeature {
       'sources[2]=gateway-httproute',
       ...extraArgs.flatMap((arg, i) => ['--set', `extraArgs[${i}]=${arg}`]),
     ];
+
+    if (this.serviceAccountRoleArn) {
+      helmArgs.push(
+        '--set',
+        `serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${this.serviceAccountRoleArn}`
+      );
+    }
 
     if (this.kubeContext) {
       helmArgs.push('--kube-context', this.kubeContext);

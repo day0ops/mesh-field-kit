@@ -82,6 +82,7 @@ export async function generate(_subIndex, addonCfg, clusterName, _profile, _env)
   const spireCrdsVersion = cfg.spireCrdsVersion || '0.6.0';
   const distinctRoots = cfg.distinctRoots === true;
   const multiRoot = cfg.multiRoot === true || distinctRoots;
+  const openshift = cfg.platform === 'openshift';
   const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   const certsDir = `/tmp/spire-certs/${trustDomain}`;
 
@@ -301,7 +302,7 @@ helm upgrade -i spire spire/spire \\
   -f - <<EOF
 global:
   spire:
-    trustDomain: ${trustDomain}
+    trustDomain: ${trustDomain}${openshift ? '\n  openshift: true' : ''}
 spire-agent:
   authorizedDelegates:
     - "spiffe://${trustDomain}/ns/istio-system/sa/ztunnel"
@@ -382,7 +383,7 @@ metadata:
   name: istio-ambient-reg
 spec:
   spiffeIDTemplate: "spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}"
-  podSelector:
+  namespaceSelector:
     matchLabels:
       istio.io/dataplane-mode: ambient
 EOF

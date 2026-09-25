@@ -140,7 +140,11 @@ ${authSection}`;
     const envDir = `environments/${provider}`;
     const clusters = infraProfile.spec.clusters || [];
     const settings = infraProfile.spec.settings || {};
-    const isAws = provider.startsWith('eks');
+    // 'eks-rosa' also starts with 'eks' but declares a different variable set
+    // (eks_*/rosa_*, no gke_*/aks_*) that this generic tfvars template doesn't
+    // model - fall back to the same honest placeholder 'multicluster' already
+    // gets, rather than emitting a wrong eks-only block.
+    const isAws = provider.startsWith('eks') && provider !== 'eks-rosa';
 
     // DNS vars if any cluster has external-dns addon
     const allClusterAddons = (profile.spec.addons?.clusters || []).flatMap(c => c.addons || []);

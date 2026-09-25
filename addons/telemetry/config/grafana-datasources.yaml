@@ -4,7 +4,7 @@ datasources:
     type: prometheus
     uid: prometheus
     access: proxy
-    url: http://kube-prometheus-stack-prometheus.{{TELEMETRY_NAMESPACE}}:9090
+    url: {{PROMETHEUS_DATASOURCE_URL}}
     isDefault: true
     editable: true
     jsonData:
@@ -12,6 +12,8 @@ datasources:
       exemplarTraceIdDestinations:
         - name: trace_id
           datasourceUid: tempo
+      {{PROMETHEUS_AUTH_JSONDATA}}
+    {{PROMETHEUS_AUTH_SECUREJSONDATA}}
 
   - name: Tempo
     type: tempo

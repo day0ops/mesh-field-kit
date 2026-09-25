@@ -1,0 +1,97 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: global-service-discovery-rosa-eks
+  description: |
+    Cross-cluster service discovery between a ROSA cluster and an EKS
+    cluster, both running Solo Istio Ambient Enterprise.
+    - Services labeled solo.io/service-scope=global get a unified mesh.internal hostname
+    - Annotate with networking.istio.io/traffic-distribution: Any to distribute across clusters
+    - Endpoints from both clusters are merged under the same global hostname
+
+spec:
+  infra: rosa-eks-multi-cluster
+
+  requires:
+    applications:
+      - name: bookinfo
+        namespace: bookinfo
+        clusters:
+          - name: rosa-cluster
+          - name: eks-cluster
+
+  features:
+    - name: global-service
+      description: Make bookinfo services globally accessible
+      config:
+        namespace: bookinfo
+        services:
+          - name: productpage
+            scope: global
+          - name: reviews
+            scope: global
+            annotations:
+              networking.istio.io/traffic-distribution: Any
+        deploymentPatches:
+          - deployment: productpage-v1
+            env:
+              REVIEWS_HOSTNAME: reviews.bookinfo.mesh.internal
+      clusters:
+        - name: rosa-cluster
+        - name: eks-cluster
+
+  tests:
+    - name: global-service-entries-exist
+      description: Verify global ServiceEntry resources are created for bookinfo services on both clusters
+      steps:
+        - action: exec
+          clusters:
+            - name: rosa-cluster
+          command: kubectl get serviceentry -n istio-system -o jsonpath='{.items[*].spec.hosts[*]}'
+          timeout: 20s
+        - action: verify
+          expect:
+            contains:
+              - productpage.bookinfo.mesh.internal
+              - reviews.bookinfo.mesh.internal
+        - action: exec
+          clusters:
+            - name: eks-cluster
+          command: kubectl get serviceentry -n istio-system -o jsonpath='{.items[*].spec.hosts[*]}'
+          timeout: 20s
+        - action: verify
+          expect:
+            contains:
+              - productpage.bookinfo.mesh.internal
+              - reviews.bookinfo.mesh.internal
+
+    - name: reviews-global-endpoints
+      description: Verify istioctl zc shows cross-cluster autogen WorkloadEntry for reviews on eks-cluster
+      clusters:
+        - name: eks-cluster
+      steps:
+        - action: istioctl-zc-endpoints
+          hostname: reviews.bookinfo.mesh.internal
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains:
+              - autogen.rosa-cluster.bookinfo.reviews
+              - Healthy
+
+    - name: cross-cluster-global-service
+      description: productpage on rosa-cluster reaches reviews via mesh.internal, no ingress gateway involved
+      clusters:
+        - name: rosa-cluster
+      steps:
+        # productpage-v1's image has no curl binary - use python3 (already present) instead.
+        - action: exec
+          command: kubectl exec deploy/productpage-v1 -n bookinfo -- python3 -c "import urllib.request; print(urllib.request.urlopen('http://reviews.bookinfo.mesh.internal:9080/reviews/1', timeout=5).getcode())"
+          timeout: 30s
+          retries: 5
+          retryDelay: 6000
+        - action: verify
+          expect:
+            contains: '200'

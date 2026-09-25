@@ -1,0 +1,28 @@
+apiVersion: mesh.demo/v1
+kind: InfraProfile
+metadata:
+  name: rosa-eks-multi-cluster
+  description: ROSA (HCP) management cluster and EKS workload cluster in the same AWS region, for Solo Istio Ambient multicluster
+
+spec:
+  name: rosa-eks
+  provider: eks-rosa
+  environment: aws-dev
+
+  clusters:
+    - name: rosa-cluster
+      cloud: rosa
+      role: management
+      settings:
+        nodes:
+          desired: 2
+          type: m5.2xlarge
+
+    - name: eks-cluster
+      cloud: eks
+      region: ap-southeast-2
+      role: workload
+      settings:
+        nodes:
+          desired: 2
+          type: t3.large
