@@ -167,7 +167,7 @@ spec:
             enablePodSecurityLabel: false
 
           - name: openshift-scc
-            description: Privileged SCC for external-dns's fixed non-root UID/GID
+            description: Privileged SCC for cert-manager's fixed non-root UID/GID
             phase: pre
             namespace: cert-manager
             enableRoutingViaHost: false
@@ -236,7 +236,6 @@ spec:
             namespace: solo-enterprise
             serviceType: LoadBalancer
             telemetryNamespace: telemetry
-            # Plain HTTP, no cert-manager Certificate needed - internal demo domain only.
             hostname: '{{env.domains.core.soloUi}}'
             sourceRanges: '{{env.security.vpnSourceRanges}}'
             # Bypasses the AWS LBC's tag-based subnet auto-discovery - confirmed live
