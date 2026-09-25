@@ -100,10 +100,7 @@ export class OpenshiftSccFeature extends AddonFeature {
       ignoreError: true,
     });
 
-    this.log(
-      `Labeling namespace '${this.sccNamespace}' for '${this.scc}' Pod Security...`,
-      'info'
-    );
+    this.log(`Labeling namespace '${this.sccNamespace}' for '${this.scc}' Pod Security...`, 'info');
     await CommandRunner.run('oc', [
       ...ctxArgs,
       'label',

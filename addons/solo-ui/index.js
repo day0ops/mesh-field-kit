@@ -677,7 +677,10 @@ export class SoloUIFeature extends AddonFeature {
   async applyGatewayResources() {
     const tlsEnabled = this.tls?.enabled === true;
     const scheme = tlsEnabled ? 'https' : 'http';
-    this.log(`Configuring ${scheme.toUpperCase()} for Solo UI at ${scheme}://${this.hostname}...`, 'info');
+    this.log(
+      `Configuring ${scheme.toUpperCase()} for Solo UI at ${scheme}://${this.hostname}...`,
+      'info'
+    );
 
     const gatewayName = tlsEnabled ? 'solo-enterprise-ui-https' : 'solo-enterprise-ui-http';
     const infrastructureAnnotations = {

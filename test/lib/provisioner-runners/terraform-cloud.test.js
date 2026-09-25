@@ -320,5 +320,7 @@ test('extractIamInfo returns externalDnsRoleArn alone when the LBC role is absen
   };
 
   const iam = await runner.extractIamInfo(terraform, 'rosa', 0);
-  expect(iam).toEqual({ externalDnsRoleArn: 'arn:aws:iam::111111111111:role/rosa-external-dns-role' });
+  expect(iam).toEqual({
+    externalDnsRoleArn: 'arn:aws:iam::111111111111:role/rosa-external-dns-role',
+  });
 });

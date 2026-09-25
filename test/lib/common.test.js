@@ -14,9 +14,7 @@ test('nlbSourceRangeAnnotations returns base NLB annotations with no source rang
 
 test('nlbSourceRangeAnnotations adds load-balancer-source-ranges (no aws- prefix) when given a single CIDR', () => {
   const result = nlbSourceRangeAnnotations('165.99.148.61/32');
-  expect(result['service.beta.kubernetes.io/load-balancer-source-ranges']).toBe(
-    '165.99.148.61/32'
-  );
+  expect(result['service.beta.kubernetes.io/load-balancer-source-ranges']).toBe('165.99.148.61/32');
 });
 
 test('nlbSourceRangeAnnotations joins multiple CIDRs with commas', () => {

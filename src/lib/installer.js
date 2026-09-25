@@ -59,7 +59,9 @@ const COMPONENT_NAMESPACE_MAP = {
 export function resolveComponentNamespace(profile, cluster, component, cfg) {
   const override = ProfileSchema.getClusterOverride(profile, cluster.name);
   return (
-    override?.componentNamespaces?.[component] || COMPONENT_NAMESPACE_MAP[component] || cfg.namespace
+    override?.componentNamespaces?.[component] ||
+    COMPONENT_NAMESPACE_MAP[component] ||
+    cfg.namespace
   );
 }
 
@@ -1010,9 +1012,12 @@ export class InstallerManager {
         }
 
         try {
-          await CommandRunner.exec(`helm ${flags.helm} uninstall ${release} -n ${releaseNamespace}`);
+          await CommandRunner.exec(
+            `helm ${flags.helm} uninstall ${release} -n ${releaseNamespace}`
+          );
         } catch (err) {
-          if (!/not found|no deployed releases|failed to delete release/i.test(err.message)) throw err;
+          if (!/not found|no deployed releases|failed to delete release/i.test(err.message))
+            throw err;
         }
       }
 

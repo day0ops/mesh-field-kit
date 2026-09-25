@@ -3,8 +3,8 @@ kind: Profile
 metadata:
   name: rosa-eks-ambient-peering
   description: |
-    Solo Istio Ambient Enterprise on both a ROSA (HCP) cluster and an EKS cluster, linked via this framework's normal Solo peering multicluster mechanism. 
-    SPIRE (independent root per cluster, federated) provides workload identity attestation on both clusters. 
+    Solo Istio Ambient Enterprise on both a ROSA (HCP) cluster and an EKS cluster, linked via this framework's normal Solo peering multicluster mechanism.
+    SPIRE (independent root per cluster, federated) provides workload identity attestation on both clusters.
     Solo UI + telemetry run on the ROSA (management) cluster.
 
 spec:

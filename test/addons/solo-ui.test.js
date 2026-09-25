@@ -60,7 +60,11 @@ test('applyGatewayResources applies the HTTP gateway/route and skips the Certifi
   await f.applyGatewayResources();
 
   const filenames = applyYamlFileSpy.mock.calls.map(call => call[0]);
-  expect(filenames).toEqual(['http-gateway.yaml', 'http-route.yaml', 'gateway-tracing-suppress-policy.yaml']);
+  expect(filenames).toEqual([
+    'http-gateway.yaml',
+    'http-route.yaml',
+    'gateway-tracing-suppress-policy.yaml',
+  ]);
 
   const [, gatewayOverrides] = applyYamlFileSpy.mock.calls[0];
   expect(gatewayOverrides.spec.listeners[0].protocol).toBe('HTTP');
