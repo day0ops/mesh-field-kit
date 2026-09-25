@@ -26,6 +26,7 @@ spec:
 
   keycloak:
     scheme: https
+    loginTheme: keycloak-soloio-login-theme
 
   soloUi:
     version: 0.5.7

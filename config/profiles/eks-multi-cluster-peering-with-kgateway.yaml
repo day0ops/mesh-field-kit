@@ -143,6 +143,7 @@ spec:
             keycloakImage: '{{env.images.keycloak}}'
             hostname: '{{env.domains.core.keycloak}}'
             protocol: '{{env.keycloak.scheme}}'
+            loginTheme: '{{env.keycloak.loginTheme}}'
             tls:
               enabled: true
               secretName: keycloak-tls

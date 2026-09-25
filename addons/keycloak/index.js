@@ -35,6 +35,7 @@ const yamlSingleQuote = value => String(value).replaceAll("'", "''");
  *   postgresVersion: string,      // Default: POSTGRES_VERSION
  *   hostname: string,             // Default: cluster-local FQDN
  *   protocol: string,             // Default: 'https'
+ *   loginTheme: string,           // Optional: realm loginTheme, applied to every realm this feature creates/touches
  *   realm: string,                // Default: 'mesh-dev' (legacy path only)
  *   clientId: string,             // Default: 'mesh-client' (legacy path only)
  *   clientSecret: string,         // Default: 'mesh-client-secret' (legacy path only)
@@ -116,6 +117,7 @@ export class KeycloakFeature extends AddonFeature {
     this.workloadClients = config.workloadClients || [];
     this.soloUIClients = config.soloUIClients || null;
     this.soloUIRealm = config.soloUIClients?.realm || 'solo-ui';
+    this.loginTheme = config.loginTheme || null;
     this.adminUsername = process.env.KEYCLOAK_ADMIN_USERNAME || '';
     this.adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || '';
     this.postgresUser = process.env.KEYCLOAK_POSTGRES_USER || '';
@@ -1196,21 +1198,20 @@ export class KeycloakFeature extends AddonFeature {
   async createSoloUIRealm(baseUrl, token) {
     if (await this.realmExists(baseUrl, token, this.soloUIRealm)) {
       this.log(`Realm '${this.soloUIRealm}' already exists, skipping creation`, 'info');
-      await this.ensureRealmLoginTheme(baseUrl, token, this.soloUIRealm);
-      return;
+    } else {
+      this.log(`Creating Solo UI realm '${this.soloUIRealm}'...`, 'info');
+      await this.kcApi('POST', `${baseUrl}/admin/realms`, token, {
+        realm: this.soloUIRealm,
+        enabled: true,
+        displayName: 'Solo Enterprise UI',
+        loginWithEmailAllowed: true,
+        duplicateEmailsAllowed: false,
+        resetPasswordAllowed: true,
+        editUsernameAllowed: false,
+        bruteForceProtected: false,
+      });
     }
-    this.log(`Creating Solo UI realm '${this.soloUIRealm}'...`, 'info');
-    await this.kcApi('POST', `${baseUrl}/admin/realms`, token, {
-      realm: this.soloUIRealm,
-      enabled: true,
-      displayName: 'Solo Enterprise UI',
-      loginTheme: 'keycloak-soloio-login-theme',
-      loginWithEmailAllowed: true,
-      duplicateEmailsAllowed: false,
-      resetPasswordAllowed: true,
-      editUsernameAllowed: false,
-      bruteForceProtected: false,
-    });
+    await this.ensureRealmLoginTheme(baseUrl, token, this.soloUIRealm);
   }
 
   async createSoloUIClients(baseUrl, token) {
@@ -1421,14 +1422,14 @@ export class KeycloakFeature extends AddonFeature {
   }
 
   /**
-   * Set the realm's login theme. Keycloak's realm PUT only applies fields present in
-   * the body, so this is safe to call on realms that already existed before this addon
-   * ran - without it, a realm created before the loginTheme default was added would
-   * never pick it up.
+   * Set the realm's login theme when configured. Keycloak's realm PUT only applies
+   * fields present in the body, so this is safe to call for both newly-created and
+   * pre-existing realms without disturbing other realm settings.
    */
   async ensureRealmLoginTheme(baseUrl, token, realmName) {
+    if (!this.loginTheme) return;
     await this.kcApi('PUT', `${baseUrl}/admin/realms/${realmName}`, token, {
-      loginTheme: 'keycloak-soloio-login-theme',
+      loginTheme: this.loginTheme,
     });
   }
 
@@ -1502,47 +1503,45 @@ export class KeycloakFeature extends AddonFeature {
   async createRealm(baseUrl, token) {
     if (await this.realmExists(baseUrl, token, this.realm)) {
       this.log(`Realm '${this.realm}' already exists, skipping creation`, 'info');
-      await this.ensureRealmLoginTheme(baseUrl, token, this.realm);
-      return;
+    } else {
+      this.log(`Creating realm '${this.realm}'...`, 'info');
+      await this.kcApi('POST', `${baseUrl}/admin/realms`, token, {
+        realm: this.realm,
+        enabled: true,
+        displayName: this.realm,
+        loginWithEmailAllowed: true,
+        duplicateEmailsAllowed: false,
+        resetPasswordAllowed: true,
+        editUsernameAllowed: false,
+        bruteForceProtected: false,
+        accessCodeLifespan: 300,
+        accessCodeLifespanUserAction: 600,
+        accessCodeLifespanLogin: 1800,
+      });
     }
-    this.log(`Creating realm '${this.realm}'...`, 'info');
-    await this.kcApi('POST', `${baseUrl}/admin/realms`, token, {
-      realm: this.realm,
-      enabled: true,
-      displayName: this.realm,
-      loginTheme: 'keycloak-soloio-login-theme',
-      loginWithEmailAllowed: true,
-      duplicateEmailsAllowed: false,
-      resetPasswordAllowed: true,
-      editUsernameAllowed: false,
-      bruteForceProtected: false,
-      accessCodeLifespan: 300,
-      accessCodeLifespanUserAction: 600,
-      accessCodeLifespanLogin: 1800,
-    });
+    await this.ensureRealmLoginTheme(baseUrl, token, this.realm);
   }
 
   async createNamedRealm(baseUrl, token, realmName) {
     if (await this.realmExists(baseUrl, token, realmName)) {
       this.log(`Realm '${realmName}' already exists, skipping creation`, 'info');
-      await this.ensureRealmLoginTheme(baseUrl, token, realmName);
-      return;
+    } else {
+      this.log(`Creating realm '${realmName}'...`, 'info');
+      await this.kcApi('POST', `${baseUrl}/admin/realms`, token, {
+        realm: realmName,
+        enabled: true,
+        displayName: realmName,
+        loginWithEmailAllowed: true,
+        duplicateEmailsAllowed: false,
+        resetPasswordAllowed: true,
+        editUsernameAllowed: false,
+        bruteForceProtected: false,
+        accessCodeLifespan: 300,
+        accessCodeLifespanUserAction: 600,
+        accessCodeLifespanLogin: 1800,
+      });
     }
-    this.log(`Creating realm '${realmName}'...`, 'info');
-    await this.kcApi('POST', `${baseUrl}/admin/realms`, token, {
-      realm: realmName,
-      enabled: true,
-      displayName: realmName,
-      loginTheme: 'keycloak-soloio-login-theme',
-      loginWithEmailAllowed: true,
-      duplicateEmailsAllowed: false,
-      resetPasswordAllowed: true,
-      editUsernameAllowed: false,
-      bruteForceProtected: false,
-      accessCodeLifespan: 300,
-      accessCodeLifespanUserAction: 600,
-      accessCodeLifespanLogin: 1800,
-    });
+    await this.ensureRealmLoginTheme(baseUrl, token, realmName);
   }
 
   async createConfidentialClient(baseUrl, token) {
