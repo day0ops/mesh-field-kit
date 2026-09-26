@@ -77,8 +77,8 @@ spec:
             cluster: '{{cluster.name}}'
             network: '{{cluster.name}}'
             # Istio copies Gateway annotations onto the generated Service by default.
-            # AWS LBC's default scheme is internal - confirmed live via an unreachable
-            # private-IP NLB. No-op on EKS (in-tree provider uses a different key).
+            # AWS LBC's default scheme is internal, which would otherwise produce an
+            # unreachable private-IP NLB. No-op on EKS (in-tree provider uses a different key).
             annotations:
               service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
             deployment:
@@ -181,7 +181,7 @@ spec:
             serviceAccountRoleArn: '{{infra.clusters.rosa-cluster.iam.albControllerRoleArn}}'
             vpcId: '{{infra.clusters.rosa-cluster.network.vpcId}}'
             # ROSA's subnets still get rejected as "tagged for other clusters" even with
-            # a matching tag added (confirmed live). Fixes subnet resolution cluster-wide.
+            # a matching tag added. Fixes subnet resolution cluster-wide.
             disableSubnetClusterTagCheck: true
 
           - name: external-dns
@@ -238,14 +238,14 @@ spec:
             telemetryNamespace: telemetry
             hostname: '{{env.domains.core.soloUi}}'
             sourceRanges: '{{env.security.vpnSourceRanges}}'
-            # Bypasses the AWS LBC's tag-based subnet auto-discovery - confirmed live
-            # that ROSA's own public subnets carry a kubernetes.io/cluster/<rosa-infra-id>
-            # tag that never matches our clusterName, so auto-discovery excludes them.
+            # Bypasses the AWS LBC's tag-based subnet auto-discovery: ROSA's own public
+            # subnets carry a kubernetes.io/cluster/<rosa-infra-id> tag that never matches
+            # our clusterName, so auto-discovery excludes them.
             subnetIds: '{{infra.clusters.rosa-cluster.network.publicSubnetIds}}'
             # ROSA's OVN-Kubernetes pod IPs aren't real, ENI-attachable VPC addresses like
             # EKS's VPC-CNI gives pods - target-type ip fails every health check outright
-            # (confirmed live: Target.FailedHealthChecks on every port). instance routes
-            # to the real worker node's VPC IP + NodePort instead.
+            # (Target.FailedHealthChecks on every port). instance routes to the real
+            # worker node's VPC IP + NodePort instead.
             nlbTargetType: instance
 
       - name: eks-cluster
