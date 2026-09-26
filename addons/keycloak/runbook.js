@@ -60,7 +60,7 @@ const DEFAULT_POSTGRES_VERSION = '18.2-alpine';
 
 export function envExportsFor(addonCfg, _profile, env) {
   const cfg = addonCfg.config || {};
-  const hostname = tpl(cfg.hostname, env.spec.domains?.keycloak) || 'keycloak.example.com';
+  const hostname = tpl(cfg.hostname, env.spec.domains?.core?.keycloak) || 'keycloak.example.com';
   const keycloakVersion =
     addonCfg.version ||
     addonCfg.keycloakVersion ||
@@ -102,7 +102,7 @@ export async function generate(_subIndex, addonCfg, clusterName, profile, env) {
   const ns = addonCfg.namespace || 'keycloak';
   const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
   const cfg = addonCfg.config || {};
-  const hostname = tpl(cfg.hostname, env.spec.domains?.keycloak) || 'keycloak.example.com';
+  const hostname = tpl(cfg.hostname, env.spec.domains?.core?.keycloak) || 'keycloak.example.com';
   const protocol = tpl(cfg.protocol, null) || 'https';
 
   const tlsEnabled = cfg.tls?.enabled !== false;
@@ -292,7 +292,7 @@ ${userLines}`
   let soloUISection = '';
   if (soloUIClients?.enabled) {
     const suiRealm = soloUIClients.realm || 'solo-ui';
-    const suiHostname = tpl(soloUIClients.hostname, env.spec.domains?.soloUI) || '';
+    const suiHostname = tpl(soloUIClients.hostname, env.spec.domains?.core?.soloUi) || '';
     const suiPassword = '$SOLO_UI_DEFAULT_PASSWORD';
     const suiUsers = ['solo-admin', 'solo-reader', 'solo-writer'];
     const suiUserLines = suiUsers

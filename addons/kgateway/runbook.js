@@ -56,7 +56,7 @@ const toYaml = resource => yamlDump(resource, { lineWidth: -1, indent: 2 }).trim
 
 function buildGatewayResource(s, env) {
   const g = s.gateway;
-  const hostname = tpl(g.hostname, env?.spec?.domains?.app);
+  const hostname = tpl(g.hostname, env?.spec?.domains?.app?.main);
   const port = g.port || 80;
   const protocol = g.protocol || 'HTTP';
 

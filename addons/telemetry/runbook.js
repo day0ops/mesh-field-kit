@@ -3,6 +3,10 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { resolveChartVersions } from './versions.js';
+import { TemplateResolver } from '../../src/lib/template-resolver.js';
+
+const resolveEnv = (v, env) =>
+  TemplateResolver.resolveValues(v, TemplateResolver.buildContext({}, env));
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
@@ -46,7 +50,7 @@ export function envExportsFor(addonCfg, _profile, env) {
   ];
   if (cfg.mode !== 'agent') {
     const grafanaHostname =
-      tpl(cfg.grafanaHostname, env.spec.domains?.grafana) || 'grafana.example.com';
+      tpl(cfg.grafanaHostname, env.spec.domains?.core?.grafana) || 'grafana.example.com';
     exports.unshift(
       { name: 'GRAFANA_HOSTNAME', value: grafanaHostname, comment: 'Grafana public hostname' },
       {
@@ -113,7 +117,7 @@ async function _generateGateway(addonCfg, clusterName, env) {
   const retention = cfg.retention || '120h';
   const openshift = (addonCfg.platform || cfg.platform) === 'openshift';
   const grafanaHostname =
-    tpl(cfg.grafanaHostname, env.spec.domains?.grafana) || 'grafana.example.com';
+    tpl(cfg.grafanaHostname, env.spec.domains?.core?.grafana) || 'grafana.example.com';
   const grafanaTls = cfg.grafanaTls || {};
   const grafanaOidc = cfg.grafanaOidc || {};
   const globalExport = cfg.globalExport === true;
@@ -242,10 +246,7 @@ EOF
       (grafanaOidc.issuerUrl?.split('/realms/')[1] || 'grafana')
         .replace(/\{\{[^}]+\}\}/g, '')
         .replace(/^\//, '') || 'grafana';
-    const keycloakHostname = env.spec?.domains?.keycloak || '$KEYCLOAK_HOSTNAME';
-    const issuerUrl =
-      tpl(grafanaOidc.issuerUrl, null) ||
-      (grafanaOidc.issuerUrl || '').replace(/\{\{env\.domains\.keycloak\}\}/g, keycloakHostname);
+    const issuerUrl = resolveEnv(grafanaOidc.issuerUrl, env) || '';
     const clientId = grafanaOidc.clientId || 'grafana';
     const clientSecret = grafanaOidc.clientSecret || 'grafana-client-secret';
     const adminGroup = grafanaOidc.adminGroup || 'grafana-admins';

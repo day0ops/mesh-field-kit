@@ -1,5 +1,9 @@
 // addons/solo-ui/runbook.js
 import { nlbSourceRangeAnnotations } from '../../src/lib/common.js';
+import { TemplateResolver } from '../../src/lib/template-resolver.js';
+
+const resolveEnv = (v, env) =>
+  TemplateResolver.resolveValues(v, TemplateResolver.buildContext({}, env));
 
 // tpl: return v if it's a real value (not an unresolved {{...}} template), otherwise fb
 const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
@@ -24,8 +28,8 @@ export function envExportsFor(addonCfg, _profile, env) {
   const addon = addonSettings(addonCfg);
   const mode = addon.mode || 'management';
   if (mode === 'relay') return [];
-  const hostname = tpl(addon.hostname, env.spec.domains?.soloUI) || 'soloui.example.com';
-  const version = addon.version || '0.4.3';
+  const hostname = tpl(addon.hostname, env.spec.domains?.core?.soloUi) || 'soloui.example.com';
+  const version = resolveEnv(addon.version, env) || '0.4.3';
   return [
     { name: 'SOLO_UI_VERSION', value: version, comment: 'Solo UI chart version' },
     { name: 'SOLO_UI_HOSTNAME', value: hostname, comment: 'Solo UI public hostname' },
@@ -47,7 +51,7 @@ function _generateManagement(addonCfg, clusterName, env) {
   const addon = addonSettings(addonCfg);
   const ns = addon.namespace || 'solo-enterprise';
   const ctx = `$${clusterName.toUpperCase()}_CONTEXT`;
-  const hostname = tpl(addon.hostname, env.spec.domains?.soloUI) || 'soloui.example.com';
+  const hostname = tpl(addon.hostname, env.spec.domains?.core?.soloUi) || 'soloui.example.com';
   const oidc = addon.oidc || {};
   const storageClass = addon.clickhouse?.persistentVolume?.storageClass || 'gp3';
   const storageSize = addon.clickhouse?.persistentVolume?.size || '100Gi';
@@ -58,10 +62,7 @@ function _generateManagement(addonCfg, clusterName, env) {
   const subnetIds = addon.subnetIds || null;
   const nlbTargetType = addon.nlbTargetType || 'ip';
 
-  const keycloakHostname = env.spec?.domains?.keycloak || '$KEYCLOAK_HOSTNAME';
-  const oidcIssuerUrl =
-    tpl(oidc.issuerUrl, null) ||
-    (oidc.issuerUrl || '').replace(/\{\{env\.domains\.keycloak\}\}/g, keycloakHostname);
+  const oidcIssuerUrl = resolveEnv(oidc.issuerUrl, env) || '';
 
   // OCI chart URLs — no helm repo add needed
   const crdsChartOci =

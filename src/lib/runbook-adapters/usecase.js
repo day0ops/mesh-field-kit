@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { dump as yamlDump } from 'js-yaml';
+import { TemplateResolver } from '../template-resolver.js';
 import { IngressHttpRouteFeature } from '../../../features/traffic-management/ingress-httproute/index.js';
 
 const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -203,7 +204,7 @@ export class UseCaseAdapter {
           }
         } else if (feature.config && Object.keys(feature.config).length > 0) {
           lines.push('```yaml');
-          lines.push(yamlDump(feature.config).trim());
+          lines.push(yamlDump(_resolveEnvTemplates(feature.config, options.env)).trim());
           lines.push('```');
           lines.push('');
         }
@@ -232,10 +233,12 @@ function _runbookOptions(selection) {
   return { env: selection.environment };
 }
 
+// Resolve {{env.*}} template tokens in a feature's config against the environment spec, using
+// the same recursive resolver the installer uses so nested paths ({{env.domains.app.main}}) and
+// full-value tokens resolve identically. Infra/cluster tokens have no context at doc-gen time and
+// are left intact rather than blanked.
 function _resolveEnvTemplates(config, env) {
   if (!config || !env) return config;
-  const domains = env.spec?.domains || {};
-  const str = JSON.stringify(config);
-  const resolved = str.replace(/\{\{env\.domains\.(\w+)\}\}/g, (_, key) => domains[key] || '');
-  return JSON.parse(resolved);
+  const context = TemplateResolver.buildContext({}, env);
+  return TemplateResolver.resolveValues(config, context);
 }
