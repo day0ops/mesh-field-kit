@@ -186,6 +186,7 @@ spec:
 
           - name: external-dns
             description: Automatic DNS record management via Route53
+            version: '{{env.addons.external-dns.version}}'
             namespace: external-dns
             serviceAccountRoleArn: '{{infra.clusters.rosa-cluster.iam.externalDnsRoleArn}}'
             config:
@@ -196,6 +197,7 @@ spec:
 
           - name: cert-manager
             description: Certificate management for TLS
+            version: '{{env.addons.cert-manager.version}}'
             namespace: cert-manager
             config:
               letsencrypt:
@@ -216,12 +218,7 @@ spec:
             namespace: telemetry
             platform: openshift
             prometheusMode: managed
-            chartVersions:
-              kube-prom-stack: 88.0.1
-              loki: 7.2.0
-              tempo: 1.61.3
-              alloy: 1.11.0
-              otel: 0.165.0
+            chartVersions: '{{env.addons.telemetry}}'
             config:
               database:
                 storageClass: gp3-csi

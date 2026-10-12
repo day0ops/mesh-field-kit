@@ -31,7 +31,7 @@ export function envVarsFor(addonCfg, _clusterName) {
       description: 'Postgres superuser password',
     },
   ];
-  if (addonCfg?.config?.soloUIClients?.enabled) {
+  if (addonCfg?.config?.soloUiClients?.enabled) {
     vars.push({
       name: 'SOLO_UI_DEFAULT_PASSWORD',
       required: true,
@@ -80,8 +80,8 @@ export function envExportsFor(addonCfg, _profile, env) {
     { name: 'POSTGRES_VERSION', value: postgresVersion, comment: 'PostgreSQL container image tag' },
   ];
 
-  const soloUIClients = cfg.soloUIClients;
-  if (soloUIClients?.enabled) {
+  const soloUiClients = cfg.soloUiClients;
+  if (soloUiClients?.enabled) {
     exports.push({
       name: 'SOLO_UI_ADMIN_USER',
       value: 'solo-admin',
@@ -168,7 +168,7 @@ export async function generate(_subIndex, addonCfg, clusterName, profile, env) {
   const realms = (cfg.realms || []).filter(
     r => !allProfileAddonNames.has(r.realm) || thisClusterAddonNames.has(r.realm)
   );
-  const soloUIClients = cfg.soloUIClients || null;
+  const soloUiClients = cfg.soloUiClients || null;
 
   let tlsSection = '';
   if (tlsEnabled && createCertificate) {
@@ -290,9 +290,9 @@ ${userLines}`
   const realmSnippets = realms.map(makeRealmSnippet).join('\n');
 
   let soloUISection = '';
-  if (soloUIClients?.enabled) {
-    const suiRealm = soloUIClients.realm || 'solo-ui';
-    const suiHostname = tpl(soloUIClients.hostname, env.spec.domains?.core?.soloUi) || '';
+  if (soloUiClients?.enabled) {
+    const suiRealm = soloUiClients.realm || 'solo-ui';
+    const suiHostname = tpl(soloUiClients.hostname, env.spec.domains?.core?.soloUi) || '';
     const suiPassword = '$SOLO_UI_DEFAULT_PASSWORD';
     const suiUsers = ['solo-admin', 'solo-reader', 'solo-writer'];
     const suiUserLines = suiUsers
@@ -322,13 +322,13 @@ curl -s -X POST "$KEYCLOAK_URL/admin/realms" \\
 curl -s -X POST "$KEYCLOAK_URL/admin/realms/${suiRealm}/clients" \\
   -H "Authorization: Bearer $ACCESS_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"clientId":"${soloUIClients.backendClientId || 'solo-ui-backend'}","secret":"${soloUIClients.backendClientSecret || 'solo-ui-backend-secret'}","publicClient":false,"enabled":true,"redirectUris":["${suiHostname}/*"]}'
+  -d '{"clientId":"${soloUiClients.backendClientId || 'solo-ui-backend'}","secret":"${soloUiClients.backendClientSecret || 'solo-ui-backend-secret'}","publicClient":false,"enabled":true,"redirectUris":["${suiHostname}/*"]}'
 
 # Frontend client (public, PKCE)
 curl -s -X POST "$KEYCLOAK_URL/admin/realms/${suiRealm}/clients" \\
   -H "Authorization: Bearer $ACCESS_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"clientId":"${soloUIClients.frontendClientId || 'solo-ui-frontend'}","publicClient":true,"enabled":true,"redirectUris":["${suiHostname}/*"]}'
+  -d '{"clientId":"${soloUiClients.frontendClientId || 'solo-ui-frontend'}","publicClient":true,"enabled":true,"redirectUris":["${suiHostname}/*"]}'
 
 # Demo users (password: ${suiPassword})
 ${suiUserLines}

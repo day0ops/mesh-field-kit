@@ -1,5 +1,5 @@
 import { Feature } from '../../../src/lib/feature.js';
-import { CommandRunner } from '../../../src/lib/common.js';
+import { CommandRunner, nlbSourceRangeAnnotations } from '../../../src/lib/common.js';
 import yaml from 'js-yaml';
 import fs from 'fs';
 import path from 'path';
@@ -21,6 +21,10 @@ const __dirname = path.dirname(__filename);
  *   gateway: {                    // Gateway configuration
  *     gatewayClassName: string,   // Optional: Gateway class name (default: istio)
  *     serviceType: string,        // Optional: Service type for annotation (ClusterIP, LoadBalancer, etc.)
+ *     sourceRanges: array,        // Optional: CIDR allowlist for the auto-provisioned NLB
+ *                                 // (e.g. {{env.security.vpnSourceRanges}}) - opt-in, since this
+ *                                 // feature also builds cluster-internal gateways that shouldn't
+ *                                 // be forced internet-facing
  *     listeners: array            // Required: Listener configurations
  *   }
  * }
@@ -113,6 +117,16 @@ export class GatewayFeature extends Feature {
           ...configGateway.spec,
           gatewayClassName: gatewayClassName,
           listeners: listeners,
+          // Opt-in only - this feature also builds cluster-internal gateways, and
+          // nlbSourceRangeAnnotations() always forces an internet-facing NLB scheme,
+          // which would be wrong to apply to those unconditionally.
+          ...(gatewayConfig.sourceRanges
+            ? {
+                infrastructure: {
+                  annotations: nlbSourceRangeAnnotations(gatewayConfig.sourceRanges),
+                },
+              }
+            : {}),
         },
       };
     } else {
@@ -144,6 +158,13 @@ export class GatewayFeature extends Feature {
         spec: {
           gatewayClassName: gatewayClassName,
           listeners: listeners,
+          ...(gatewayConfig.sourceRanges
+            ? {
+                infrastructure: {
+                  annotations: nlbSourceRangeAnnotations(gatewayConfig.sourceRanges),
+                },
+              }
+            : {}),
         },
       };
     }

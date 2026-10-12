@@ -1,7 +1,11 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { AddonFeature } from '../../src/lib/feature.js';
-import { KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
+import {
+  KubernetesHelper,
+  CommandRunner,
+  nlbSourceRangeAnnotations,
+} from '../../src/lib/common.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_DIR = path.join(__dirname, 'config');
@@ -199,6 +203,12 @@ export class KgatewayFeature extends AddonFeature {
             // identity) trying to reach the gateway. This bypasses capture for
             // inbound only, so outbound stays in the mesh.
             extraAnnotations: { 'ambient.istio.io/bypass-inbound-capture': 'true' },
+          },
+          // Same GatewayParameters-only requirement as podTemplate annotations above -
+          // Gateway.spec.infrastructure.annotations isn't propagated to the proxy's
+          // auto-generated Service either, so the NLB source-range gating has to land here.
+          service: {
+            extraAnnotations: nlbSourceRangeAnnotations(this.gateway.sourceRanges),
           },
         },
       },

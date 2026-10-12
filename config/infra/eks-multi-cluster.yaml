@@ -13,6 +13,7 @@ spec:
     nodes:
       desired: 3
       type: t3.xlarge
+      private: true
 
   clusters:
     - name: east

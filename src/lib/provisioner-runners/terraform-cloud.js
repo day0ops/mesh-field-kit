@@ -796,6 +796,10 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
         this.stateFile,
         `${prefix}_worker_security_group_ids`
       );
+      const natGatewayIps = await terraform.getOutput(
+        this.stateFile,
+        `${prefix}_nat_gateway_public_ips`
+      );
 
       const vpcId = Array.isArray(vpcIds) ? vpcIds[clusterIndex] || null : null;
       const privateSubnetIds = Array.isArray(allSubnetIds) ? allSubnetIds[clusterIndex] || [] : [];
@@ -803,6 +807,9 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
         ? allPublicSubnetIds[clusterIndex] || []
         : [];
       const workerSgId = Array.isArray(sgIds) ? sgIds[clusterIndex] || null : null;
+      const natGatewayIp = Array.isArray(natGatewayIps)
+        ? natGatewayIps[clusterIndex] || null
+        : null;
 
       if (!vpcId) return null;
 
@@ -811,6 +818,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
         privateSubnetIds,
         publicSubnetIds,
         workerSgId,
+        ...(natGatewayIp ? { natGatewayIp } : {}),
       };
     } catch {
       this.logWarn(`Could not extract network outputs for cluster index ${clusterIndex}`);
