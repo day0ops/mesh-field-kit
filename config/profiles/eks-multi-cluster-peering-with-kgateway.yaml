@@ -129,6 +129,7 @@ spec:
 
           - name: external-dns
             description: Automatic DNS record management via Route53
+            version: '{{env.addons.external-dns.version}}'
             namespace: external-dns
             config:
               provider: route53
@@ -142,6 +143,9 @@ spec:
             keycloakNamespace: keycloak
             keycloakImage: '{{env.images.keycloak}}'
             hostname: '{{env.domains.core.keycloak}}'
+            sourceRanges:
+              - '{{env.security.vpnSourceRanges}}'
+              - '{{infra.clusters.east.network.natGatewayIp}}/32'
             protocol: '{{env.keycloak.scheme}}'
             loginTheme: '{{env.keycloak.loginTheme}}'
             tls:
@@ -149,7 +153,7 @@ spec:
               secretName: keycloak-tls
               createCertificate: true
               clusterIssuerName: letsencrypt-dns
-            soloUIClients:
+            soloUiClients:
               enabled: true
               realm: solo-ui
               hostname: 'https://{{env.domains.core.soloUi}}'
@@ -216,12 +220,7 @@ spec:
             description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
             phase: post
             namespace: telemetry
-            chartVersions:
-              kube-prom-stack: 88.0.1
-              loki: 7.2.0
-              tempo: 1.61.3
-              alloy: 1.11.0
-              otel: 0.165.0
+            chartVersions: '{{env.addons.telemetry}}'
             config:
               globalExport: true
               soloUiNamespace: solo-enterprise
@@ -230,6 +229,7 @@ spec:
                 storageSize: 100Gi
               retention: 120h
               grafanaHostname: '{{env.domains.core.grafana}}'
+              sourceRanges: '{{env.security.vpnSourceRanges}}'
               grafanaTls:
                 enabled: true
                 secretName: grafana-tls
@@ -249,6 +249,7 @@ spec:
             serviceType: LoadBalancer
             telemetryNamespace: telemetry
             hostname: '{{env.domains.core.soloUi}}'
+            sourceRanges: '{{env.security.vpnSourceRanges}}'
             tls:
               enabled: true
               secretName: solo-ui-tls
@@ -277,6 +278,7 @@ spec:
                 name: bookinfo-gateway
                 namespace: kgateway-system
                 hostname: '{{env.domains.app.main}}'
+                sourceRanges: '{{env.security.vpnSourceRanges}}'
                 port: 80
                 protocol: HTTP
                 allowedRoutes:
@@ -311,7 +313,7 @@ spec:
 
       - name: cert-manager
         description: Certificate management for TLS
-        version: 1.20.2
+        version: '{{env.addons.cert-manager.version}}'
         namespace: cert-manager
         config:
           letsencrypt:

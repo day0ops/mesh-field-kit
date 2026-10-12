@@ -3,7 +3,14 @@ import { writeFileSync, unlinkSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
-import { CommandRunner, Logger, SpinnerLogger, KubernetesHelper, BoxedOutput } from './common.js';
+import {
+  CommandRunner,
+  Logger,
+  SpinnerLogger,
+  KubernetesHelper,
+  BoxedOutput,
+  nlbSourceRangeAnnotations,
+} from './common.js';
 import { ProfileManager } from './profiles.js';
 import { ProfileSchema } from './profile-schema.js';
 import { ConfigResolver } from './config-resolver.js';
@@ -1316,7 +1323,11 @@ export class InstallerManager {
       apiVersion: 'gateway.networking.k8s.io/v1',
       kind: 'Gateway',
       metadata: { name, namespace },
-      spec: { gatewayClassName: 'istio', listeners },
+      spec: {
+        gatewayClassName: 'istio',
+        listeners,
+        infrastructure: { annotations: nlbSourceRangeAnnotations(gatewayConfig.sourceRanges) },
+      },
     };
 
     log.logInfo(`Creating Gateway "${name}" (namespace: ${namespace})`);

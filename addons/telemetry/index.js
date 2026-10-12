@@ -1,5 +1,9 @@
 import { AddonFeature } from '../../src/lib/feature.js';
-import { KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
+import {
+  KubernetesHelper,
+  CommandRunner,
+  nlbSourceRangeAnnotations,
+} from '../../src/lib/common.js';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readFile, readdir, writeFile, unlink } from 'fs/promises';
@@ -221,6 +225,7 @@ export class TelemetryFeature extends AddonFeature {
       this.retention = config.retention || '120h';
       this.grafanaServiceType = config.grafanaServiceType || 'ClusterIP';
       this.nodeSelector = config.nodeSelector || {};
+      this.sourceRanges = config.sourceRanges || null;
       this.grafanaHostname = config.grafanaHostname || '';
       this.prometheusHostname = config.prometheusHostname || '';
       this.tempoHostname = config.tempoHostname || '';
@@ -415,6 +420,7 @@ export class TelemetryFeature extends AddonFeature {
               allowedRoutes: { namespaces: { from: 'All' } },
             },
           ],
+          infrastructure: { annotations: nlbSourceRangeAnnotations(this.sourceRanges) },
         },
       },
       this.kubeContext
@@ -825,7 +831,13 @@ export class TelemetryFeature extends AddonFeature {
       ...(this.tempoHostname
         ? [
             '--set',
-            `queryFrontend.service.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname=${this.tempoHostname}`,
+            `queryFrontend.service.annotations.external-dns\\.kubernetes\\.io/hostname=${this.tempoHostname}`,
+            ...Object.entries(nlbSourceRangeAnnotations(this.sourceRanges)).flatMap(
+              ([key, value]) => [
+                '--set',
+                `queryFrontend.service.annotations.${key.replace(/\./g, '\\.')}=${helmSetEscape(value)}`,
+              ]
+            ),
           ]
         : []),
       ...(this.storageClass
@@ -887,7 +899,13 @@ export class TelemetryFeature extends AddonFeature {
       ...(this.lokiHostname
         ? [
             '--set',
-            `singleBinary.service.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname=${this.lokiHostname}`,
+            `singleBinary.service.annotations.external-dns\\.kubernetes\\.io/hostname=${this.lokiHostname}`,
+            ...Object.entries(nlbSourceRangeAnnotations(this.sourceRanges)).flatMap(
+              ([key, value]) => [
+                '--set',
+                `singleBinary.service.annotations.${key.replace(/\./g, '\\.')}=${helmSetEscape(value)}`,
+              ]
+            ),
           ]
         : []),
       ...this.buildNodeSelectorArgs('singleBinary'),
@@ -1002,14 +1020,26 @@ export class TelemetryFeature extends AddonFeature {
     if (this.grafanaHostname) {
       helmArgs.push(
         '--set',
-        `grafana.service.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname=${this.grafanaHostname}`
+        `grafana.service.annotations.external-dns\\.kubernetes\\.io/hostname=${this.grafanaHostname}`
       );
+      for (const [key, value] of Object.entries(nlbSourceRangeAnnotations(this.sourceRanges))) {
+        helmArgs.push(
+          '--set',
+          `grafana.service.annotations.${key.replace(/\./g, '\\.')}=${helmSetEscape(value)}`
+        );
+      }
     }
     if (this.prometheusHostname) {
       helmArgs.push(
         '--set',
-        `prometheus.service.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname=${this.prometheusHostname}`
+        `prometheus.service.annotations.external-dns\\.kubernetes\\.io/hostname=${this.prometheusHostname}`
       );
+      for (const [key, value] of Object.entries(nlbSourceRangeAnnotations(this.sourceRanges))) {
+        helmArgs.push(
+          '--set',
+          `prometheus.service.annotations.${key.replace(/\./g, '\\.')}=${helmSetEscape(value)}`
+        );
+      }
     }
 
     if (this.storageClass) {

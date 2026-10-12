@@ -1,5 +1,10 @@
 import { AddonFeature, FeatureManager } from '../../src/lib/feature.js';
-import { KubernetesHelper, CommandRunner, waitForPublicUrl } from '../../src/lib/common.js';
+import {
+  KubernetesHelper,
+  CommandRunner,
+  waitForPublicUrl,
+  nlbSourceRangeAnnotations,
+} from '../../src/lib/common.js';
 import { readFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -50,7 +55,7 @@ const yamlSingleQuote = value => String(value).replaceAll("'", "''");
  *     includeInternalDnsNames: boolean, // Default: auto (false for letsencrypt* issuers)
  *   },
  *   workloadClients: [],          // Optional: workload identity clients
- *   soloUIClients: {              // Optional: create a Solo UI realm + clients
+ *   soloUiClients: {              // Optional: create a Solo UI realm + clients
  *     enabled: boolean,
  *     realm: string,              // Default: 'solo-ui'
  *     hostname: string,           // Solo UI HTTPS hostname
@@ -74,7 +79,7 @@ const yamlSingleQuote = value => String(value).replaceAll("'", "''");
  *   KEYCLOAK_POSTGRES_USER        - Postgres superuser backing Keycloak's DB
  *   KEYCLOAK_POSTGRES_PASSWORD    - Postgres superuser password
  *   SOLO_UI_DEFAULT_PASSWORD      - solo-admin/solo-reader/solo-writer bootstrap password
- *                                   (only required when soloUIClients.enabled is true)
+ *                                   (only required when soloUiClients.enabled is true)
  *   GRAFANA_REALM_ADMIN_USERNAME  - Grafana OIDC demo admin username (default: 'grafana-admin';
  *                                   only used when a 'grafana' realm is configured)
  *   GRAFANA_REALM_ADMIN_PASSWORD  - Grafana OIDC demo admin password (only required when a
@@ -96,6 +101,7 @@ export class KeycloakFeature extends AddonFeature {
       : `quay.io/keycloak/keycloak:${this.keycloakVersion}`;
     this.postgresVersion = config.postgresVersion || POSTGRES_VERSION;
     this.hostname = config.hostname || 'keycloak.keycloak.svc.cluster.local';
+    this.sourceRanges = config.sourceRanges || null;
     this.protocol = config.protocol || 'https';
     this.realm = config.realm || 'mesh-dev';
     this.clientId = config.clientId || 'mesh-client';
@@ -115,8 +121,8 @@ export class KeycloakFeature extends AddonFeature {
     this.kubeContext = config.kubeContext || null;
     this.postgres = config.postgres || null;
     this.workloadClients = config.workloadClients || [];
-    this.soloUIClients = config.soloUIClients || null;
-    this.soloUIRealm = config.soloUIClients?.realm || 'solo-ui';
+    this.soloUiClients = config.soloUiClients || null;
+    this.soloUiRealm = config.soloUiClients?.realm || 'solo-ui';
     this.loginTheme = config.loginTheme || null;
     this.adminUsername = process.env.KEYCLOAK_ADMIN_USERNAME || '';
     this.adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD || '';
@@ -136,7 +142,7 @@ export class KeycloakFeature extends AddonFeature {
       !this.adminPassword && 'KEYCLOAK_ADMIN_PASSWORD',
       !this.postgresUser && 'KEYCLOAK_POSTGRES_USER',
       !this.postgresPassword && 'KEYCLOAK_POSTGRES_PASSWORD',
-      this.soloUIClients?.enabled && !this.soloUiDefaultPassword && 'SOLO_UI_DEFAULT_PASSWORD',
+      this.soloUiClients?.enabled && !this.soloUiDefaultPassword && 'SOLO_UI_DEFAULT_PASSWORD',
       this.hasGrafanaRealm && !this.grafanaAdminPassword && 'GRAFANA_REALM_ADMIN_PASSWORD',
     ].filter(Boolean);
     if (missing.length > 0) {
@@ -176,11 +182,23 @@ export class KeycloakFeature extends AddonFeature {
         'keycloak',
         '-n',
         this.keycloakNamespace,
-        `external-dns.alpha.kubernetes.io/hostname=${this.hostname}`,
+        `external-dns.kubernetes.io/hostname=${this.hostname}`,
         '--overwrite',
       ]);
       this.log(`Annotated keycloak service for external-dns: ${this.hostname}`, 'info');
     }
+    await KubernetesHelper.kubectl([
+      ...(this.kubeContext ? [`--context=${this.kubeContext}`] : []),
+      'annotate',
+      'service',
+      'keycloak',
+      '-n',
+      this.keycloakNamespace,
+      ...Object.entries(nlbSourceRangeAnnotations(this.sourceRanges)).map(
+        ([key, value]) => `${key}=${value}`
+      ),
+      '--overwrite',
+    ]);
     await this.waitForKeycloak();
     if (this.externalDns) {
       // Still need the LB address so curl --resolve works during Admin API calls
@@ -208,7 +226,7 @@ export class KeycloakFeature extends AddonFeature {
       `Keycloak admin login: ${this.adminUsername} (password: $KEYCLOAK_ADMIN_PASSWORD)`,
       'info'
     );
-    if (this.soloUIClients?.enabled) {
+    if (this.soloUiClients?.enabled) {
       this.log('Solo UI login: solo-admin / $SOLO_UI_DEFAULT_PASSWORD', 'info');
     }
   }
@@ -510,7 +528,7 @@ export class KeycloakFeature extends AddonFeature {
       await this.configureWorkloadClients(baseUrl, token);
     }
 
-    if (this.soloUIClients?.enabled) {
+    if (this.soloUiClients?.enabled) {
       await this.createSoloUIClients(baseUrl, token);
     }
 
@@ -795,7 +813,7 @@ export class KeycloakFeature extends AddonFeature {
           );
           if (listResult.exitCode !== 0) {
             throw new Error(
-              `could not reach Keycloak to list groups (curl exit ${listResult.exitCode})`
+              `${listResult.exitCode === 22 ? 'Keycloak returned an error' : 'could not reach Keycloak'} to list groups (curl exit ${listResult.exitCode})`
             );
           }
           let allGroups = [];
@@ -1196,12 +1214,12 @@ export class KeycloakFeature extends AddonFeature {
   // ---------------------------------------------------------------------------
 
   async createSoloUIRealm(baseUrl, token) {
-    if (await this.realmExists(baseUrl, token, this.soloUIRealm)) {
-      this.log(`Realm '${this.soloUIRealm}' already exists, skipping creation`, 'info');
+    if (await this.realmExists(baseUrl, token, this.soloUiRealm)) {
+      this.log(`Realm '${this.soloUiRealm}' already exists, skipping creation`, 'info');
     } else {
-      this.log(`Creating Solo UI realm '${this.soloUIRealm}'...`, 'info');
+      this.log(`Creating Solo UI realm '${this.soloUiRealm}'...`, 'info');
       await this.kcApi('POST', `${baseUrl}/admin/realms`, token, {
-        realm: this.soloUIRealm,
+        realm: this.soloUiRealm,
         enabled: true,
         displayName: 'Solo Enterprise UI',
         loginWithEmailAllowed: true,
@@ -1211,7 +1229,7 @@ export class KeycloakFeature extends AddonFeature {
         bruteForceProtected: false,
       });
     }
-    await this.ensureRealmLoginTheme(baseUrl, token, this.soloUIRealm);
+    await this.ensureRealmLoginTheme(baseUrl, token, this.soloUiRealm);
   }
 
   async createSoloUIClients(baseUrl, token) {
@@ -1227,8 +1245,8 @@ export class KeycloakFeature extends AddonFeature {
       backendClientSecret,
       frontendClientId,
       additionalHostnames = [],
-    } = this.soloUIClients;
-    const realm = this.soloUIRealm;
+    } = this.soloUiClients;
+    const realm = this.soloUiRealm;
     const allHostnames = [hostname, ...additionalHostnames];
     const redirectUris = allHostnames.map(h => `${h}/callback`);
     const postLogoutUris = allHostnames.map(h => `${h}/logout`).join(' ');
@@ -1310,7 +1328,7 @@ export class KeycloakFeature extends AddonFeature {
   }
 
   async createSoloUIGroups(baseUrl, token) {
-    const realm = this.soloUIRealm;
+    const realm = this.soloUiRealm;
     const groupNames = ['admins', 'readers', 'writers'];
     const groupsUrl = `${baseUrl}/admin/realms/${realm}/groups`;
 
@@ -1334,7 +1352,7 @@ export class KeycloakFeature extends AddonFeature {
   }
 
   async createSoloUIUsers(baseUrl, token, groupIds) {
-    const realm = this.soloUIRealm;
+    const realm = this.soloUiRealm;
     const password = this.soloUiDefaultPassword;
     const users = [
       {
@@ -1842,7 +1860,7 @@ export class KeycloakFeature extends AddonFeature {
     );
     if (result.exitCode !== 0) {
       throw new Error(
-        `could not reach Keycloak to look up client '${clientId}' (curl exit ${result.exitCode})`
+        `${result.exitCode === 22 ? 'Keycloak returned an error' : 'could not reach Keycloak'} to look up client '${clientId}' (curl exit ${result.exitCode})`
       );
     }
     if (!result.stdout) return null;
@@ -1990,7 +2008,7 @@ export class KeycloakFeature extends AddonFeature {
     );
     if (result.exitCode !== 0) {
       throw new Error(
-        `could not reach Keycloak to look up user '${username}' (curl exit ${result.exitCode})`
+        `${result.exitCode === 22 ? 'Keycloak returned an error' : 'could not reach Keycloak'} to look up user '${username}' (curl exit ${result.exitCode})`
       );
     }
     if (!result.stdout) return null;
