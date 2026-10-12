@@ -74,6 +74,32 @@ async function runMultiSelect(choices, drive) {
   }
 }
 
+describe('_rawMultiSelect basic behavior', () => {
+  test('space toggles the highlighted item and enter resolves it', async () => {
+    const choices = buildChoices(5);
+
+    const { result } = await runMultiSelect(choices, () => {
+      process.stdin.emit('keypress', undefined, { name: 'down' });
+      process.stdin.emit('keypress', undefined, { name: 'space' });
+      process.stdin.emit('keypress', undefined, { name: 'return' });
+    });
+
+    expect(result).toEqual(['v1']);
+  });
+
+  test('typing a filter then toggling a match resolves the correct value', async () => {
+    const choices = buildChoices(35); // > WINDOW_THRESHOLD, so filtering is active
+
+    const { result } = await runMultiSelect(choices, () => {
+      typeString('item-12');
+      process.stdin.emit('keypress', undefined, { name: 'space' });
+      process.stdin.emit('keypress', undefined, { name: 'return' });
+    });
+
+    expect(result).toEqual(['v12']);
+  });
+});
+
 describe('_rawMultiSelect keypress filter-leak fix', () => {
   test('space does not leak into the filter when the current filter matches nothing', async () => {
     const choices = buildChoices(35);
