@@ -1,4 +1,5 @@
 import { test, expect, describe } from 'bun:test';
+import inquirer from 'inquirer';
 import { Prompts } from '../../src/lib/prompts.js';
 
 // `_rawMultiSelect` only checks that stdin/stdout look TTY-like, so a non-TTY
@@ -85,6 +86,21 @@ describe('_rawMultiSelect basic behavior', () => {
     });
 
     expect(result).toEqual(['v1']);
+  });
+
+  test('renders a separator label in the grouped (unfiltered) view', async () => {
+    const choices = [
+      new inquirer.Separator('MY CATEGORY'),
+      { name: 'item-0', value: 'v0' },
+      { name: 'item-1', value: 'v1' },
+    ];
+
+    const { chunks } = await runMultiSelect(choices, () => {
+      process.stdin.emit('keypress', undefined, { name: 'return' });
+    });
+
+    const plain = chunks.map(stripAnsi).join('');
+    expect(plain).toContain('MY CATEGORY');
   });
 
   test('typing a filter then toggling a match resolves the correct value', async () => {

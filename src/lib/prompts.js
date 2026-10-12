@@ -530,7 +530,10 @@ export class Prompts {
               continue;
             }
             if (isSeparator) {
-              const text = choice.separator || '';
+              // inquirer's Separator stores its label as `.line` on v9 and
+              // `.separator` on v13 - support both so this isn't silently
+              // blank depending on which major version is installed.
+              const text = choice.line || choice.separator || '';
               lines.push(text.trim() ? ` ${text}` : '');
             } else {
               const active = selectableIdx === pointer;
