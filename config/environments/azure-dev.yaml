@@ -24,15 +24,15 @@ spec:
       version: 1.23.0
     telemetry:
       kube-prom-stack:
-        version: 88.0.1
+        version: 92.0.0
       loki:
-        version: 7.2.0
+        version: 7.3.0
       tempo:
         version: 1.61.3
       alloy:
-        version: 1.11.0
+        version: 1.13.0
       otel:
-        version: 0.165.0
+        version: 0.175.1
 
   images:
     keycloak: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/keycloak:26.7.0
