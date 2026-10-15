@@ -32,7 +32,7 @@ const VALID_MODES = ['chaining', 'primary'];
  *
  * Configuration:
  * {
- *   version: string,          // Helm chart version (default: '3.32.1')
+ *   version: string,          // Helm chart version (default: '3.33.0')
  *   mode: string,             // 'chaining' (default, policy-only) or 'primary'
  *   chainingTarget: string,   // Installation cni.type when mode=chaining: 'AmazonVPC' (default/EKS)
  *   kubernetesProvider: string, // Installation kubernetesProvider (default: 'EKS')

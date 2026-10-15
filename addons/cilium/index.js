@@ -33,7 +33,7 @@ const VALID_MODES = ['chaining', 'primary'];
  *
  * Configuration:
  * {
- *   version: string,                // Helm chart version (default: '1.19.1')
+ *   version: string,                // Helm chart version (default: '1.20.2')
  *   mode: string,                   // 'chaining' (default) or 'primary'
  *   chainingTarget: string,         // CNI to chain with: 'aws-cni' (default/EKS), 'generic-veth' (AKS), 'none' (GKE/primary)
  *   enableHubble: boolean,          // Installs Hubble relay + UI (default: true)

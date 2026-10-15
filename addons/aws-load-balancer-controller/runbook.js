@@ -20,7 +20,7 @@ export function envExportsFor(addonCfg, _profile, _env) {
   return [
     {
       name: 'AWS_LOAD_BALANCER_CONTROLLER_VERSION',
-      value: addonCfg.version || '3.5.0',
+      value: addonCfg.version || '3.6.0',
       comment: 'aws-load-balancer-controller chart version',
     },
   ];

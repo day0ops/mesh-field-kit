@@ -12,7 +12,7 @@ export function envExportsFor(addonCfg, _profile, env) {
   return [
     {
       name: 'EXTERNAL_DNS_VERSION',
-      value: addonCfg.version || '1.14.5',
+      value: addonCfg.version || '1.23.0',
       comment: 'external-dns Helm chart version',
     },
     {
