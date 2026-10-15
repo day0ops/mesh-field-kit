@@ -16,7 +16,7 @@ const CONFIG_DIR = join(__dirname, 'config');
 
 // Solo Enterprise Management (Solo UI) Helm chart defaults
 // Ref: https://docs.solo.io/istio/1.30.x/setup/setup/
-const DEFAULT_SOLO_UI_MANAGEMENT_CHART_VERSION = '0.5.3';
+const DEFAULT_SOLO_UI_MANAGEMENT_CHART_VERSION = '0.5.10';
 const DEFAULT_SOLO_UI_MANAGEMENT_CHART_OCI =
   'oci://us-docker.pkg.dev/solo-public/solo-enterprise-helm/charts/management';
 const DEFAULT_SOLO_UI_MANAGEMENT_CRDS_CHART_OCI =
@@ -58,7 +58,7 @@ const DEFAULT_TELEMETRY_FQDN = 'solo-enterprise-telemetry-gateway.solo-enterpris
  *   mode: string,                    // 'management' (default) | 'relay'
  *   clusterName: string,             // Required: Kubernetes cluster name (passed to both charts)
  *   namespace: string,               // Default: 'solo-enterprise'
- *   managementChartVersion: string,  // Default: '0.4.1'
+ *   managementChartVersion: string,  // Default: '0.5.10'
  *   managementChartOci: string,      // Default: OCI chart URL
  *   serviceType: string,             // Optional: e.g. 'LoadBalancer'; omit for port-forward
  *   nodeSelector: object,            // Default: {}
