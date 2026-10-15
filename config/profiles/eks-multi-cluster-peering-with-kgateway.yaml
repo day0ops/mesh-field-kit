@@ -306,7 +306,7 @@ spec:
     global:
       - name: cilium
         description: eBPF-based CNI in chaining mode for network policy and observability
-        version: 1.19.4
+        version: 1.20.2
         mode: chaining
         chainingTarget: aws-cni
         enableHealthProbePolicy: true

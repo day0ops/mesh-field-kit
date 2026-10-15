@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const CONFIG_DIR = join(__dirname, 'config');
 
-const DEFAULT_CILIUM_VERSION = '1.19.1';
+const DEFAULT_CILIUM_VERSION = '1.20.2';
 const CILIUM_HELM_REPO = 'https://helm.cilium.io';
 const RELEASE_NAME = 'cilium';
 const CILIUM_NAMESPACE = 'kube-system';
