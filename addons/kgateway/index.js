@@ -10,7 +10,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_DIR = path.join(__dirname, 'config');
 
-const OSS_VERSION = 'v2.3.5';
+const OSS_VERSION = 'v2.4.6';
 const ENTERPRISE_VERSION = '2.3.5';
 const OSS_REGISTRY = 'oci://cr.kgateway.dev/kgateway-dev/charts';
 const ENTERPRISE_REGISTRY = 'oci://us-docker.pkg.dev/solo-public/enterprise-kgateway/charts';

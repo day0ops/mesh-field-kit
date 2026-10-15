@@ -10,7 +10,7 @@ const addonSettings = addonCfg =>
     ? { ...addonCfg, ...addonCfg.config }
     : addonCfg;
 
-const OSS_VERSION = 'v2.3.5';
+const OSS_VERSION = 'v2.4.6';
 const ENTERPRISE_VERSION = '2.3.5';
 const OSS_REGISTRY = 'oci://cr.kgateway.dev/kgateway-dev/charts';
 const ENTERPRISE_REGISTRY = 'oci://us-docker.pkg.dev/solo-public/enterprise-kgateway/charts';

@@ -89,7 +89,7 @@ spec:
 
           - name: kgateway
             description: Kubernetes Gateway API ingress controller
-            version: v2.3.5
+            version: v2.4.6
             phase: post
             namespace: kgateway-system
             config:
