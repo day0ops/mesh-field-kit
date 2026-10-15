@@ -7,7 +7,7 @@ test('AwsLoadBalancerControllerFeature constructor sets defaults', () => {
     clusterName: 'my-cluster',
   });
   expect(f.lbControllerNamespace).toBe('kube-system');
-  expect(f.chartVersion).toBe('3.5.0');
+  expect(f.chartVersion).toBe('3.6.0');
   expect(f.vpcId).toBeNull();
   expect(f.disableSubnetClusterTagCheck).toBe(false);
   expect(f.kubeContext).toBeNull();
