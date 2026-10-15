@@ -58,7 +58,7 @@ spec:
       otelGatewayEndpoint: opentelemetry-collector-gateway.telemetry.mesh.internal
       lokiPushUrl: http://loki.telemetry.mesh.internal:3100/loki/api/v1/push
     soloUI:
-      tunnelFqdn: solo-enterprise-ui.solo-enterprise.mesh.internal
+      tunnelFqdn: solo-enterprise-tunnel.solo-enterprise.mesh.internal
       telemetryFqdn: solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal
 
   # Domain mappings - auto-generated pattern: <service>.<childZone>.<parentDomain>
