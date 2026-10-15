@@ -47,7 +47,7 @@ spec:
   addons:
     - name: calico
       description: Tigera-operator-installed Calico
-      version: 3.32.1
+      version: 3.33.0
       mode: chaining
       chainingTarget: AmazonVPC
       kubernetesProvider: EKS

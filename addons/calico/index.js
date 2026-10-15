@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const CONFIG_DIR = join(__dirname, 'config');
 
-const DEFAULT_CALICO_VERSION = '3.32.1';
+const DEFAULT_CALICO_VERSION = '3.33.0';
 const CALICO_HELM_REPO = 'https://docs.tigera.io/calico/charts';
 const RELEASE_NAME = 'calico';
 const OPERATOR_NAMESPACE = 'tigera-operator';
