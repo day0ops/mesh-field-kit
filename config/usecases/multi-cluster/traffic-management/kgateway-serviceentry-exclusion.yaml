@@ -126,7 +126,7 @@ spec:
         - action: exec
           command: |
             helm upgrade enterprise-kgateway oci://us-docker.pkg.dev/solo-public/enterprise-kgateway/charts/enterprise-kgateway \
-              -n kgateway-system --version 2.3.1 --reuse-values --wait --timeout 3m \
+              -n kgateway-system --version 2.3.5 --reuse-values --wait --timeout 3m \
               --set-json 'serviceEntriesExclusionLabelSelectors=[{"matchLabels":{"solo.io/parent-service":"httpbin"}}]'
           timeout: 60s
         - action: wait
@@ -135,7 +135,7 @@ spec:
         - action: exec
           command: |
             helm upgrade enterprise-kgateway oci://us-docker.pkg.dev/solo-public/enterprise-kgateway/charts/enterprise-kgateway \
-              -n kgateway-system --version 2.3.1 --reuse-values --wait --timeout 3m \
+              -n kgateway-system --version 2.3.5 --reuse-values --wait --timeout 3m \
               --set-json 'serviceEntriesExclusionLabelSelectors=[]'
           timeout: 60s
       steps:

@@ -13,7 +13,7 @@ spec:
   environment: aws-dev
 
   mesh:
-    istioVersion: 1.30.3
+    istioVersion: 1.30.5
     gatewayApiVersion: v1.5.0
     profile: ambient
     peering: helm
@@ -24,7 +24,7 @@ spec:
     image:
       istioRepo: us-docker.pkg.dev/soloio-img/istio
       helmIstioRepo: us-docker.pkg.dev/soloio-img/istio-helm
-      tag: 1.30.3-solo
+      tag: 1.30.5-solo
 
     components:
       - name: base
@@ -263,7 +263,7 @@ spec:
 
           - name: kgateway
             description: Kubernetes Gateway API ingress controller
-            version: '2.3.1'
+            version: '2.3.5'
             phase: post
             namespace: kgateway-system
             config:
@@ -298,7 +298,7 @@ spec:
             version: '{{env.soloUi.version}}'
             namespace: solo-enterprise
             tunnel:
-              fqdn: solo-enterprise-ui.solo-enterprise.mesh.internal
+              fqdn: solo-enterprise-tunnel.solo-enterprise.mesh.internal
               port: 9000
             telemetry:
               fqdn: solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal
@@ -306,7 +306,7 @@ spec:
     global:
       - name: cilium
         description: eBPF-based CNI in chaining mode for network policy and observability
-        version: 1.19.4
+        version: 1.20.2
         mode: chaining
         chainingTarget: aws-cni
         enableHealthProbePolicy: true

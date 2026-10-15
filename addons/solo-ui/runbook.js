@@ -29,7 +29,7 @@ export function envExportsFor(addonCfg, _profile, env) {
   const mode = addon.mode || 'management';
   if (mode === 'relay') return [];
   const hostname = tpl(addon.hostname, env.spec.domains?.core?.soloUi) || 'soloui.example.com';
-  const version = resolveEnv(addon.version, env) || '0.4.3';
+  const version = resolveEnv(addon.version, env) || '0.5.11';
   return [
     { name: 'SOLO_UI_VERSION', value: version, comment: 'Solo UI chart version' },
     { name: 'SOLO_UI_HOSTNAME', value: hostname, comment: 'Solo UI public hostname' },

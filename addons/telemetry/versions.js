@@ -2,11 +2,11 @@
 // Ref: https://docs.solo.io/gloo-mesh/main/setup/observability/prometheus/
 // Ref: https://docs.solo.io/gloo-mesh/main/setup/observability/grafana/
 export const DEFAULT_CHART_VERSIONS = {
-  'kube-prom-stack': '88.0.1',
-  loki: '7.2.0',
+  'kube-prom-stack': '92.8.0',
+  loki: '7.3.0',
   tempo: '1.61.3',
-  alloy: '1.11.0',
-  otel: '0.165.0',
+  alloy: '1.13.1',
+  otel: '0.176.0',
 };
 
 /**

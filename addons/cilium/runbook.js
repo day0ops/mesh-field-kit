@@ -6,7 +6,7 @@ export function envVarsFor(_addonCfg, _clusterName) {
 
 export function envExportsFor(addonCfg, _profile, _env) {
   return [
-    { name: 'CILIUM_VERSION', value: addonCfg.version || '1.19.4', comment: 'Cilium CNI version' },
+    { name: 'CILIUM_VERSION', value: addonCfg.version || '1.20.2', comment: 'Cilium CNI version' },
   ];
 }
 

@@ -29,24 +29,24 @@ spec:
     loginTheme: keycloak-soloio-login-theme
 
   soloUi:
-    version: 0.5.7
+    version: 0.5.11
 
   addons:
     cert-manager:
-      version: 1.20.2
+      version: 1.21.2
     external-dns:
-      version: 1.21.1
+      version: 1.23.0
     telemetry:
       kube-prom-stack:
-        version: 88.0.1
+        version: 92.8.0
       loki:
-        version: 7.2.0
+        version: 7.3.0
       tempo:
         version: 1.61.3
       alloy:
-        version: 1.11.0
+        version: 1.13.1
       otel:
-        version: 0.165.0
+        version: 0.176.0
 
   images:
     keycloak: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/keycloak:26.7.0
@@ -58,7 +58,7 @@ spec:
       otelGatewayEndpoint: opentelemetry-collector-gateway.telemetry.mesh.internal
       lokiPushUrl: http://loki.telemetry.mesh.internal:3100/loki/api/v1/push
     soloUI:
-      tunnelFqdn: solo-enterprise-ui.solo-enterprise.mesh.internal
+      tunnelFqdn: solo-enterprise-tunnel.solo-enterprise.mesh.internal
       telemetryFqdn: solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal
 
   # Domain mappings - auto-generated pattern: <service>.<childZone>.<parentDomain>

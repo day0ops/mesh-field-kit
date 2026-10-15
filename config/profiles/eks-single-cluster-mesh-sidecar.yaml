@@ -10,7 +10,7 @@ spec:
   environment: aws-dev
 
   mesh:
-    istioVersion: 1.30.3
+    istioVersion: 1.30.5
     profile: demo
     istioRevision: stable
 

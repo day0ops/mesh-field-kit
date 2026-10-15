@@ -16,7 +16,7 @@ const CONFIG_DIR = join(__dirname, 'config');
 
 // Solo Enterprise Management (Solo UI) Helm chart defaults
 // Ref: https://docs.solo.io/istio/1.30.x/setup/setup/
-const DEFAULT_SOLO_UI_MANAGEMENT_CHART_VERSION = '0.5.3';
+const DEFAULT_SOLO_UI_MANAGEMENT_CHART_VERSION = '0.5.11';
 const DEFAULT_SOLO_UI_MANAGEMENT_CHART_OCI =
   'oci://us-docker.pkg.dev/solo-public/solo-enterprise-helm/charts/management';
 const DEFAULT_SOLO_UI_MANAGEMENT_CRDS_CHART_OCI =
@@ -27,8 +27,10 @@ const RELEASE_NAME = 'solo-ui';
 const CRDS_RELEASE_NAME = 'solo-ui-crds';
 const RELAY_RELEASE_NAME = 'solo-relay';
 
-// Default tunnel FQDNs — Solo UI uses mesh.internal for east-west routing
-const DEFAULT_TUNNEL_FQDN = 'solo-enterprise-ui.solo-enterprise.mesh.internal';
+// Default tunnel FQDNs — Solo UI uses mesh.internal for east-west routing.
+// Since management chart 0.5.7 the tunnel server is its own Deployment/Service
+// (solo-enterprise-tunnel); earlier releases served it from solo-enterprise-ui.
+const DEFAULT_TUNNEL_FQDN = 'solo-enterprise-tunnel.solo-enterprise.mesh.internal';
 const DEFAULT_TUNNEL_PORT = 9000;
 const DEFAULT_TELEMETRY_FQDN = 'solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal';
 
@@ -56,7 +58,7 @@ const DEFAULT_TELEMETRY_FQDN = 'solo-enterprise-telemetry-gateway.solo-enterpris
  *   mode: string,                    // 'management' (default) | 'relay'
  *   clusterName: string,             // Required: Kubernetes cluster name (passed to both charts)
  *   namespace: string,               // Default: 'solo-enterprise'
- *   managementChartVersion: string,  // Default: '0.4.1'
+ *   managementChartVersion: string,  // Default: '0.5.11'
  *   managementChartOci: string,      // Default: OCI chart URL
  *   serviceType: string,             // Optional: e.g. 'LoadBalancer'; omit for port-forward
  *   nodeSelector: object,            // Default: {}
@@ -82,7 +84,7 @@ const DEFAULT_TELEMETRY_FQDN = 'solo-enterprise-telemetry-gateway.solo-enterpris
  *     frontendClientId: string,
  *   },
  *   tunnel: {                        // Relay mode: tunnel back to management cluster
- *     fqdn: string,                  // Default: solo-enterprise-ui.solo-enterprise.mesh.internal
+ *     fqdn: string,                  // Default: solo-enterprise-tunnel.solo-enterprise.mesh.internal
  *     port: number,                  // Default: 9000
  *   },
  *   telemetry: {                     // Relay mode: telemetry gateway on management cluster

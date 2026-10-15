@@ -49,7 +49,7 @@ spec:
     - name: tracing-provider
       description: Register the telemetry addon's OTel traces collector as a tracing provider and activate 100% sampling
       config:
-        istioVersion: 1.30.3
+        istioVersion: 1.30.5
         otlpService: opentelemetry-collector-traces.telemetry.svc.cluster.local
 
   tests:

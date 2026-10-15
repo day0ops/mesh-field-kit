@@ -13,7 +13,7 @@ spec:
   environment: aws-dev
 
   mesh:
-    istioVersion: 1.30.3
+    istioVersion: 1.30.5
     gatewayApiVersion: v1.5.0
     installMethod: operator
     peering: helm
@@ -89,7 +89,7 @@ spec:
 
           - name: kgateway
             description: Kubernetes Gateway API ingress controller
-            version: v2.3.0
+            version: v2.4.6
             phase: post
             namespace: kgateway-system
             config:
@@ -115,7 +115,7 @@ spec:
             version: '{{env.soloUi.version}}'
             namespace: solo-enterprise
             tunnel:
-              fqdn: solo-enterprise-ui.solo-enterprise.mesh.internal
+              fqdn: solo-enterprise-tunnel.solo-enterprise.mesh.internal
               port: 9000
             telemetry:
               fqdn: solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal
@@ -123,7 +123,7 @@ spec:
     global:
       - name: cilium
         description: eBPF-based CNI in chaining mode for network policy and observability
-        version: 1.19.4
+        version: 1.20.2
         mode: chaining
         enableHealthProbePolicy: true
 

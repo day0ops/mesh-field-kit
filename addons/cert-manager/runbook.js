@@ -11,7 +11,7 @@ export function envExportsFor(addonCfg, _profile, env) {
   const exports = [
     {
       name: 'CERT_MANAGER_VERSION',
-      value: addonCfg.version || '1.20.2',
+      value: addonCfg.version || '1.21.2',
       comment: 'cert-manager version',
     },
   ];
