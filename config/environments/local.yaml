@@ -25,7 +25,7 @@ spec:
       tempo:
         version: 1.61.3
       alloy:
-        version: 1.13.0
+        version: 1.13.1
       otel:
         version: 0.175.1
 

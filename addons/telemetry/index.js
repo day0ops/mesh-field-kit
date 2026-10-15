@@ -149,7 +149,7 @@ export async function waitForCaBundleConfigMap(cmName, namespace, ctxArgs, timeo
  *     kube-prom-stack: string,    // kube-prometheus-stack (default: 92.8.0)
  *     loki: string,               // grafana/loki (default: 7.3.0)
  *     tempo: string,              // grafana/tempo-distributed (default: 1.61.3)
- *     alloy: string,              // grafana/alloy (default: 1.13.0)
+ *     alloy: string,              // grafana/alloy (default: 1.13.1)
  *     otel: string,               // opentelemetry-collector (default: 0.175.1)
  *   },
  *   namespace: string,            // Default: 'telemetry'
