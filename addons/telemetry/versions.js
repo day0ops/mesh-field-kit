@@ -6,7 +6,7 @@ export const DEFAULT_CHART_VERSIONS = {
   loki: '7.3.0',
   tempo: '1.61.3',
   alloy: '1.13.1',
-  otel: '0.175.1',
+  otel: '0.176.0',
 };
 
 /**
