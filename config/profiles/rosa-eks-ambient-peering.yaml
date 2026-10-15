@@ -12,7 +12,7 @@ spec:
   environment: aws-dev
 
   mesh:
-    istioVersion: 1.30.4
+    istioVersion: 1.30.5
     gatewayApiVersion: v1.5.0
     profile: ambient
     peering: helm
@@ -23,7 +23,7 @@ spec:
     image:
       istioRepo: us-docker.pkg.dev/soloio-img/istio
       helmIstioRepo: us-docker.pkg.dev/soloio-img/istio-helm
-      tag: 1.30.4-solo
+      tag: 1.30.5-solo
 
     components:
       - name: base

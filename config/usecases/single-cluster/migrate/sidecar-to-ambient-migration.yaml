@@ -20,7 +20,7 @@ spec:
     - name: enable-ambient
       description: Upgrade the control plane in place to ambient-capable (Phase 2) - existing sidecar workloads keep running via interop
       config:
-        istioVersion: 1.30.3
+        istioVersion: 1.30.5
         istioRevision: stable # must match eks-single-cluster-mesh-sidecar's mesh.istioRevision
 
     - name: gateway
