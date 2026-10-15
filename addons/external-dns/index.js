@@ -1,7 +1,7 @@
 import { AddonFeature } from '../../src/lib/feature.js';
 import { KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
 
-const EXTERNAL_DNS_VERSION = '1.21.1';
+const EXTERNAL_DNS_VERSION = '1.23.0';
 
 /**
  * external-dns Addon
