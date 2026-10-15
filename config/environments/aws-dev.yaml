@@ -29,7 +29,7 @@ spec:
     loginTheme: keycloak-soloio-login-theme
 
   soloUi:
-    version: 0.5.10
+    version: 0.5.11
 
   addons:
     cert-manager:
