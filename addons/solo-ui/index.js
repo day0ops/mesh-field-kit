@@ -27,8 +27,10 @@ const RELEASE_NAME = 'solo-ui';
 const CRDS_RELEASE_NAME = 'solo-ui-crds';
 const RELAY_RELEASE_NAME = 'solo-relay';
 
-// Default tunnel FQDNs — Solo UI uses mesh.internal for east-west routing
-const DEFAULT_TUNNEL_FQDN = 'solo-enterprise-ui.solo-enterprise.mesh.internal';
+// Default tunnel FQDNs — Solo UI uses mesh.internal for east-west routing.
+// Since management chart 0.5.7 the tunnel server is its own Deployment/Service
+// (solo-enterprise-tunnel); earlier releases served it from solo-enterprise-ui.
+const DEFAULT_TUNNEL_FQDN = 'solo-enterprise-tunnel.solo-enterprise.mesh.internal';
 const DEFAULT_TUNNEL_PORT = 9000;
 const DEFAULT_TELEMETRY_FQDN = 'solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal';
 
@@ -82,7 +84,7 @@ const DEFAULT_TELEMETRY_FQDN = 'solo-enterprise-telemetry-gateway.solo-enterpris
  *     frontendClientId: string,
  *   },
  *   tunnel: {                        // Relay mode: tunnel back to management cluster
- *     fqdn: string,                  // Default: solo-enterprise-ui.solo-enterprise.mesh.internal
+ *     fqdn: string,                  // Default: solo-enterprise-tunnel.solo-enterprise.mesh.internal
  *     port: number,                  // Default: 9000
  *   },
  *   telemetry: {                     // Relay mode: telemetry gateway on management cluster

@@ -115,7 +115,7 @@ spec:
             version: '{{env.soloUi.version}}'
             namespace: solo-enterprise
             tunnel:
-              fqdn: solo-enterprise-ui.solo-enterprise.mesh.internal
+              fqdn: solo-enterprise-tunnel.solo-enterprise.mesh.internal
               port: 9000
             telemetry:
               fqdn: solo-enterprise-telemetry-gateway.solo-enterprise.mesh.internal
