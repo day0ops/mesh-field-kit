@@ -19,7 +19,7 @@ spec:
       version: 1.23.0
     telemetry:
       kube-prom-stack:
-        version: 92.0.0
+        version: 92.8.0
       loki:
         version: 7.3.0
       tempo:
