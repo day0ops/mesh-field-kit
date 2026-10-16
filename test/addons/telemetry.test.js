@@ -195,6 +195,15 @@ test('telemetry runbook emits grafana.service.type override and NLB restriction 
   );
 });
 
+test('telemetry runbook omits the external-dns hostname and NLB annotations when grafanaHostname is not configured', async () => {
+  const md = await telemetryRunbookGenerate(1, {}, 'my-cluster', {}, { spec: {} });
+  expect(md).not.toContain('external-dns\\.kubernetes\\.io/hostname');
+  expect(md).not.toContain('aws-load-balancer-type');
+  expect(md).not.toContain('aws-load-balancer-nlb-target-type');
+  expect(md).not.toContain('aws-load-balancer-scheme');
+  expect(md).not.toContain('aws-load-balancer-target-group-attributes');
+});
+
 test('TelemetryFeature prometheusMode defaults to embedded', () => {
   const f = new TelemetryFeature('telemetry', {});
   expect(f.prometheusMode).toBe('embedded');

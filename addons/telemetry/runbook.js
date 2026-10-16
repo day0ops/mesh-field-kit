@@ -130,14 +130,18 @@ async function _generateGateway(addonCfg, clusterName, env) {
   const grafanaOidc = cfg.grafanaOidc || {};
   const globalExport = cfg.globalExport === true;
 
-  // Same annotations buildPrometheusStackHelmArgs() adds to grafana.service.annotations.* when
-  // a hostname is configured: NLB scheme/target-type, preserve-client-ip, and source-range CIDRs.
-  const grafanaNlbAnnotationLines = Object.entries(nlbSourceRangeAnnotations(sourceRanges))
-    .map(
-      ([key, value]) =>
-        `  --set "grafana.service.annotations.${key.replace(/\./g, '\\.')}=${helmSetEscape(value)}" \\`
-    )
-    .join('\n');
+  // Mirrors buildPrometheusStackHelmArgs()'s `if (this.grafanaHostname)` gate: these
+  // annotations only apply when a hostname is configured.
+  const grafanaHostnameAnnotationLines = cfg.grafanaHostname
+    ? `
+  --set "grafana.service.annotations.external-dns\\.kubernetes\\.io/hostname=${grafanaHostname}" \\
+${Object.entries(nlbSourceRangeAnnotations(sourceRanges))
+  .map(
+    ([key, value]) =>
+      `  --set "grafana.service.annotations.${key.replace(/\./g, '\\.')}=${helmSetEscape(value)}" \\`
+  )
+  .join('\n')}`
+    : '';
 
   const tlsIssuer = grafanaTls.issuer || 'letsencrypt-dns';
   const tlsSecret = grafanaTls.secretName || 'grafana-tls';
@@ -488,9 +492,7 @@ helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheu
   --set prometheus.prometheusSpec.retention=${retention} \\
   --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=${storageClass} \\
   --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=${storageSize} \\
-  --set grafana.service.type=${grafanaServiceType} \\
-  --set "grafana.service.annotations.external-dns\\.kubernetes\\.io/hostname=${grafanaHostname}" \\
-${grafanaNlbAnnotationLines}
+  --set grafana.service.type=${grafanaServiceType} \\${grafanaHostnameAnnotationLines}
   --set-string grafana.adminUser=$GRAFANA_ADMIN_USERNAME \\
   --set-string grafana.adminPassword=$GRAFANA_ADMIN_PASSWORD \\
   --set-string grafana.sidecar.datasources.reloadURL=http://$GRAFANA_ADMIN_USERNAME:$GRAFANA_ADMIN_PASSWORD@localhost:3000/api/admin/provisioning/datasources/reload \\
