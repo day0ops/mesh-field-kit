@@ -1,0 +1,19 @@
+apiVersion: mesh.demo/v1
+kind: InfraProfile
+metadata:
+  name: eks-ambient-benchmark
+  description: EKS single cluster sized for the Solo Ambient mesh benchmark
+
+spec:
+  name: ambient-bench
+  provider: eks
+  environment: aws-dev
+
+  settings:
+    nodes:
+      desired: 4
+      type: m6i.2xlarge
+
+  clusters:
+    - name: demo
+      role: management
