@@ -76,7 +76,6 @@ spec:
       version: '{{env.soloUi.version}}'
       phase: post
       namespace: solo-enterprise
-      serviceType: LoadBalancer
       telemetryNamespace: telemetry
       hostname: '{{env.domains.core.soloUi}}'
       sourceRanges: '{{env.security.vpnSourceRanges}}'
