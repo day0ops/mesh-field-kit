@@ -43,7 +43,7 @@ spec:
     - name: aws-load-balancer-controller
       description: Proper NLB provisioning for telemetry/solo-ui LoadBalancer Services
       phase: pre
-      clusterName: '{{cluster.name}}'
+      clusterName: '{{infra.clusters.demo.cluster}}'
       serviceAccountRoleArn: '{{infra.clusters.demo.iam.albControllerRoleArn}}'
 
     - name: external-dns
