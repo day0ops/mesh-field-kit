@@ -153,3 +153,23 @@ test('solo-ui runbook omits the service.type flag when serviceType is not config
   const md = await soloUiRunbookGenerate(1, {}, 'my-cluster', {}, { spec: {} });
   expect(md).not.toContain('service.type=');
 });
+
+test('solo-ui runbook emits the Gateway/HTTPRoute block when hostname is configured', async () => {
+  const md = await soloUiRunbookGenerate(
+    1,
+    { config: { hostname: 'soloui.prod.example.com' } },
+    'my-cluster',
+    {},
+    { spec: {} }
+  );
+  expect(md).toContain('kind: Gateway');
+  expect(md).toContain('kind: HTTPRoute');
+  expect(md).toContain('hostname: soloui.prod.example.com');
+});
+
+test('solo-ui runbook omits the Gateway/HTTPRoute/NLB-restriction block when hostname is not configured', async () => {
+  const md = await soloUiRunbookGenerate(1, {}, 'my-cluster', {}, { spec: {} });
+  expect(md).not.toContain('kind: Gateway');
+  expect(md).not.toContain('kind: HTTPRoute');
+  expect(md).not.toContain('aws-load-balancer');
+});
