@@ -46,6 +46,17 @@ spec:
       clusterName: '{{cluster.name}}'
       serviceAccountRoleArn: '{{infra.clusters.demo.iam.albControllerRoleArn}}'
 
+    - name: external-dns
+      description: Route53 records for Grafana/Solo UI hostnames - required for the sourceRanges restriction above to actually take effect
+      version: '{{env.addons.external-dns.version}}'
+      namespace: external-dns
+      phase: pre
+      config:
+        provider: route53
+        domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
+        region: '{{env.aws.region}}'
+        txtOwnerId: '{{env.dns.txtOwnerId}}'
+
     - name: telemetry
       description: Full observability stack (Prometheus, Grafana, Tempo, Loki, OTel collectors) - the traces collector is where account-service/ledger-service send OTLP traces
       phase: post
@@ -57,6 +68,7 @@ spec:
           storageSize: 100Gi
         retention: 120h
         grafanaServiceType: LoadBalancer
+        grafanaHostname: '{{env.domains.core.grafana}}'
         sourceRanges: '{{env.security.vpnSourceRanges}}'
 
     - name: solo-ui
@@ -66,4 +78,5 @@ spec:
       namespace: solo-enterprise
       serviceType: LoadBalancer
       telemetryNamespace: telemetry
+      hostname: '{{env.domains.core.soloUi}}'
       sourceRanges: '{{env.security.vpnSourceRanges}}'
