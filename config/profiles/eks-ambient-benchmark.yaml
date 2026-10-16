@@ -43,6 +43,8 @@ spec:
     - name: aws-load-balancer-controller
       description: Proper NLB provisioning for telemetry/solo-ui LoadBalancer Services
       phase: pre
+      clusterName: '{{cluster.name}}'
+      serviceAccountRoleArn: '{{infra.clusters.demo.iam.albControllerRoleArn}}'
 
     - name: telemetry
       description: Full observability stack (Prometheus, Grafana, Tempo, Loki, OTel collectors) - the traces collector is where account-service/ledger-service send OTLP traces
