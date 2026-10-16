@@ -1,5 +1,6 @@
-import { test, expect, spyOn } from 'bun:test';
+import { test, expect, spyOn, describe, beforeEach, afterEach } from 'bun:test';
 import { SoloUIFeature } from '../../addons/solo-ui/index.js';
+import { KubernetesHelper } from '../../src/lib/common.js';
 
 test('SoloUIFeature sourceRanges defaults to null', () => {
   const f = new SoloUIFeature('solo-ui', {});
@@ -97,4 +98,41 @@ test('applyGatewayResources applies the Certificate and HTTPS gateway/route when
 
   const [, routeOverrides] = applyYamlFileSpy.mock.calls[2];
   expect(routeOverrides.spec.parentRefs[0].name).toBe('solo-enterprise-ui-https');
+});
+
+describe('installManagementChart() service.type pass-through', () => {
+  let helmSpy;
+  let assertHelmDeployedSpy;
+
+  beforeEach(() => {
+    helmSpy = spyOn(KubernetesHelper, 'helm').mockResolvedValue();
+    assertHelmDeployedSpy = spyOn(KubernetesHelper, 'assertHelmDeployed').mockResolvedValue();
+  });
+
+  afterEach(() => {
+    helmSpy.mockRestore();
+    assertHelmDeployedSpy.mockRestore();
+  });
+
+  // Chart version 0.5.11 defaults service.type to LoadBalancer (public) when this flag is
+  // omitted - callers relying on silent omission get a public Service, not port-forward-safe.
+  test('passes --set service.type=ClusterIP when serviceType is configured', async () => {
+    const f = new SoloUIFeature('solo-ui', { serviceType: 'ClusterIP' });
+
+    await f.installManagementChart();
+
+    const [helmArgs] = helmSpy.mock.calls[0];
+    const setIndex = helmArgs.indexOf('service.type=ClusterIP');
+    expect(setIndex).toBeGreaterThan(0);
+    expect(helmArgs[setIndex - 1]).toBe('--set');
+  });
+
+  test('omits the service.type flag entirely when serviceType is not configured', async () => {
+    const f = new SoloUIFeature('solo-ui', {});
+
+    await f.installManagementChart();
+
+    const [helmArgs] = helmSpy.mock.calls[0];
+    expect(helmArgs.some(arg => arg.startsWith('service.type='))).toBe(false);
+  });
 });
