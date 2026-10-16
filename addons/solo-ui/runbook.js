@@ -109,6 +109,7 @@ kubectl --context=${ctx} create secret generic ui-backend-oidc-secret \\
     `  --set clickhouse.persistence.storageClass=${storageClass}`,
     `  --set clickhouse.persistence.size=${storageSize}`,
     `  --set products.mesh.enabled=${products.mesh?.enabled === true}`,
+    ...(addon.serviceType ? [`  --set service.type=${addon.serviceType}`] : []),
     ...oidcArgs,
     `  --wait`,
     `  --timeout 10m`,
@@ -119,9 +120,11 @@ kubectl --context=${ctx} create secret generic ui-backend-oidc-secret \\
     .replace(/ \\$/, '')}`;
 
   // Gateway/HTTPRoute resources when a public hostname is configured - HTTPS with
-  // a cert-manager Certificate when tls.enabled, otherwise a plain HTTP listener
+  // a cert-manager Certificate when tls.enabled, otherwise a plain HTTP listener.
+  // Mirrors index.js's `if (this.hostname)` gate: `hostname` above is display-backfilled
+  // with an example placeholder, so it's always truthy and can't be used for gating.
   let httpsBlock = '';
-  if (hostname) {
+  if (addon.hostname) {
     const tlsEnabled = tls.enabled === true;
     const gatewayName = tlsEnabled ? 'solo-enterprise-ui-https' : 'solo-enterprise-ui-http';
     const gatewayAnnotations = Object.entries({

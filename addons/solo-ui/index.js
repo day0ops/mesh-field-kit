@@ -60,7 +60,10 @@ const DEFAULT_TELEMETRY_FQDN = 'solo-enterprise-telemetry-gateway.solo-enterpris
  *   namespace: string,               // Default: 'solo-enterprise'
  *   managementChartVersion: string,  // Default: '0.5.11'
  *   managementChartOci: string,      // Default: OCI chart URL
- *   serviceType: string,             // Optional: e.g. 'LoadBalancer'; omit for port-forward
+ *   serviceType: string,             // Optional. Omitting this leaves the chart's own default in
+ *                                    // place. For chart version 0.5.11 that default is LoadBalancer
+ *                                    // (publicly reachable), not port-forward-safe. Set 'ClusterIP'
+ *                                    // (or similar) explicitly for a non-public Service.
  *   nodeSelector: object,            // Default: {}
  *   clickhouse: {                      // Optional: management chart clickhouse values
  *     persistentVolume: {

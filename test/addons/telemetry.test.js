@@ -158,6 +158,52 @@ test('telemetry runbook keeps the in-cluster Prometheus datasource URL for embed
   expect(md).not.toContain('{{');
 });
 
+test('telemetry runbook emits grafana.service.type matching the ClusterIP default', async () => {
+  const md = await telemetryRunbookGenerate(1, {}, 'my-cluster', {}, { spec: {} });
+  expect(md).toContain('--set grafana.service.type=ClusterIP');
+});
+
+test('telemetry runbook emits grafana.service.type override and NLB restriction annotations when grafanaHostname/sourceRanges are configured', async () => {
+  const md = await telemetryRunbookGenerate(
+    1,
+    {
+      config: {
+        grafanaServiceType: 'LoadBalancer',
+        grafanaHostname: 'grafana.prod.example.com',
+        sourceRanges: ['1.2.3.4/32', '5.6.7.8/32'],
+      },
+    },
+    'my-cluster',
+    {},
+    { spec: {} }
+  );
+  expect(md).toContain('--set grafana.service.type=LoadBalancer');
+  expect(md).toContain(
+    'grafana.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-type=external'
+  );
+  expect(md).toContain(
+    'grafana.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-nlb-target-type=ip'
+  );
+  expect(md).toContain(
+    'grafana.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-scheme=internet-facing'
+  );
+  expect(md).toContain(
+    'grafana.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-target-group-attributes=preserve_client_ip.enabled=true'
+  );
+  expect(md).toContain(
+    'grafana.service.annotations.service\\.beta\\.kubernetes\\.io/load-balancer-source-ranges=1.2.3.4/32\\,5.6.7.8/32'
+  );
+});
+
+test('telemetry runbook omits the external-dns hostname and NLB annotations when grafanaHostname is not configured', async () => {
+  const md = await telemetryRunbookGenerate(1, {}, 'my-cluster', {}, { spec: {} });
+  expect(md).not.toContain('external-dns\\.kubernetes\\.io/hostname');
+  expect(md).not.toContain('aws-load-balancer-type');
+  expect(md).not.toContain('aws-load-balancer-nlb-target-type');
+  expect(md).not.toContain('aws-load-balancer-scheme');
+  expect(md).not.toContain('aws-load-balancer-target-group-attributes');
+});
+
 test('TelemetryFeature prometheusMode defaults to embedded', () => {
   const f = new TelemetryFeature('telemetry', {});
   expect(f.prometheusMode).toBe('embedded');

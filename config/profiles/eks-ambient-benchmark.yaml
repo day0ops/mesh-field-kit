@@ -1,0 +1,82 @@
+apiVersion: mesh.demo/v1
+kind: Profile
+metadata:
+  name: eks-ambient-benchmark
+  description: Ambient mesh + full telemetry stack + Solo UI, sized for the Solo Ambient mesh benchmark
+
+spec:
+  infra: eks-ambient-benchmark
+  environment: aws-dev
+
+  mesh:
+    istioVersion: 1.30.5
+    gatewayApiVersion: v1.5.0
+    profile: ambient
+
+    image:
+      istioRepo: us-docker.pkg.dev/soloio-img/istio
+      helmIstioRepo: us-docker.pkg.dev/soloio-img/istio-helm
+      tag: 1.30.5-solo
+
+    components:
+      - base
+      - name: istiod
+        values:
+          meshConfig:
+            accessLogFile: /dev/stdout
+            defaultConfig:
+              proxyMetadata:
+                ISTIO_META_DNS_CAPTURE: 'true'
+          env:
+            PILOT_ENABLE_IP_AUTOALLOCATE: 'true'
+          pilot:
+            cni:
+              namespace: istio-system
+              enabled: true
+      - cni
+      - name: ztunnel
+        values:
+          env:
+            ISTIO_META_DNS_CAPTURE: 'true'
+
+  addons:
+    - name: aws-load-balancer-controller
+      description: Proper NLB provisioning for telemetry/solo-ui LoadBalancer Services
+      phase: pre
+      clusterName: '{{infra.clusters.demo.cluster}}'
+      serviceAccountRoleArn: '{{infra.clusters.demo.iam.albControllerRoleArn}}'
+
+    - name: external-dns
+      description: Route53 records for Grafana/Solo UI hostnames - required for the sourceRanges restriction above to actually take effect
+      version: '{{env.addons.external-dns.version}}'
+      namespace: external-dns
+      phase: pre
+      config:
+        provider: route53
+        domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
+        region: '{{env.aws.region}}'
+        txtOwnerId: '{{env.dns.txtOwnerId}}'
+
+    - name: telemetry
+      description: Full observability stack (Prometheus, Grafana, Tempo, Loki, OTel collectors) - the traces collector is where account-service/ledger-service send OTLP traces
+      phase: post
+      namespace: telemetry
+      chartVersions: '{{env.addons.telemetry}}'
+      config:
+        database:
+          storageClass: gp3
+          storageSize: 100Gi
+        retention: 120h
+        grafanaServiceType: LoadBalancer
+        grafanaHostname: '{{env.domains.core.grafana}}'
+        sourceRanges: '{{env.security.vpnSourceRanges}}'
+
+    - name: solo-ui
+      mode: management
+      version: '{{env.soloUi.version}}'
+      phase: post
+      namespace: solo-enterprise
+      telemetryNamespace: telemetry
+      serviceType: ClusterIP
+      hostname: '{{env.domains.core.soloUi}}'
+      sourceRanges: '{{env.security.vpnSourceRanges}}'

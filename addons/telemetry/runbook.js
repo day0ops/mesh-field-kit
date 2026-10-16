@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { resolveChartVersions } from './versions.js';
 import { TemplateResolver } from '../../src/lib/template-resolver.js';
+import { nlbSourceRangeAnnotations } from '../../src/lib/common.js';
 
 const resolveEnv = (v, env) =>
   TemplateResolver.resolveValues(v, TemplateResolver.buildContext({}, env));
@@ -12,6 +13,11 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 
 // tpl: return v if it's a real value (not an unresolved {{...}} template), otherwise fb
 const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
+
+// Mirrors index.js's helmSetEscape: Helm's --set parser treats an unescaped comma as a
+// key=value separator and a backslash as an escape character, either of which would
+// corrupt a source-range list or credential embedded in a --set value.
+const helmSetEscape = value => String(value).replace(/\\/g, '\\\\').replace(/,/g, '\\,');
 
 function readConfig(name) {
   return fs.promises.readFile(join(__dir, 'config', name), 'utf8');
@@ -118,9 +124,24 @@ async function _generateGateway(addonCfg, clusterName, env) {
   const openshift = (addonCfg.platform || cfg.platform) === 'openshift';
   const grafanaHostname =
     tpl(cfg.grafanaHostname, env.spec.domains?.core?.grafana) || 'grafana.example.com';
+  const grafanaServiceType = cfg.grafanaServiceType || 'ClusterIP';
+  const sourceRanges = cfg.sourceRanges || null;
   const grafanaTls = cfg.grafanaTls || {};
   const grafanaOidc = cfg.grafanaOidc || {};
   const globalExport = cfg.globalExport === true;
+
+  // Mirrors buildPrometheusStackHelmArgs()'s `if (this.grafanaHostname)` gate: these
+  // annotations only apply when a hostname is configured.
+  const grafanaHostnameAnnotationLines = cfg.grafanaHostname
+    ? `
+  --set "grafana.service.annotations.external-dns\\.kubernetes\\.io/hostname=${grafanaHostname}" \\
+${Object.entries(nlbSourceRangeAnnotations(sourceRanges))
+  .map(
+    ([key, value]) =>
+      `  --set "grafana.service.annotations.${key.replace(/\./g, '\\.')}=${helmSetEscape(value)}" \\`
+  )
+  .join('\n')}`
+    : '';
 
   const tlsIssuer = grafanaTls.issuer || 'letsencrypt-dns';
   const tlsSecret = grafanaTls.secretName || 'grafana-tls';
@@ -471,7 +492,7 @@ helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheu
   --set prometheus.prometheusSpec.retention=${retention} \\
   --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=${storageClass} \\
   --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=${storageSize} \\
-  --set "grafana.service.annotations.external-dns\\.kubernetes\\.io/hostname=${grafanaHostname}" \\
+  --set grafana.service.type=${grafanaServiceType} \\${grafanaHostnameAnnotationLines}
   --set-string grafana.adminUser=$GRAFANA_ADMIN_USERNAME \\
   --set-string grafana.adminPassword=$GRAFANA_ADMIN_PASSWORD \\
   --set-string grafana.sidecar.datasources.reloadURL=http://$GRAFANA_ADMIN_USERNAME:$GRAFANA_ADMIN_PASSWORD@localhost:3000/api/admin/provisioning/datasources/reload \\
