@@ -77,5 +77,6 @@ spec:
       phase: post
       namespace: solo-enterprise
       telemetryNamespace: telemetry
+      serviceType: ClusterIP
       hostname: '{{env.domains.core.soloUi}}'
       sourceRanges: '{{env.security.vpnSourceRanges}}'
