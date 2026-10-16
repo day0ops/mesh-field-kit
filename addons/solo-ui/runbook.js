@@ -109,6 +109,7 @@ kubectl --context=${ctx} create secret generic ui-backend-oidc-secret \\
     `  --set clickhouse.persistence.storageClass=${storageClass}`,
     `  --set clickhouse.persistence.size=${storageSize}`,
     `  --set products.mesh.enabled=${products.mesh?.enabled === true}`,
+    ...(addon.serviceType ? [`  --set service.type=${addon.serviceType}`] : []),
     ...oidcArgs,
     `  --wait`,
     `  --timeout 10m`,

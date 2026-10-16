@@ -1,5 +1,6 @@
 import { test, expect, spyOn, describe, beforeEach, afterEach } from 'bun:test';
 import { SoloUIFeature } from '../../addons/solo-ui/index.js';
+import { generate as soloUiRunbookGenerate } from '../../addons/solo-ui/runbook.js';
 import { KubernetesHelper } from '../../src/lib/common.js';
 
 test('SoloUIFeature sourceRanges defaults to null', () => {
@@ -135,4 +136,20 @@ describe('installManagementChart() service.type pass-through', () => {
     const [helmArgs] = helmSpy.mock.calls[0];
     expect(helmArgs.some(arg => arg.startsWith('service.type='))).toBe(false);
   });
+});
+
+test('solo-ui runbook emits --set service.type when serviceType is configured', async () => {
+  const md = await soloUiRunbookGenerate(
+    1,
+    { config: { serviceType: 'ClusterIP' } },
+    'my-cluster',
+    {},
+    { spec: {} }
+  );
+  expect(md).toContain('--set service.type=ClusterIP');
+});
+
+test('solo-ui runbook omits the service.type flag when serviceType is not configured', async () => {
+  const md = await soloUiRunbookGenerate(1, {}, 'my-cluster', {}, { spec: {} });
+  expect(md).not.toContain('service.type=');
 });
