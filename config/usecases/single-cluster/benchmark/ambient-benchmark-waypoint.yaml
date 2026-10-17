@@ -71,7 +71,7 @@ spec:
           path: /api/v1/transfers
           headers:
             Content-Type: application/json
-          body: '{"fromAccount":"acc-001","toAccount":"acc-002","amount":"1.00","currency":"USD"}'
+          body: '{"fromAccount":"acc-001","toAccount":"acc-002","amount":1.00,"currency":"USD"}'
           timeout: 30s
         - action: verify
           expect:
