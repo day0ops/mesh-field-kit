@@ -215,7 +215,11 @@ export class Feature {
     await KubernetesHelper.labelNamespaceForDataplaneMode(namespace, dataplaneMode, context, {
       quiet: true,
     });
-    this.log(`Namespace '${namespace}' labeled for ${dataplaneMode} mode`);
+    if (dataplaneMode === 'none') {
+      this.log(`Namespace '${namespace}' left unlabeled (dataplane mode 'none')`);
+    } else {
+      this.log(`Namespace '${namespace}' labeled for ${dataplaneMode} mode`);
+    }
   }
 
   /**

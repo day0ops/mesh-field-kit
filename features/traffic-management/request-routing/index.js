@@ -17,6 +17,9 @@ const __dirname = path.dirname(__filename);
  * {
  *   routeName: string,              // Required: HTTPRoute name
  *   namespace: string,               // Required: Namespace
+ *   dataplaneMode: string,           // Optional: Dataplane mode to label the namespace with
+ *                                    // ('ambient'|'sidecar'|'none', default: 'ambient'). Set to 'none'
+ *                                    // to avoid re-labeling a namespace an application already left unmeshed.
  *   parentRefs: array,               // Optional: Parent references (if not provided, uses gatewayName/gatewayNamespace)
  *   gatewayName: string,             // Optional: Parent Gateway name (required if parentRefs not provided)
  *   gatewayNamespace: string,         // Optional: Gateway namespace (defaults to route namespace)
@@ -69,7 +72,7 @@ export class RequestRoutingFeature extends Feature {
 
     // Ensure namespace exists and is labeled for Ambient mode in each cluster
     for (const context of contextsToDeploy) {
-      await this.ensureNamespace(namespace, context);
+      await this.ensureNamespace(namespace, context, this.config.dataplaneMode || 'ambient');
     }
 
     // Load HTTPRoute template from config file
