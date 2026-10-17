@@ -18,6 +18,9 @@ const __dirname = path.dirname(__filename);
  * {
  *   waypointName: string,         // Required: Waypoint Gateway name
  *   namespace: string,            // Required: Namespace
+ *   dataplaneMode: string,        // Optional: Dataplane mode to label the namespace with
+ *                                 // ('ambient'|'sidecar'|'none', default: 'ambient'). Set to 'none'
+ *                                 // to avoid re-labeling a namespace an application already left unmeshed.
  *   labels: {                     // Optional: Labels to apply to namespace/service for waypoint binding
  *     target: 'namespace'|'service', // What to label (default: 'namespace')
  *     serviceName: string,        // Required if target is 'service'
@@ -60,7 +63,7 @@ export class WaypointFeature extends Feature {
     this.log(`  Namespace: ${namespace}`, 'info');
 
     for (const context of contextsToDeploy) {
-      await this.ensureNamespace(namespace, context);
+      await this.ensureNamespace(namespace, context, this.config.dataplaneMode || 'ambient');
     }
 
     // 'auto' is a reserved value in Istio ambient: labeling a namespace/service

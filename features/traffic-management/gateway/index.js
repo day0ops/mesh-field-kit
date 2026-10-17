@@ -18,6 +18,9 @@ const __dirname = path.dirname(__filename);
  * {
  *   gatewayName: string,          // Required: Gateway name (or use gwName for backward compatibility)
  *   namespace: string,            // Required: Namespace
+ *   dataplaneMode: string,        // Optional: Dataplane mode to label the namespace with
+ *                                 // ('ambient'|'sidecar'|'none', default: 'ambient'). Set to 'none'
+ *                                 // to avoid re-labeling a namespace an application already left unmeshed.
  *   gateway: {                    // Gateway configuration
  *     gatewayClassName: string,   // Optional: Gateway class name (default: istio)
  *     serviceType: string,        // Optional: Service type for annotation (ClusterIP, LoadBalancer, etc.)
@@ -74,7 +77,7 @@ export class GatewayFeature extends Feature {
 
     // Ensure namespace exists and is labeled for Ambient mode in each cluster
     for (const context of contextsToDeploy) {
-      await this.ensureNamespace(namespace, context);
+      await this.ensureNamespace(namespace, context, this.config.dataplaneMode || 'ambient');
     }
 
     // Load Gateway template from config file or build from config

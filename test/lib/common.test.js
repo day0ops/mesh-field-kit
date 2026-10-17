@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { nlbSourceRangeAnnotations } from '../../src/lib/common.js';
+import { nlbSourceRangeAnnotations, KubernetesHelper } from '../../src/lib/common.js';
 
 test('nlbSourceRangeAnnotations returns base NLB annotations with no source ranges', () => {
   const result = nlbSourceRangeAnnotations(null);
@@ -44,4 +44,25 @@ test('nlbSourceRangeAnnotations targetType instance omits the ip-mode-only targe
     'service.beta.kubernetes.io/aws-load-balancer-scheme': 'internet-facing',
     'service.beta.kubernetes.io/load-balancer-source-ranges': '165.99.148.61/32',
   });
+});
+
+test('labelNamespaceForDataplaneMode resolves without error for mode "none" and does not call kubectl', async () => {
+  let kubectlCalled = false;
+  const originalKubectl = KubernetesHelper.kubectl;
+  KubernetesHelper.kubectl = async (...args) => {
+    kubectlCalled = true;
+    return originalKubectl(...args);
+  };
+  try {
+    await KubernetesHelper.labelNamespaceForDataplaneMode('test-ns', 'none', null, { quiet: true });
+    expect(kubectlCalled).toBe(false);
+  } finally {
+    KubernetesHelper.kubectl = originalKubectl;
+  }
+});
+
+test('labelNamespaceForDataplaneMode still rejects an unknown mode', async () => {
+  await expect(
+    KubernetesHelper.labelNamespaceForDataplaneMode('test-ns', 'bogus', null, { quiet: true })
+  ).rejects.toThrow("Invalid dataplane mode 'bogus'. Must be 'ambient', 'sidecar', or 'none'");
 });

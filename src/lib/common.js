@@ -792,10 +792,11 @@ export class KubernetesHelper {
   }
 
   /**
-   * Label namespace for a given Istio dataplane mode ('ambient' or 'sidecar').
+   * Label namespace for a given Istio dataplane mode ('ambient', 'sidecar', or 'none').
    * Mirrors Solo's documented migration commands: 'ambient' removes any
    * istio-injection label and sets istio.io/dataplane-mode=ambient in one
-   * kubectl invocation; 'sidecar' does the reverse.
+   * kubectl invocation; 'sidecar' does the reverse. 'none' leaves the
+   * namespace unlabeled entirely, for unmeshed baseline comparisons.
    */
   static async labelNamespaceForDataplaneMode(
     namespace,
@@ -803,14 +804,18 @@ export class KubernetesHelper {
     context = null,
     { quiet = false, spinner = null } = {}
   ) {
-    if (mode !== 'ambient' && mode !== 'sidecar') {
-      throw new Error(`Invalid dataplane mode '${mode}'. Must be 'ambient' or 'sidecar'`);
+    if (mode !== 'ambient' && mode !== 'sidecar' && mode !== 'none') {
+      throw new Error(`Invalid dataplane mode '${mode}'. Must be 'ambient', 'sidecar', or 'none'`);
     }
     const log = (msg, level = 'info') => {
       if (quiet) return;
       if (spinner) spinner.log(msg, level);
       else Logger[level](msg);
     };
+    if (mode === 'none') {
+      log(`Namespace '${namespace}' left unlabeled (dataplane mode 'none')`);
+      return;
+    }
     const contextFlag = context ? ['--context', context] : [];
     const labelArgs =
       mode === 'sidecar'

@@ -1,0 +1,78 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: ambient-benchmark-waypoint
+  description: 'Ambient mesh benchmark - waypoint path. Gateway to account-service to ledger-service with ztunnel interception plus per-service waypoint proxies in front of account-service and ledger-service.'
+spec:
+  requires:
+    applications:
+      - name: ambient-mesh-benchmark
+        namespace: ambient-mesh-benchmark
+
+  features:
+    - name: gateway
+      description: Create ingress gateway for the benchmark
+      config:
+        gatewayName: ambient-benchmark
+        namespace: ambient-mesh-benchmark
+        gateway:
+          listeners:
+            - name: http
+              hostname: ambient-benchmark.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: request-routing
+      description: Route traffic to account-service
+      config:
+        routeName: ambient-benchmark
+        namespace: ambient-mesh-benchmark
+        gatewayName: ambient-benchmark
+        gatewayNamespace: ambient-mesh-benchmark
+        hostname: ambient-benchmark.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: account-service
+                port: 8080
+
+    - name: waypoint
+      description: Deploy waypoint proxy for account-service
+      config:
+        waypointName: ambient-benchmark-account-waypoint
+        namespace: ambient-mesh-benchmark
+        labels:
+          target: service
+          serviceName: account-service
+
+    - name: waypoint
+      description: Deploy waypoint proxy for ledger-service
+      config:
+        waypointName: ambient-benchmark-ledger-waypoint
+        namespace: ambient-mesh-benchmark
+        labels:
+          target: service
+          serviceName: ledger-service
+
+  tests:
+    - name: transfer-succeeds
+      description: Verify a transfer succeeds through the waypoint path
+      steps:
+        - action: send-request
+          hostname: ambient-benchmark.example.com
+          autoDetectGwAddress: true
+          method: POST
+          path: /api/v1/transfers
+          headers:
+            Content-Type: application/json
+          body: '{"fromAccount":"acc-001","toAccount":"acc-002","amount":1.00,"currency":"USD"}'
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 200
