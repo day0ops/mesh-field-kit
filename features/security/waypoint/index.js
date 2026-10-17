@@ -163,7 +163,7 @@ export class WaypointFeature extends Feature {
         if (target === 'namespace') {
           try {
             await CommandRunner.exec(
-              `kubectl ${contextFlag}label namespace ${namespace} istio.io/use-waypoint- --ignore-not-found=true`
+              `kubectl ${contextFlag}label namespace ${namespace} istio.io/use-waypoint-`
             );
           } catch {
             /* ignore */
@@ -171,7 +171,7 @@ export class WaypointFeature extends Feature {
         } else if (target === 'service' && this.config.labels.serviceName) {
           try {
             await CommandRunner.exec(
-              `kubectl ${contextFlag}label service ${this.config.labels.serviceName} -n ${namespace} istio.io/use-waypoint- --ignore-not-found=true`
+              `kubectl ${contextFlag}label service ${this.config.labels.serviceName} -n ${namespace} istio.io/use-waypoint-`
             );
           } catch {
             /* ignore */
