@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: ambient-benchmark-direct
-  description: |
-    Ambient mesh benchmark - direct comparison baseline. Gateway to account-service to
-    ledger-service with no mesh component in the path: no ztunnel interception, no waypoint.
+  description: 'Ambient mesh benchmark - direct comparison baseline. Gateway to account-service to ledger-service with no mesh component in the path: no ztunnel interception, no waypoint.'
 spec:
   requires:
     applications:

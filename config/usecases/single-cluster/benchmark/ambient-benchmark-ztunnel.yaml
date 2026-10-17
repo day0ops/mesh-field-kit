@@ -2,9 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: ambient-benchmark-ztunnel
-  description: |
-    Ambient mesh benchmark - ztunnel-only path. Gateway to account-service to
-    ledger-service with ztunnel interception (ambient dataplane) but no waypoint.
+  description: 'Ambient mesh benchmark - ztunnel-only path. Gateway to account-service to ledger-service with ztunnel interception (ambient dataplane) but no waypoint.'
 spec:
   requires:
     applications:
@@ -46,7 +44,7 @@ spec:
 
   tests:
     - name: transfer-succeeds
-      description: Verify a transfer succeeds through the direct path
+      description: Verify a transfer succeeds through the ztunnel path
       steps:
         - action: send-request
           hostname: ambient-benchmark.example.com

@@ -2,10 +2,7 @@ apiVersion: mesh.demo/v1
 kind: UseCase
 metadata:
   name: ambient-benchmark-waypoint
-  description: |
-    Ambient mesh benchmark - waypoint path. Gateway to account-service to
-    ledger-service with ztunnel interception plus per-service waypoint proxies
-    in front of account-service and ledger-service.
+  description: 'Ambient mesh benchmark - waypoint path. Gateway to account-service to ledger-service with ztunnel interception plus per-service waypoint proxies in front of account-service and ledger-service.'
 spec:
   requires:
     applications:
@@ -65,7 +62,7 @@ spec:
 
   tests:
     - name: transfer-succeeds
-      description: Verify a transfer succeeds through the direct path
+      description: Verify a transfer succeeds through the waypoint path
       steps:
         - action: send-request
           hostname: ambient-benchmark.example.com
