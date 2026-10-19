@@ -794,6 +794,10 @@ usecase
   .option('-y, --yes', 'Non-interactive: skip step-by-step prompts and run all steps automatically')
   .option('--no-diagrams', 'Hide ASCII flow diagrams during stepped deploy')
   .option('--skip-tests', 'Skip running tests after deployment')
+  .option(
+    '--infra <name>',
+    'Infra profile name for {{env.*}} template resolution and kubeconfig context (auto-detected from the current kube context when omitted)'
+  )
   .action(async options => {
     try {
       let usecaseName = options.name;
@@ -808,6 +812,7 @@ usecase
         interactive: !options.yes,
         skipTests: options.skipTests,
         diagrams: options.diagrams,
+        infra: options.infra,
       });
     } catch (error) {
       Logger.error(`Failed to deploy use case: ${error.message}`);
@@ -822,6 +827,10 @@ usecase
   .option(
     '-c, --current',
     'Clean the use case tracked as currently deployed (ConfigMap mesh-feature-catalog-current-usecase)'
+  )
+  .option(
+    '--infra <name>',
+    'Infra profile name for {{env.*}} template resolution and kubeconfig context (auto-detected from the current kube context when omitted)'
   )
   .action(async options => {
     try {
@@ -843,7 +852,7 @@ usecase
         process.exit(1);
       }
 
-      await UseCaseManager.cleanup(usecaseName);
+      await UseCaseManager.cleanup(usecaseName, { infra: options.infra });
     } catch (error) {
       Logger.error(`Failed to clean use case: ${error.message}`);
       process.exit(1);
@@ -854,6 +863,10 @@ usecase
   .command('test')
   .description('Test a deployed use case')
   .option('-n, --name <name>', 'Use case name')
+  .option(
+    '--infra <name>',
+    'Infra profile name for {{env.*}} template resolution and kubeconfig context (auto-detected from the current kube context when omitted)'
+  )
   .action(async options => {
     try {
       let usecaseName = options.name;
@@ -864,7 +877,7 @@ usecase
         Logger.info(`Selected use case: ${usecaseName}`);
       }
 
-      await UseCaseManager.test(usecaseName);
+      await UseCaseManager.test(usecaseName, { infra: options.infra });
     } catch (error) {
       Logger.error(`Failed to test use case: ${error.message}`);
       process.exit(1);

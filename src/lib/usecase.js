@@ -503,19 +503,42 @@ export class UseCaseManager {
   }
 
   /**
-   * Build a template context from spec.infra for {{env.*}} resolution in feature configs.
+   * Auto-detect the active infra profile for templating when a use case doesn't
+   * declare spec.infra - the common case, since use cases are infra-agnostic.
+   * Preference: kube-context match among provisioned infra > sole provisioned infra.
+   */
+  static async detectActiveInfra() {
+    try {
+      const { matches } = await InfraStateManager.matchProfilesByKubeContext({
+        provisionedOnly: true,
+      });
+      if (matches.length === 1) return matches[0].name;
+
+      const provisioned = (await InfraStateManager.listInfraProfiles()).filter(p => p.provisioned);
+      if (provisioned.length === 1) return provisioned[0].name;
+    } catch {
+      // fall through
+    }
+    return null;
+  }
+
+  /**
+   * Build a template context for {{env.*}} / {{infra.*}} resolution in feature configs.
+   * Resolution order: explicitInfra (e.g. --infra flag) > spec.infra > auto-detected
+   * active infra (kube-context match, or the sole provisioned profile).
    * Returns null if no infra or environment is resolvable.
    */
-  static async buildTemplateContext(specInfra) {
-    if (!specInfra) return null;
+  static async buildTemplateContext(specInfra, explicitInfra = null) {
+    const infraName = explicitInfra || specInfra || (await this.detectActiveInfra());
+    if (!infraName) return null;
     try {
-      const infraPath = join(PROJECT_ROOT, 'config', 'infra', `${specInfra}.yaml`);
+      const infraPath = join(PROJECT_ROOT, 'config', 'infra', `${infraName}.yaml`);
       if (!existsSync(infraPath)) return null;
       const infraProfile = yaml.load(await readFile(infraPath, 'utf8'));
       const envName = infraProfile?.spec?.environment;
       if (!envName) return null;
       const environment = await EnvironmentManager.load(envName);
-      const infraState = await InfraStateManager.load(specInfra);
+      const infraState = await InfraStateManager.load(infraName);
       return TemplateResolver.buildContext(
         { name: '', context: '', role: '' },
         environment,
@@ -553,8 +576,9 @@ export class UseCaseManager {
       // Load kubeconfig files from infra state so cluster contexts are resolvable.
       // Must happen before getCurrentUseCase/setCurrentUseCase below, since those
       // rely on the ambient kubectl context resolving to the right cluster.
-      if (spec.infra) {
-        await this.ensureKubeconfigsLoaded(spec.infra);
+      const infraOverride = options.infra || null;
+      if (spec.infra || infraOverride) {
+        await this.ensureKubeconfigsLoaded(infraOverride || spec.infra);
       }
 
       // Check for existing use case
@@ -597,7 +621,7 @@ export class UseCaseManager {
         FeatureManager.setDefaultNamespace(namespace);
       }
 
-      const templateContext = await this.buildTemplateContext(spec.infra);
+      const templateContext = await this.buildTemplateContext(spec.infra, infraOverride);
 
       // Record current use case before any deployment so cleanup works even if deployment fails
       await this.setCurrentUseCase(filePath);
@@ -716,7 +740,7 @@ export class UseCaseManager {
   /**
    * Clean up a use case
    */
-  static async cleanup(name) {
+  static async cleanup(name, options = {}) {
     const spinner = new SpinnerLogger();
 
     try {
@@ -739,11 +763,12 @@ export class UseCaseManager {
       }
 
       // Load kubeconfig files from infra state so cluster contexts are resolvable
-      if (spec.infra) {
-        await this.ensureKubeconfigsLoaded(spec.infra);
+      const infraOverride = options.infra || null;
+      if (spec.infra || infraOverride) {
+        await this.ensureKubeconfigsLoaded(infraOverride || spec.infra);
       }
 
-      const templateContext = await this.buildTemplateContext(spec.infra);
+      const templateContext = await this.buildTemplateContext(spec.infra, infraOverride);
       const requiredApps = spec.requires?.applications || [];
       const specLevelClusters = spec.clusters || null;
       const specLevelInfra = spec.infra || null;
@@ -895,7 +920,7 @@ export class UseCaseManager {
   /**
    * Test a use case
    */
-  static async test(name) {
+  static async test(name, options = {}) {
     let filePath;
     if (name.endsWith('.yaml')) {
       filePath = name;
@@ -905,10 +930,11 @@ export class UseCaseManager {
     }
 
     const usecase = await this.parse(filePath);
-    if (usecase.spec?.infra) {
-      await this.ensureKubeconfigsLoaded(usecase.spec.infra);
+    const infraOverride = options.infra || null;
+    if (usecase.spec?.infra || infraOverride) {
+      await this.ensureKubeconfigsLoaded(infraOverride || usecase.spec.infra);
     }
-    const templateContext = await this.buildTemplateContext(usecase.spec?.infra);
+    const templateContext = await this.buildTemplateContext(usecase.spec?.infra, infraOverride);
     const resolved = templateContext
       ? { ...usecase, spec: TemplateResolver.resolveValues(usecase.spec, templateContext) }
       : usecase;
