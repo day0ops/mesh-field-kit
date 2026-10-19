@@ -13,6 +13,7 @@ spec:
     nodes:
       desired: 4
       type: m6i.2xlarge
+      private: true
 
   clusters:
     - name: demo
