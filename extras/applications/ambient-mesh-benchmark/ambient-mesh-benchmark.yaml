@@ -27,13 +27,12 @@ spec:
             - name: OTEL_SERVICE_NAME
               value: ledger-service
           resources:
-            # No CPU limit - a hard limit causes Kubernetes CFS quota
-            # throttling in short bursts even when average usage looks low,
-            # which measurably added tail latency under benchmark load.
+            # No limits - a CPU limit causes CFS quota throttling under load,
+            # and a memory limit is a ceiling the JVM's own thread pool can
+            # legitimately bump into at high concurrency. The benchmark
+            # isolates Istio's overhead, not app resource ceilings.
             requests:
               cpu: '500m'
-              memory: '512Mi'
-            limits:
               memory: '512Mi'
           readinessProbe:
             httpGet:
@@ -93,13 +92,12 @@ spec:
             - name: LEDGER_SERVICE_BASE_URL
               value: 'http://ledger-service:8081'
           resources:
-            # No CPU limit - a hard limit causes Kubernetes CFS quota
-            # throttling in short bursts even when average usage looks low,
-            # which measurably added tail latency under benchmark load.
+            # No limits - a CPU limit causes CFS quota throttling under load,
+            # and a memory limit is a ceiling the JVM's own thread pool can
+            # legitimately bump into at high concurrency. The benchmark
+            # isolates Istio's overhead, not app resource ceilings.
             requests:
               cpu: '500m'
-              memory: '512Mi'
-            limits:
               memory: '512Mi'
           readinessProbe:
             httpGet:
