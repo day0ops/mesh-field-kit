@@ -16,6 +16,7 @@ spec:
         gatewayName: ambient-benchmark
         namespace: ambient-mesh-benchmark
         gateway:
+          sourceRanges: '{{env.security.vpnSourceRanges}}'
           listeners:
             - name: http
               hostname: ambient-benchmark.example.com

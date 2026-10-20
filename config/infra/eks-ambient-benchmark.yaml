@@ -5,7 +5,7 @@ metadata:
   description: EKS single cluster sized for the Solo Ambient mesh benchmark
 
 spec:
-  name: ambient-bench
+  name: abench
   provider: eks
   environment: aws-dev
 
@@ -13,6 +13,7 @@ spec:
     nodes:
       desired: 4
       type: m6i.2xlarge
+      private: true
 
   clusters:
     - name: demo
