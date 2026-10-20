@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: ledger-service
-          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/ledger-service:v0.1.1
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/ledger-service:v0.1.3
           ports:
             - containerPort: 8081
           env:
@@ -27,11 +27,13 @@ spec:
             - name: OTEL_SERVICE_NAME
               value: ledger-service
           resources:
+            # No CPU limit - a hard limit causes Kubernetes CFS quota
+            # throttling in short bursts even when average usage looks low,
+            # which measurably added tail latency under benchmark load.
             requests:
               cpu: '500m'
               memory: '512Mi'
             limits:
-              cpu: '500m'
               memory: '512Mi'
           readinessProbe:
             httpGet:
@@ -80,7 +82,7 @@ spec:
     spec:
       containers:
         - name: account-service
-          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/account-service:v0.1.1
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/account-service:v0.1.3
           ports:
             - containerPort: 8080
           env:
@@ -91,11 +93,13 @@ spec:
             - name: LEDGER_SERVICE_BASE_URL
               value: 'http://ledger-service:8081'
           resources:
+            # No CPU limit - a hard limit causes Kubernetes CFS quota
+            # throttling in short bursts even when average usage looks low,
+            # which measurably added tail latency under benchmark load.
             requests:
               cpu: '500m'
               memory: '512Mi'
             limits:
-              cpu: '500m'
               memory: '512Mi'
           readinessProbe:
             httpGet:
@@ -123,3 +127,31 @@ spec:
       port: 8080
       targetPort: 8080
       appProtocol: http
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ledger-service
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: ledger-service
+  podMetricsEndpoints:
+    - path: /actuator/prometheus
+      targetPort: 8081
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: account-service
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: account-service
+  podMetricsEndpoints:
+    - path: /actuator/prometheus
+      targetPort: 8080
+      interval: 15s
