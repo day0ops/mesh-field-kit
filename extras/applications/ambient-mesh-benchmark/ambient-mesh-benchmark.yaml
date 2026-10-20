@@ -27,11 +27,13 @@ spec:
             - name: OTEL_SERVICE_NAME
               value: ledger-service
           resources:
+            # No CPU limit - a hard limit causes Kubernetes CFS quota
+            # throttling in short bursts even when average usage looks low,
+            # which measurably added tail latency under benchmark load.
             requests:
               cpu: '500m'
               memory: '512Mi'
             limits:
-              cpu: '500m'
               memory: '512Mi'
           readinessProbe:
             httpGet:
@@ -91,11 +93,13 @@ spec:
             - name: LEDGER_SERVICE_BASE_URL
               value: 'http://ledger-service:8081'
           resources:
+            # No CPU limit - a hard limit causes Kubernetes CFS quota
+            # throttling in short bursts even when average usage looks low,
+            # which measurably added tail latency under benchmark load.
             requests:
               cpu: '500m'
               memory: '512Mi'
             limits:
-              cpu: '500m'
               memory: '512Mi'
           readinessProbe:
             httpGet:
