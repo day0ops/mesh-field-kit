@@ -123,3 +123,31 @@ spec:
       port: 8080
       targetPort: 8080
       appProtocol: http
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ledger-service
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: ledger-service
+  podMetricsEndpoints:
+    - path: /actuator/prometheus
+      targetPort: 8081
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: account-service
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: account-service
+  podMetricsEndpoints:
+    - path: /actuator/prometheus
+      targetPort: 8080
+      interval: 15s
