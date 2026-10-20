@@ -18,6 +18,7 @@ spec:
         namespace: ambient-mesh-benchmark
         dataplaneMode: none
         gateway:
+          sourceRanges: '{{env.security.vpnSourceRanges}}'
           listeners:
             - name: http
               hostname: ambient-benchmark.example.com
