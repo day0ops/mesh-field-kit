@@ -51,6 +51,17 @@ spec:
       mode: chaining
       enableHealthProbePolicy: true
 
+    - name: external-dns
+      description: Route53 records for acme-bank's public hostname - required for the sourceRanges restriction to take effect
+      version: '{{env.addons.external-dns.version}}'
+      namespace: external-dns
+      phase: pre
+      config:
+        provider: route53
+        domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
+        region: '{{env.aws.region}}'
+        txtOwnerId: '{{env.dns.txtOwnerId}}'
+
     - name: cert-manager
       description: Certificate management for TLS (self-signed issuer backs Keycloak's TLS cert)
       version: '{{env.addons.cert-manager.version}}'
