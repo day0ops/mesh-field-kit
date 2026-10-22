@@ -51,6 +51,11 @@ spec:
       mode: chaining
       enableHealthProbePolicy: true
 
+    - name: cert-manager
+      description: Certificate management for TLS (self-signed issuer backs Keycloak's TLS cert)
+      version: '{{env.addons.cert-manager.version}}'
+      namespace: cert-manager
+
     - name: telemetry
       description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
       phase: post
