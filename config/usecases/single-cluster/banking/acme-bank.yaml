@@ -22,6 +22,14 @@ spec:
         namespace: acme-bank
 
   features:
+    - name: certificate
+      description: Request a real TLS cert for acme-bank's public hostname
+      config:
+        secretName: acme-bank-tls
+        namespace: acme-bank
+        hostname: '{{env.domains.core.acmeBank}}'
+        clusterIssuerName: letsencrypt-dns
+
     - name: gateway
       description: Create the ingress gateway for Acme Bank
       config:
@@ -29,11 +37,23 @@ spec:
         namespace: acme-bank
         gateway:
           gatewayClassName: kgateway
+          sourceRanges: '{{env.security.vpnSourceRanges}}'
           listeners:
             - name: http
-              hostname: acme-bank.example.com
+              hostname: '{{env.domains.core.acmeBank}}'
               port: 80
               protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+            - name: https
+              hostname: '{{env.domains.core.acmeBank}}'
+              port: 443
+              protocol: HTTPS
+              tls:
+                mode: Terminate
+                certificateRefs:
+                  - name: acme-bank-tls
               allowedRoutes:
                 namespaces:
                   from: Same
@@ -45,7 +65,7 @@ spec:
         namespace: acme-bank
         gatewayName: acme-bank
         gatewayNamespace: acme-bank
-        hostname: acme-bank.example.com
+        hostname: '{{env.domains.core.acmeBank}}'
         rules:
           - matches:
               - path:
@@ -62,7 +82,7 @@ spec:
         namespace: acme-bank
         gatewayName: acme-bank
         gatewayNamespace: acme-bank
-        hostname: acme-bank.example.com
+        hostname: '{{env.domains.core.acmeBank}}'
         rules:
           - matches:
               - path:
@@ -85,7 +105,7 @@ spec:
         namespace: acme-bank
         gatewayName: acme-bank
         gatewayNamespace: acme-bank
-        hostname: acme-bank.example.com
+        hostname: '{{env.domains.core.acmeBank}}'
         rules:
           - matches:
               - path:
@@ -108,7 +128,7 @@ spec:
         namespace: acme-bank
         gatewayName: acme-bank
         gatewayNamespace: acme-bank
-        hostname: acme-bank.example.com
+        hostname: '{{env.domains.core.acmeBank}}'
         rules:
           - matches:
               - path:
@@ -131,7 +151,7 @@ spec:
         namespace: acme-bank
         gatewayName: acme-bank
         gatewayNamespace: acme-bank
-        hostname: acme-bank.example.com
+        hostname: '{{env.domains.core.acmeBank}}'
         rules:
           - matches:
               - path:
@@ -154,7 +174,7 @@ spec:
         namespace: acme-bank
         gatewayName: acme-bank
         gatewayNamespace: acme-bank
-        hostname: acme-bank.example.com
+        hostname: '{{env.domains.core.acmeBank}}'
         rules:
           - matches:
               - path:
@@ -177,7 +197,7 @@ spec:
         namespace: acme-bank
         gatewayName: acme-bank
         gatewayNamespace: acme-bank
-        hostname: acme-bank.example.com
+        hostname: '{{env.domains.core.acmeBank}}'
         rules:
           - matches:
               - path:
@@ -241,7 +261,7 @@ spec:
         not silently allowed).
       steps:
         - action: send-request
-          hostname: acme-bank.example.com
+          hostname: '{{env.domains.core.acmeBank}}'
           autoDetectGwAddress: true
           path: /api/accounts
           timeout: 30s
@@ -253,7 +273,7 @@ spec:
       description: Verify the web UI is reachable through the gateway at /
       steps:
         - action: send-request
-          hostname: acme-bank.example.com
+          hostname: '{{env.domains.core.acmeBank}}'
           autoDetectGwAddress: true
           path: /
           timeout: 30s
