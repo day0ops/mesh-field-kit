@@ -98,6 +98,8 @@ spec:
       phase: post
       namespace: keycloak
       hostname: '{{env.domains.core.keycloak}}'
+      tls:
+        clusterIssuerName: letsencrypt-dns
       keycloakNamespace: keycloak
       realms:
         - realm: acme-bank
