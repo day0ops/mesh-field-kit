@@ -6,7 +6,7 @@ metadata:
 
 spec:
   infra: eks-ambient-benchmark
-  environment: aws-dev
+  environment: aws-abench
 
   mesh:
     istioVersion: 1.30.5
@@ -43,8 +43,8 @@ spec:
     - name: aws-load-balancer-controller
       description: Proper NLB provisioning for telemetry/solo-ui LoadBalancer Services
       phase: pre
-      clusterName: '{{infra.clusters.demo.cluster}}'
-      serviceAccountRoleArn: '{{infra.clusters.demo.iam.albControllerRoleArn}}'
+      clusterName: '{{infra.clusters.bench.cluster}}'
+      serviceAccountRoleArn: '{{infra.clusters.bench.iam.albControllerRoleArn}}'
 
     - name: external-dns
       description: Route53 records for Grafana/Solo UI hostnames - required for the sourceRanges restriction above to actually take effect
