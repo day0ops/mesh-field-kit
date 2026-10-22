@@ -1,0 +1,539 @@
+# extras/applications/acme-bank/acme-bank.yaml
+#
+# Acme Bank: a polyglot core-banking demo (github.com/day0ops/acme-bank).
+# Image tags are pinned to v0.0.1 - bump every Deployment's image tag below
+# when a new Acme Bank release is cut; this file does not auto-track releases.
+#
+# Expects the 'keycloak' addon (with an 'acme-bank' realm - see this repo's
+# Keycloak addon roles: support) and the 'redpanda' addon already installed
+# on the cluster. This application only deploys Acme Bank's own services and
+# their Postgres instances, not its platform dependencies.
+
+# ---------- Postgres: accounts ----------
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounts-postgres
+  namespace: acme-bank
+spec:
+  selector: { app: accounts-postgres }
+  ports:
+    - { port: 5432, targetPort: 5432 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounts-postgres
+  namespace: acme-bank
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: accounts-postgres }
+  template:
+    metadata:
+      labels: { app: accounts-postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{ containerPort: 5432 }]
+          env:
+            - { name: POSTGRES_USER, value: "accounts" }
+            - { name: POSTGRES_PASSWORD, value: "accounts" }
+            - { name: POSTGRES_DB, value: "accounts" }
+---
+# ---------- Postgres: customers ----------
+apiVersion: v1
+kind: Service
+metadata:
+  name: customers-postgres
+  namespace: acme-bank
+spec:
+  selector: { app: customers-postgres }
+  ports:
+    - { port: 5432, targetPort: 5432 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customers-postgres
+  namespace: acme-bank
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: customers-postgres }
+  template:
+    metadata:
+      labels: { app: customers-postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{ containerPort: 5432 }]
+          env:
+            - { name: POSTGRES_USER, value: "customers" }
+            - { name: POSTGRES_PASSWORD, value: "customers" }
+            - { name: POSTGRES_DB, value: "customers" }
+---
+# ---------- Postgres: transactions ----------
+apiVersion: v1
+kind: Service
+metadata:
+  name: transactions-postgres
+  namespace: acme-bank
+spec:
+  selector: { app: transactions-postgres }
+  ports:
+    - { port: 5432, targetPort: 5432 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transactions-postgres
+  namespace: acme-bank
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: transactions-postgres }
+  template:
+    metadata:
+      labels: { app: transactions-postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{ containerPort: 5432 }]
+          env:
+            - { name: POSTGRES_USER, value: "transactions" }
+            - { name: POSTGRES_PASSWORD, value: "transactions" }
+            - { name: POSTGRES_DB, value: "transactions" }
+---
+# ---------- Postgres: fraud-risk ----------
+apiVersion: v1
+kind: Service
+metadata:
+  name: fraud-risk-postgres
+  namespace: acme-bank
+spec:
+  selector: { app: fraud-risk-postgres }
+  ports:
+    - { port: 5432, targetPort: 5432 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-risk-postgres
+  namespace: acme-bank
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: fraud-risk-postgres }
+  template:
+    metadata:
+      labels: { app: fraud-risk-postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{ containerPort: 5432 }]
+          env:
+            - { name: POSTGRES_USER, value: "fraud_risk" }
+            - { name: POSTGRES_PASSWORD, value: "fraud_risk" }
+            - { name: POSTGRES_DB, value: "fraud_risk" }
+---
+# ---------- Postgres: cards ----------
+apiVersion: v1
+kind: Service
+metadata:
+  name: cards-postgres
+  namespace: acme-bank
+spec:
+  selector: { app: cards-postgres }
+  ports:
+    - { port: 5432, targetPort: 5432 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cards-postgres
+  namespace: acme-bank
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: cards-postgres }
+  template:
+    metadata:
+      labels: { app: cards-postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{ containerPort: 5432 }]
+          env:
+            - { name: POSTGRES_USER, value: "cards" }
+            - { name: POSTGRES_PASSWORD, value: "cards" }
+            - { name: POSTGRES_DB, value: "cards" }
+---
+# ---------- Accounts ----------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: accounts
+  namespace: acme-bank
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounts
+  namespace: acme-bank
+spec:
+  selector: { app: accounts }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+    - { name: grpc, port: 9090, targetPort: 9090 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: accounts
+  namespace: acme-bank
+  labels: { app: accounts }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: accounts }
+  template:
+    metadata:
+      labels: { app: accounts }
+    spec:
+      serviceAccountName: accounts
+      containers:
+        - name: accounts
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-accounts:v0.0.1
+          ports:
+            - { containerPort: 8080, name: http }
+            - { containerPort: 9090, name: grpc }
+          env:
+            - name: DATABASE_URL
+              value: "postgres://accounts:accounts@accounts-postgres:5432/accounts?sslmode=disable"
+            - name: JWKS_URL
+              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+---
+# ---------- Customers ----------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: customers
+  namespace: acme-bank
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customers
+  namespace: acme-bank
+spec:
+  selector: { app: customers }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+    - { name: grpc, port: 9090, targetPort: 9090 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customers
+  namespace: acme-bank
+  labels: { app: customers }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: customers }
+  template:
+    metadata:
+      labels: { app: customers }
+    spec:
+      serviceAccountName: customers
+      containers:
+        - name: customers
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-customers:v0.0.1
+          ports:
+            - { containerPort: 8080, name: http }
+            - { containerPort: 9090, name: grpc }
+          env:
+            - { name: DATABASE_URL, value: "jdbc:postgresql://customers-postgres:5432/customers" }
+            - { name: DATABASE_USER, value: "customers" }
+            - { name: DATABASE_PASSWORD, value: "customers" }
+            - name: JWKS_URL
+              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+---
+# ---------- Cards ----------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cards
+  namespace: acme-bank
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cards
+  namespace: acme-bank
+spec:
+  selector: { app: cards }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+    - { name: grpc, port: 9090, targetPort: 9090 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cards
+  namespace: acme-bank
+  labels: { app: cards }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: cards }
+  template:
+    metadata:
+      labels: { app: cards }
+    spec:
+      serviceAccountName: cards
+      containers:
+        - name: cards
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-cards:v0.0.1
+          ports:
+            - { containerPort: 8080, name: http }
+            - { containerPort: 9090, name: grpc }
+          env:
+            - name: DATABASE_URL
+              value: "postgres://cards:cards@cards-postgres:5432/cards"
+            - name: JWKS_URL
+              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+---
+# ---------- Transactions ----------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: transactions
+  namespace: acme-bank
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transactions
+  namespace: acme-bank
+spec:
+  selector: { app: transactions }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+    - { name: grpc, port: 9090, targetPort: 9090 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transactions
+  namespace: acme-bank
+  labels: { app: transactions }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: transactions }
+  template:
+    metadata:
+      labels: { app: transactions }
+    spec:
+      serviceAccountName: transactions
+      containers:
+        - name: transactions
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-transactions:v0.0.1
+          ports:
+            - { containerPort: 8080, name: http }
+            - { containerPort: 9090, name: grpc }
+          env:
+            - { name: DATABASE_URL, value: "jdbc:postgresql://transactions-postgres:5432/transactions" }
+            - { name: DATABASE_USER, value: "transactions" }
+            - { name: DATABASE_PASSWORD, value: "transactions" }
+            - { name: ACCOUNTS_GRPC_HOST, value: "accounts.acme-bank.svc.cluster.local" }
+            - { name: ACCOUNTS_GRPC_PORT, value: "9090" }
+            - { name: KAFKA_BOOTSTRAP_SERVERS, value: "redpanda.redpanda.svc.cluster.local:9092" }
+            - name: JWKS_URL
+              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+---
+# ---------- Fraud/Risk ----------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fraud-risk
+  namespace: acme-bank
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fraud-risk
+  namespace: acme-bank
+spec:
+  selector: { app: fraud-risk }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+    - { name: grpc, port: 9090, targetPort: 9090 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-risk
+  namespace: acme-bank
+  labels: { app: fraud-risk }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: fraud-risk }
+  template:
+    metadata:
+      labels: { app: fraud-risk }
+    spec:
+      serviceAccountName: fraud-risk
+      containers:
+        - name: fraud-risk
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-fraud-risk:v0.0.1
+          ports:
+            - { containerPort: 8080, name: http }
+            - { containerPort: 9090, name: grpc }
+          env:
+            - { name: DATABASE_URL, value: "jdbc:postgresql://fraud-risk-postgres:5432/fraud_risk" }
+            - { name: DATABASE_USER, value: "fraud_risk" }
+            - { name: DATABASE_PASSWORD, value: "fraud_risk" }
+            - { name: KAFKA_BOOTSTRAP_SERVERS, value: "redpanda.redpanda.svc.cluster.local:9092" }
+            - name: JWKS_URL
+              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+---
+# ---------- Notifications ----------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notifications
+  namespace: acme-bank
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notifications
+  namespace: acme-bank
+spec:
+  selector: { app: notifications }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications
+  namespace: acme-bank
+  labels: { app: notifications }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: notifications }
+  template:
+    metadata:
+      labels: { app: notifications }
+    spec:
+      serviceAccountName: notifications
+      containers:
+        - name: notifications
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-notifications:v0.0.1
+          ports:
+            - { containerPort: 8080, name: http }
+          env:
+            - { name: KAFKA_BOOTSTRAP_SERVERS, value: "redpanda.redpanda.svc.cluster.local:9092" }
+            - name: JWKS_URL
+              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+---
+# ---------- Dashboard BFF ----------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dashboard-bff
+  namespace: acme-bank
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard-bff
+  namespace: acme-bank
+spec:
+  selector: { app: dashboard-bff }
+  ports:
+    - { name: http, port: 8080, targetPort: 8080 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard-bff
+  namespace: acme-bank
+  labels: { app: dashboard-bff }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: dashboard-bff }
+  template:
+    metadata:
+      labels: { app: dashboard-bff }
+    spec:
+      serviceAccountName: dashboard-bff
+      containers:
+        - name: dashboard-bff
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-dashboard-bff:v0.0.1
+          ports:
+            - { containerPort: 8080, name: http }
+          env:
+            - { name: CUSTOMERS_GRPC_ADDR, value: "customers.acme-bank.svc.cluster.local:9090" }
+            - { name: ACCOUNTS_GRPC_ADDR, value: "accounts.acme-bank.svc.cluster.local:9090" }
+            - { name: CARDS_GRPC_ADDR, value: "cards.acme-bank.svc.cluster.local:9090" }
+            - { name: TRANSACTIONS_GRPC_ADDR, value: "transactions.acme-bank.svc.cluster.local:9090" }
+            - name: JWKS_URL
+              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+---
+# ---------- Web UI ----------
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: acme-bank
+spec:
+  selector: { app: web }
+  ports:
+    - { name: http, port: 80, targetPort: 80 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: acme-bank
+  labels: { app: web }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web }
+    spec:
+      containers:
+        - name: web
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-web:v0.0.1
+          ports:
+            - { containerPort: 80, name: http }
