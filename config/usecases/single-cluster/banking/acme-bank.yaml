@@ -1,0 +1,261 @@
+apiVersion: mesh.demo/v1
+kind: UseCase
+metadata:
+  name: acme-bank
+  description: |
+    Acme Bank, a polyglot core-banking demo (github.com/day0ops/acme-bank), running
+    through kgateway + Istio ambient mesh. Exercises HTTP routing (with URL rewrites
+    stripping /api/<service> down to each backend's own path), and an east-west
+    AuthorizationPolicy restricting Accounts' internal gRPC port to the Dashboard BFF
+    only, plus an explicit second rule opening the public REST port to all callers
+    (ambient's default-deny-once-any-ALLOW-policy-exists semantics otherwise block
+    kgateway's own traffic to the same workload).
+    - Requires the 'keycloak' addon already installed with an 'acme-bank' realm
+      configured (roles: customer/banker/admin, admin composite of banker)
+    - Requires the 'redpanda' addon already installed
+    - Requires the 'kgateway' addon already installed
+
+spec:
+  requires:
+    applications:
+      - name: acme-bank
+        namespace: acme-bank
+
+  features:
+    - name: gateway
+      description: Create the ingress gateway for Acme Bank
+      config:
+        gatewayName: acme-bank
+        namespace: acme-bank
+        gateway:
+          listeners:
+            - name: http
+              hostname: acme-bank.example.com
+              port: 80
+              protocol: HTTP
+              allowedRoutes:
+                namespaces:
+                  from: Same
+
+    - name: request-routing
+      description: Route / to the web UI
+      config:
+        routeName: acme-bank-web
+        namespace: acme-bank
+        gatewayName: acme-bank
+        gatewayNamespace: acme-bank
+        hostname: acme-bank.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /
+            backendRefs:
+              - name: web
+                port: 80
+
+    - name: request-routing
+      description: Route /api/customers to Customers, stripping the /api prefix
+      config:
+        routeName: acme-bank-customers
+        namespace: acme-bank
+        gatewayName: acme-bank
+        gatewayNamespace: acme-bank
+        hostname: acme-bank.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /api/customers
+            filters:
+              - type: URLRewrite
+                urlRewrite:
+                  path:
+                    type: ReplacePrefixMatch
+                    replacePrefixMatch: /customers
+            backendRefs:
+              - name: customers
+                port: 8080
+
+    - name: request-routing
+      description: Route /api/accounts to Accounts, stripping the /api prefix
+      config:
+        routeName: acme-bank-accounts
+        namespace: acme-bank
+        gatewayName: acme-bank
+        gatewayNamespace: acme-bank
+        hostname: acme-bank.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /api/accounts
+            filters:
+              - type: URLRewrite
+                urlRewrite:
+                  path:
+                    type: ReplacePrefixMatch
+                    replacePrefixMatch: /accounts
+            backendRefs:
+              - name: accounts
+                port: 8080
+
+    - name: request-routing
+      description: Route /api/cards to Cards, stripping the /api prefix
+      config:
+        routeName: acme-bank-cards
+        namespace: acme-bank
+        gatewayName: acme-bank
+        gatewayNamespace: acme-bank
+        hostname: acme-bank.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /api/cards
+            filters:
+              - type: URLRewrite
+                urlRewrite:
+                  path:
+                    type: ReplacePrefixMatch
+                    replacePrefixMatch: /cards
+            backendRefs:
+              - name: cards
+                port: 8080
+
+    - name: request-routing
+      description: Route /api/transactions to Transactions, stripping the /api prefix
+      config:
+        routeName: acme-bank-transactions
+        namespace: acme-bank
+        gatewayName: acme-bank
+        gatewayNamespace: acme-bank
+        hostname: acme-bank.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /api/transactions
+            filters:
+              - type: URLRewrite
+                urlRewrite:
+                  path:
+                    type: ReplacePrefixMatch
+                    replacePrefixMatch: /transactions
+            backendRefs:
+              - name: transactions
+                port: 8080
+
+    - name: request-routing
+      description: Route /api/dashboard to the Dashboard BFF, stripping the /api prefix
+      config:
+        routeName: acme-bank-dashboard
+        namespace: acme-bank
+        gatewayName: acme-bank
+        gatewayNamespace: acme-bank
+        hostname: acme-bank.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /api/dashboard
+            filters:
+              - type: URLRewrite
+                urlRewrite:
+                  path:
+                    type: ReplacePrefixMatch
+                    replacePrefixMatch: /dashboard
+            backendRefs:
+              - name: dashboard-bff
+                port: 8080
+
+    - name: request-routing
+      description: Route /api/notifications to Notifications, stripping the /api prefix
+      config:
+        routeName: acme-bank-notifications
+        namespace: acme-bank
+        gatewayName: acme-bank
+        gatewayNamespace: acme-bank
+        hostname: acme-bank.example.com
+        rules:
+          - matches:
+              - path:
+                  type: PathPrefix
+                  value: /api/notifications
+            filters:
+              - type: URLRewrite
+                urlRewrite:
+                  path:
+                    type: ReplacePrefixMatch
+                    replacePrefixMatch: /notifications
+            backendRefs:
+              - name: notifications
+                port: 8080
+
+    - name: authorization-policy
+      description: Restrict Accounts' internal gRPC port to the Dashboard BFF only
+      config:
+        policyName: accounts-grpc-allow-dashboard-bff
+        namespace: acme-bank
+        selector:
+          matchLabels:
+            app: accounts
+        action: ALLOW
+        rules:
+          - from:
+              - source:
+                  principals:
+                    - cluster.local/ns/acme-bank/sa/dashboard-bff
+            to:
+              - operation:
+                  ports:
+                    - '9090'
+
+    - name: authorization-policy
+      description: |
+        Any ALLOW policy selecting a workload makes Istio deny everything else to that
+        workload by default - this second rule explicitly keeps Accounts' public REST
+        port open to all callers (including kgateway itself), matching Acme Bank's own
+        platform/k8s/authorization-policy.yaml exactly.
+      config:
+        policyName: accounts-http-allow-all
+        namespace: acme-bank
+        selector:
+          matchLabels:
+            app: accounts
+        action: ALLOW
+        rules:
+          - to:
+              - operation:
+                  ports:
+                    - '8080'
+
+  tests:
+    - name: acme-bank-accounts-routed-and-authenticated
+      description: |
+        A request through the gateway to /api/accounts reaches the real Accounts pod
+        (proving routing, URL rewrite, and the mesh/authz policies all work together)
+        and gets a real 401 from its own auth middleware (proving it's not a routing
+        failure disguised as success - an unauthenticated request should be rejected,
+        not silently allowed).
+      steps:
+        - action: send-request
+          hostname: acme-bank.example.com
+          autoDetectGwAddress: true
+          path: /api/accounts
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 401
+
+    - name: acme-bank-web-ui-routed
+      description: Verify the web UI is reachable through the gateway at /
+      steps:
+        - action: send-request
+          hostname: acme-bank.example.com
+          autoDetectGwAddress: true
+          path: /
+          timeout: 30s
+        - action: verify
+          expect:
+            statusCode: 200
