@@ -38,9 +38,9 @@ spec:
           image: postgres:16-alpine
           ports: [{ containerPort: 5432 }]
           env:
-            - { name: POSTGRES_USER, value: "accounts" }
-            - { name: POSTGRES_PASSWORD, value: "accounts" }
-            - { name: POSTGRES_DB, value: "accounts" }
+            - { name: POSTGRES_USER, value: 'accounts' }
+            - { name: POSTGRES_PASSWORD, value: 'accounts' }
+            - { name: POSTGRES_DB, value: 'accounts' }
 ---
 # ---------- Postgres: customers ----------
 apiVersion: v1
@@ -71,9 +71,9 @@ spec:
           image: postgres:16-alpine
           ports: [{ containerPort: 5432 }]
           env:
-            - { name: POSTGRES_USER, value: "customers" }
-            - { name: POSTGRES_PASSWORD, value: "customers" }
-            - { name: POSTGRES_DB, value: "customers" }
+            - { name: POSTGRES_USER, value: 'customers' }
+            - { name: POSTGRES_PASSWORD, value: 'customers' }
+            - { name: POSTGRES_DB, value: 'customers' }
 ---
 # ---------- Postgres: transactions ----------
 apiVersion: v1
@@ -104,9 +104,9 @@ spec:
           image: postgres:16-alpine
           ports: [{ containerPort: 5432 }]
           env:
-            - { name: POSTGRES_USER, value: "transactions" }
-            - { name: POSTGRES_PASSWORD, value: "transactions" }
-            - { name: POSTGRES_DB, value: "transactions" }
+            - { name: POSTGRES_USER, value: 'transactions' }
+            - { name: POSTGRES_PASSWORD, value: 'transactions' }
+            - { name: POSTGRES_DB, value: 'transactions' }
 ---
 # ---------- Postgres: fraud-risk ----------
 apiVersion: v1
@@ -137,9 +137,9 @@ spec:
           image: postgres:16-alpine
           ports: [{ containerPort: 5432 }]
           env:
-            - { name: POSTGRES_USER, value: "fraud_risk" }
-            - { name: POSTGRES_PASSWORD, value: "fraud_risk" }
-            - { name: POSTGRES_DB, value: "fraud_risk" }
+            - { name: POSTGRES_USER, value: 'fraud_risk' }
+            - { name: POSTGRES_PASSWORD, value: 'fraud_risk' }
+            - { name: POSTGRES_DB, value: 'fraud_risk' }
 ---
 # ---------- Postgres: cards ----------
 apiVersion: v1
@@ -170,9 +170,9 @@ spec:
           image: postgres:16-alpine
           ports: [{ containerPort: 5432 }]
           env:
-            - { name: POSTGRES_USER, value: "cards" }
-            - { name: POSTGRES_PASSWORD, value: "cards" }
-            - { name: POSTGRES_DB, value: "cards" }
+            - { name: POSTGRES_USER, value: 'cards' }
+            - { name: POSTGRES_PASSWORD, value: 'cards' }
+            - { name: POSTGRES_DB, value: 'cards' }
 ---
 # ---------- Accounts ----------
 apiVersion: v1
@@ -215,11 +215,11 @@ spec:
             - { containerPort: 9090, name: grpc }
           env:
             - name: DATABASE_URL
-              value: "postgres://accounts:accounts@accounts-postgres:5432/accounts?sslmode=disable"
+              value: 'postgres://accounts:accounts@accounts-postgres:5432/accounts?sslmode=disable'
             - name: JWKS_URL
-              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+              value: 'http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs'
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+              value: 'opentelemetry-collector-traces.telemetry.svc.cluster.local:4317'
 ---
 # ---------- Customers ----------
 apiVersion: v1
@@ -261,13 +261,13 @@ spec:
             - { containerPort: 8080, name: http }
             - { containerPort: 9090, name: grpc }
           env:
-            - { name: DATABASE_URL, value: "jdbc:postgresql://customers-postgres:5432/customers" }
-            - { name: DATABASE_USER, value: "customers" }
-            - { name: DATABASE_PASSWORD, value: "customers" }
+            - { name: DATABASE_URL, value: 'jdbc:postgresql://customers-postgres:5432/customers' }
+            - { name: DATABASE_USER, value: 'customers' }
+            - { name: DATABASE_PASSWORD, value: 'customers' }
             - name: JWKS_URL
-              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+              value: 'http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs'
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+              value: 'opentelemetry-collector-traces.telemetry.svc.cluster.local:4317'
 ---
 # ---------- Cards ----------
 apiVersion: v1
@@ -310,11 +310,11 @@ spec:
             - { containerPort: 9090, name: grpc }
           env:
             - name: DATABASE_URL
-              value: "postgres://cards:cards@cards-postgres:5432/cards"
+              value: 'postgres://cards:cards@cards-postgres:5432/cards'
             - name: JWKS_URL
-              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+              value: 'http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs'
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+              value: 'http://opentelemetry-collector-traces.telemetry.svc.cluster.local:4317'
 ---
 # ---------- Transactions ----------
 apiVersion: v1
@@ -356,16 +356,19 @@ spec:
             - { containerPort: 8080, name: http }
             - { containerPort: 9090, name: grpc }
           env:
-            - { name: DATABASE_URL, value: "jdbc:postgresql://transactions-postgres:5432/transactions" }
-            - { name: DATABASE_USER, value: "transactions" }
-            - { name: DATABASE_PASSWORD, value: "transactions" }
-            - { name: ACCOUNTS_GRPC_HOST, value: "accounts.acme-bank.svc.cluster.local" }
-            - { name: ACCOUNTS_GRPC_PORT, value: "9090" }
-            - { name: KAFKA_BOOTSTRAP_SERVERS, value: "redpanda.redpanda.svc.cluster.local:9092" }
+            - {
+                name: DATABASE_URL,
+                value: 'jdbc:postgresql://transactions-postgres:5432/transactions',
+              }
+            - { name: DATABASE_USER, value: 'transactions' }
+            - { name: DATABASE_PASSWORD, value: 'transactions' }
+            - { name: ACCOUNTS_GRPC_HOST, value: 'accounts.acme-bank.svc.cluster.local' }
+            - { name: ACCOUNTS_GRPC_PORT, value: '9090' }
+            - { name: KAFKA_BOOTSTRAP_SERVERS, value: 'redpanda.redpanda.svc.cluster.local:9092' }
             - name: JWKS_URL
-              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+              value: 'http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs'
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+              value: 'opentelemetry-collector-traces.telemetry.svc.cluster.local:4317'
 ---
 # ---------- Fraud/Risk ----------
 apiVersion: v1
@@ -407,14 +410,14 @@ spec:
             - { containerPort: 8080, name: http }
             - { containerPort: 9090, name: grpc }
           env:
-            - { name: DATABASE_URL, value: "jdbc:postgresql://fraud-risk-postgres:5432/fraud_risk" }
-            - { name: DATABASE_USER, value: "fraud_risk" }
-            - { name: DATABASE_PASSWORD, value: "fraud_risk" }
-            - { name: KAFKA_BOOTSTRAP_SERVERS, value: "redpanda.redpanda.svc.cluster.local:9092" }
+            - { name: DATABASE_URL, value: 'jdbc:postgresql://fraud-risk-postgres:5432/fraud_risk' }
+            - { name: DATABASE_USER, value: 'fraud_risk' }
+            - { name: DATABASE_PASSWORD, value: 'fraud_risk' }
+            - { name: KAFKA_BOOTSTRAP_SERVERS, value: 'redpanda.redpanda.svc.cluster.local:9092' }
             - name: JWKS_URL
-              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+              value: 'http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs'
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+              value: 'opentelemetry-collector-traces.telemetry.svc.cluster.local:4317'
 ---
 # ---------- Notifications ----------
 apiVersion: v1
@@ -454,11 +457,11 @@ spec:
           ports:
             - { containerPort: 8080, name: http }
           env:
-            - { name: KAFKA_BOOTSTRAP_SERVERS, value: "redpanda.redpanda.svc.cluster.local:9092" }
+            - { name: KAFKA_BOOTSTRAP_SERVERS, value: 'redpanda.redpanda.svc.cluster.local:9092' }
             - name: JWKS_URL
-              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+              value: 'http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs'
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+              value: 'http://opentelemetry-collector-traces.telemetry.svc.cluster.local:4317'
 ---
 # ---------- Dashboard BFF ----------
 apiVersion: v1
@@ -498,14 +501,17 @@ spec:
           ports:
             - { containerPort: 8080, name: http }
           env:
-            - { name: CUSTOMERS_GRPC_ADDR, value: "customers.acme-bank.svc.cluster.local:9090" }
-            - { name: ACCOUNTS_GRPC_ADDR, value: "accounts.acme-bank.svc.cluster.local:9090" }
-            - { name: CARDS_GRPC_ADDR, value: "cards.acme-bank.svc.cluster.local:9090" }
-            - { name: TRANSACTIONS_GRPC_ADDR, value: "transactions.acme-bank.svc.cluster.local:9090" }
+            - { name: CUSTOMERS_GRPC_ADDR, value: 'customers.acme-bank.svc.cluster.local:9090' }
+            - { name: ACCOUNTS_GRPC_ADDR, value: 'accounts.acme-bank.svc.cluster.local:9090' }
+            - { name: CARDS_GRPC_ADDR, value: 'cards.acme-bank.svc.cluster.local:9090' }
+            - {
+                name: TRANSACTIONS_GRPC_ADDR,
+                value: 'transactions.acme-bank.svc.cluster.local:9090',
+              }
             - name: JWKS_URL
-              value: "http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs"
+              value: 'http://keycloak.keycloak.svc.cluster.local:8080/realms/acme-bank/protocol/openid-connect/certs'
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "opentelemetry-collector-traces.telemetry.svc.cluster.local:4317"
+              value: 'opentelemetry-collector-traces.telemetry.svc.cluster.local:4317'
 ---
 # ---------- Web UI ----------
 apiVersion: v1
