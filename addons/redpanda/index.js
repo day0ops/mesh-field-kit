@@ -1,5 +1,5 @@
 import { AddonFeature } from '../../src/lib/feature.js';
-import { KubernetesHelper } from '../../src/lib/common.js';
+import { KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -59,5 +59,17 @@ export class RedpandaFeature extends AddonFeature {
     await KubernetesHelper.helm(helmArgs, { spinner: this.spinner });
 
     this.log('Redpanda installed successfully', 'success');
+  }
+
+  async cleanup() {
+    this.log('Cleaning up Redpanda...', 'info');
+
+    const helmCtxArgs = this.kubeContext ? ['--kube-context', this.kubeContext] : [];
+    try {
+      await CommandRunner.run('helm', ['uninstall', 'redpanda', '-n', this.redpandaNamespace, ...helmCtxArgs]);
+      this.log('Redpanda Helm chart uninstalled', 'info');
+    } catch (error) {
+      if (!/not found|no deployed releases/i.test(error.message)) throw error;
+    }
   }
 }
