@@ -63,9 +63,14 @@ spec:
         txtOwnerId: '{{env.dns.txtOwnerId}}'
 
     - name: cert-manager
-      description: Certificate management for TLS (self-signed issuer backs Keycloak's TLS cert)
+      description: Certificate management for TLS (self-signed issuer backs Keycloak's TLS cert; letsencrypt-dns backs acme-bank's public hostname)
       version: '{{env.addons.cert-manager.version}}'
       namespace: cert-manager
+      config:
+        letsencrypt:
+          enabled: true
+          email: '{{env.acme.email}}'
+          region: '{{env.aws.region}}'
 
     - name: telemetry
       description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
