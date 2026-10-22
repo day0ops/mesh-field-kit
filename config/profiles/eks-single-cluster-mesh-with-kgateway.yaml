@@ -45,6 +45,12 @@ spec:
           network: '{{cluster.name}}'
 
   addons:
+    - name: aws-load-balancer-controller
+      description: Proper NLB provisioning with VPN-restricted source ranges actually enforced - the legacy in-tree AWS cloud provider ignores the aws-load-balancer-* annotations the gateway/telemetry/keycloak addons already set
+      phase: pre
+      clusterName: '{{infra.clusters.demo.cluster}}'
+      serviceAccountRoleArn: '{{infra.clusters.demo.iam.albControllerRoleArn}}'
+
     - name: cilium
       description: eBPF-based CNI in chaining mode
       version: 1.20.2
