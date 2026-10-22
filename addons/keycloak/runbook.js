@@ -8,6 +8,9 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 // tpl: return v if it's a real value (not an unresolved {{...}} template), otherwise fb
 const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
 
+// shellVar: turn a config value (realm/user/role name) into a BASH-safe variable name fragment
+const shellVar = v => String(v).toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+
 export function envVarsFor(addonCfg, _clusterName) {
   const vars = [
     {
@@ -51,6 +54,16 @@ export function envVarsFor(addonCfg, _clusterName) {
         description: 'Grafana OIDC demo admin password',
       }
     );
+  }
+  for (const realm of addonCfg?.config?.realms || []) {
+    for (const user of realm.users || []) {
+      if (!user.passwordEnvVar) continue;
+      vars.push({
+        name: user.passwordEnvVar,
+        required: true,
+        description: `Password for Keycloak user '${user.username}' in realm '${realm.realm}'`,
+      });
+    }
   }
   return vars;
 }
@@ -215,6 +228,7 @@ kubectl --context=${ctx} wait certificate/${tlsSecretName} -n ${ns} \\
     const clients = realm.clients || [];
     const users = realm.users || [];
     const groups = realm.groups || [];
+    const roles = realm.roles || [];
 
     const groupLines = groups
       .map(
@@ -223,6 +237,68 @@ kubectl --context=${ctx} wait certificate/${tlsSecretName} -n ${ns} \\
         -H "Content-Type: application/json" \\
         -d '{"name":"${g}"}'`
       )
+      .join('\n\n');
+
+    const roleLines = roles
+      .map(
+        r => `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/roles" \\
+        -H "Authorization: Bearer $ACCESS_TOKEN" \\
+        -H "Content-Type: application/json" \\
+        -d '{"name":"${r.name}","composite":${!!(r.composite && r.composite.length)}}'`
+      )
+      .join('\n\n');
+
+    // Composite children are assigned by real role id, which this hand-run snippet
+    // can only get via a lookup-then-POST (the real code resolves it from an
+    // earlier in-memory createAndVerify() result).
+    const compositeRoleLines = roles
+      .filter(r => r.composite?.length)
+      .map(r => {
+        const childLookups = r.composite
+          .map(
+            child => `      ${shellVar(r.name)}_${shellVar(child)}_ROLE_ID=$(curl -s "$KEYCLOAK_URL/admin/realms/${realm.realm}/roles/${child}" \\
+        -H "Authorization: Bearer $ACCESS_TOKEN" | jq -r '.id')`
+          )
+          .join('\n');
+        const compositePayload = r.composite
+          .map(
+            child => `{"id":"'"$${shellVar(r.name)}_${shellVar(child)}_ROLE_ID"'","name":"${child}"}`
+          )
+          .join(',');
+        return `${childLookups}
+      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/roles/${r.name}/composites" \\
+        -H "Authorization: Bearer $ACCESS_TOKEN" \\
+        -H "Content-Type: application/json" \\
+        -d '[${compositePayload}]'`;
+      })
+      .join('\n\n');
+
+    // Same caveat as composites above — a per-user role assignment needs the
+    // user's real id and each role's real id, both resolved via lookup here.
+    const userRoleLines = users
+      .filter(u => u.roles?.length)
+      .map(u => {
+        const userIdVar = `${shellVar(u.username)}_USER_ID`;
+        const roleLookups = u.roles
+          .map(
+            roleName => `      ${shellVar(u.username)}_${shellVar(roleName)}_ROLE_ID=$(curl -s "$KEYCLOAK_URL/admin/realms/${realm.realm}/roles/${roleName}" \\
+        -H "Authorization: Bearer $ACCESS_TOKEN" | jq -r '.id')`
+          )
+          .join('\n');
+        const roleReps = u.roles
+          .map(
+            roleName =>
+              `{"id":"'"$${shellVar(u.username)}_${shellVar(roleName)}_ROLE_ID"'","name":"${roleName}"}`
+          )
+          .join(',');
+        return `      ${userIdVar}=$(curl -s "$KEYCLOAK_URL/admin/realms/${realm.realm}/users?username=${u.username}&exact=true" \\
+        -H "Authorization: Bearer $ACCESS_TOKEN" | jq -r '.[0].id')
+${roleLookups}
+      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/users/$${userIdVar}/role-mappings/realm" \\
+        -H "Authorization: Bearer $ACCESS_TOKEN" \\
+        -H "Content-Type: application/json" \\
+        -d '[${roleReps}]'`;
+      })
       .join('\n\n');
 
     const clientLines = clients
@@ -237,17 +313,24 @@ kubectl --context=${ctx} wait certificate/${tlsSecretName} -n ${ns} \\
 
     const isGrafanaRealm = realm.realm === 'grafana';
     const userLines = users
-      .map(u =>
-        isGrafanaRealm
-          ? `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/users" \\
+      .map(u => {
+        if (isGrafanaRealm) {
+          return `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/users" \\
         -H "Authorization: Bearer $ACCESS_TOKEN" \\
         -H "Content-Type: application/json" \\
-        -d '{"username":"'"\${GRAFANA_REALM_ADMIN_USERNAME:-grafana-admin}"'","email":"${u.email || ''}","enabled":true,"credentials":[{"type":"password","value":"'"$GRAFANA_REALM_ADMIN_PASSWORD"'","temporary":false}]}'`
-          : `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/users" \\
+        -d '{"username":"'"\${GRAFANA_REALM_ADMIN_USERNAME:-grafana-admin}"'","email":"${u.email || ''}","enabled":true,"credentials":[{"type":"password","value":"'"$GRAFANA_REALM_ADMIN_PASSWORD"'","temporary":false}]}'`;
+        }
+        // Mirrors index.js's precedence: literal password > passwordEnvVar > realm default.
+        const password = u.password
+          ? u.password
+          : u.passwordEnvVar
+            ? `'"$${u.passwordEnvVar}"'`
+            : realm.defaultPassword || 'Admin1234';
+        return `      curl -s -X POST "$KEYCLOAK_URL/admin/realms/${realm.realm}/users" \\
         -H "Authorization: Bearer $ACCESS_TOKEN" \\
         -H "Content-Type: application/json" \\
-        -d '{"username":"${u.username}","email":"${u.email || ''}","enabled":true,"credentials":[{"type":"password","value":"${realm.defaultPassword || 'Admin1234'}","temporary":false}]}'`
-      )
+        -d '{"username":"${u.username}","email":"${u.email || ''}","enabled":true,"credentials":[{"type":"password","value":"${password}","temporary":false}]}'`;
+      })
       .join('\n\n');
 
     return `
@@ -271,6 +354,18 @@ ${
 ${groupLines}`
     : ''
 }${
+      roles.length > 0
+        ? `
+# Create roles
+${roleLines}`
+        : ''
+    }${
+      compositeRoleLines
+        ? `
+# Assign composite roles
+${compositeRoleLines}`
+        : ''
+    }${
       clients.length > 0
         ? `
 # Create clients
@@ -281,6 +376,12 @@ ${clientLines}`
         ? `
 # Create users
 ${userLines}`
+        : ''
+    }${
+      userRoleLines
+        ? `
+# Assign realm roles to users
+${userRoleLines}`
         : ''
     }
 \`\`\`
