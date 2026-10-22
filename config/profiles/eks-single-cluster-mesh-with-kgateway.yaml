@@ -97,6 +97,7 @@ spec:
       description: Keycloak OIDC Identity Provider, with Acme Bank's realm
       phase: post
       namespace: keycloak
+      hostname: '{{env.domains.core.keycloak}}'
       keycloakNamespace: keycloak
       realms:
         - realm: acme-bank
