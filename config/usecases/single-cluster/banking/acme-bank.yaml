@@ -28,6 +28,7 @@ spec:
         gatewayName: acme-bank
         namespace: acme-bank
         gateway:
+          gatewayClassName: kgateway
           listeners:
             - name: http
               hostname: acme-bank.example.com
