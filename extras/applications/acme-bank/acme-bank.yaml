@@ -1,7 +1,7 @@
 # extras/applications/acme-bank/acme-bank.yaml
 #
 # Acme Bank: a polyglot core-banking demo (github.com/day0ops/acme-bank).
-# Image tags are pinned to v0.0.1 - bump every Deployment's image tag below
+# Image tags are pinned to v0.0.2 - bump every Deployment's image tag below
 # when a new Acme Bank release is cut; this file does not auto-track releases.
 #
 # Expects the 'keycloak' addon (with an 'acme-bank' realm - see this repo's
@@ -209,7 +209,7 @@ spec:
       serviceAccountName: accounts
       containers:
         - name: accounts
-          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-accounts:v0.0.1
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-accounts:v0.0.2
           ports:
             - { containerPort: 8080, name: http }
             - { containerPort: 9090, name: grpc }
@@ -256,7 +256,7 @@ spec:
       serviceAccountName: customers
       containers:
         - name: customers
-          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-customers:v0.0.1
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-customers:v0.0.2
           ports:
             - { containerPort: 8080, name: http }
             - { containerPort: 9090, name: grpc }
@@ -304,7 +304,7 @@ spec:
       serviceAccountName: cards
       containers:
         - name: cards
-          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-cards:v0.0.1
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-cards:v0.0.2
           ports:
             - { containerPort: 8080, name: http }
             - { containerPort: 9090, name: grpc }
@@ -351,7 +351,7 @@ spec:
       serviceAccountName: transactions
       containers:
         - name: transactions
-          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-transactions:v0.0.1
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-transactions:v0.0.2
           ports:
             - { containerPort: 8080, name: http }
             - { containerPort: 9090, name: grpc }
@@ -405,7 +405,7 @@ spec:
       serviceAccountName: fraud-risk
       containers:
         - name: fraud-risk
-          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-fraud-risk:v0.0.1
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-fraud-risk:v0.0.2
           ports:
             - { containerPort: 8080, name: http }
             - { containerPort: 9090, name: grpc }
@@ -453,7 +453,7 @@ spec:
       serviceAccountName: notifications
       containers:
         - name: notifications
-          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-notifications:v0.0.1
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-notifications:v0.0.2
           ports:
             - { containerPort: 8080, name: http }
           env:
@@ -497,7 +497,7 @@ spec:
       serviceAccountName: dashboard-bff
       containers:
         - name: dashboard-bff
-          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-dashboard-bff:v0.0.1
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-dashboard-bff:v0.0.2
           ports:
             - { containerPort: 8080, name: http }
           env:
@@ -540,6 +540,9 @@ spec:
     spec:
       containers:
         - name: web
-          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-web:v0.0.1
+          image: australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/acme-bank-web:v0.0.2
           ports:
             - { containerPort: 80, name: http }
+          env:
+            - name: KEYCLOAK_URL
+              value: 'https://keycloak.mesh-demo.kasunt.apac.fe.solo.io'
