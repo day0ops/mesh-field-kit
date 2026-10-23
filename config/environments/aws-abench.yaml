@@ -76,8 +76,11 @@ spec:
     domain: integrator-1335842.okta.com
 
   # CIDR allowlist applied to public-facing NLBs (aws-load-balancer-source-ranges).
-  # Checkpoint Harmony SASE documented egress range.
+  # Checkpoint Harmony SASE documented egress range, plus the in-region
+  # loadgen VM's public IP (same VPC as the cluster, used to run JMeter
+  # without trans-Pacific WAN latency skewing benchmark results).
   security:
     vpnSourceRanges:
       - 165.99.148.61/32
       - 64.226.138.86/32
+      - 3.25.132.95/32
