@@ -66,7 +66,13 @@ export class RedpandaFeature extends AddonFeature {
 
     const helmCtxArgs = this.kubeContext ? ['--kube-context', this.kubeContext] : [];
     try {
-      await CommandRunner.run('helm', ['uninstall', 'redpanda', '-n', this.redpandaNamespace, ...helmCtxArgs]);
+      await CommandRunner.run('helm', [
+        'uninstall',
+        'redpanda',
+        '-n',
+        this.redpandaNamespace,
+        ...helmCtxArgs,
+      ]);
       this.log('Redpanda Helm chart uninstalled', 'info');
     } catch (error) {
       if (!/not found|no deployed releases/i.test(error.message)) throw error;

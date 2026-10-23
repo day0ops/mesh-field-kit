@@ -9,7 +9,10 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 const tpl = (v, fb) => (v && !/\{\{/.test(v) ? v : fb);
 
 // shellVar: turn a config value (realm/user/role name) into a BASH-safe variable name fragment
-const shellVar = v => String(v).toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+const shellVar = v =>
+  String(v)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_');
 
 export function envVarsFor(addonCfg, _clusterName) {
   const vars = [
@@ -262,7 +265,8 @@ kubectl --context=${ctx} wait certificate/${tlsSecretName} -n ${ns} \\
           .join('\n');
         const compositePayload = r.composite
           .map(
-            child => `{"id":"'"$${shellVar(r.name)}_${shellVar(child)}_ROLE_ID"'","name":"${child}"}`
+            child =>
+              `{"id":"'"$${shellVar(r.name)}_${shellVar(child)}_ROLE_ID"'","name":"${child}"}`
           )
           .join(',');
         return `${childLookups}

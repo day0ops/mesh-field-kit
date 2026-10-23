@@ -1,3 +1,3 @@
 image:
   repository: redpandadata/redpanda
-  tag: "v24.2.7"
+  tag: 'v24.2.7'

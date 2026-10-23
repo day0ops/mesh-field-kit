@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: redpanda
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: '{{ .Values.image.repository }}:{{ .Values.image.tag }}'
           command:
             - rpk
             - redpanda
