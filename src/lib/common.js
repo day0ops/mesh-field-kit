@@ -1071,7 +1071,14 @@ export function formatDescription(text, indent = '  ') {
 /**
  * Build the annotation set that drives the AWS Load Balancer Controller to provision an
  * internet-facing NLB for a Gateway API Gateway's spec.infrastructure.annotations.
- * Two non-obvious details, both required for the source IP restriction to actually
+ *
+ * REQUIRES the aws-load-balancer-controller addon to actually be installed on the
+ * cluster - without it, nothing reads these annotations and Kubernetes' legacy
+ * in-tree AWS provider silently provisions an unrestricted Classic ELB instead,
+ * ignoring source-ranges entirely with no error anywhere (discovered live while
+ * building the acme-bank public-endpoint usecase).
+ *
+ * Two more non-obvious details, both required for the source IP restriction to actually
  * take effect under the default targetType ('ip'):
  *   - load-balancer-source-ranges has no "aws-" prefix, unlike its sibling annotations.
  *   - with nlb-target-type=ip, client IP preservation is disabled by default and

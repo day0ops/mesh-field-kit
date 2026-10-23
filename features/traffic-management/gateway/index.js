@@ -27,7 +27,11 @@ const __dirname = path.dirname(__filename);
  *     sourceRanges: array,        // Optional: CIDR allowlist for the auto-provisioned NLB
  *                                 // (e.g. {{env.security.vpnSourceRanges}}) - opt-in, since this
  *                                 // feature also builds cluster-internal gateways that shouldn't
- *                                 // be forced internet-facing
+ *                                 // be forced internet-facing. REQUIRES the aws-load-balancer-controller
+ *                                 // addon on the same profile - without it, the legacy in-tree AWS
+ *                                 // provider silently ignores these annotations and hands out an
+ *                                 // unrestricted Classic ELB instead (discovered live while building
+ *                                 // the acme-bank public-endpoint usecase - see git history).
  *     listeners: array            // Required: Listener configurations
  *   }
  * }
