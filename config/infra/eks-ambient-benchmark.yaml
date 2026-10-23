@@ -18,3 +18,9 @@ spec:
   clusters:
     - name: bench
       role: management
+
+  vms:
+    - name: loadgen
+      role: workload
+      cluster: bench
+      instance_type: t3.large
