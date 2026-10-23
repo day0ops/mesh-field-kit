@@ -18,6 +18,7 @@ import { KgatewayFeature } from './kgateway/index.js';
 import { SpireFeature } from './spire/index.js';
 import { OpenshiftSccFeature } from './openshift-scc/index.js';
 import { AwsLoadBalancerControllerFeature } from './aws-load-balancer-controller/index.js';
+import { RedpandaFeature } from './redpanda/index.js';
 
 // Register all addons
 FeatureManager.register('cert-manager', CertManagerFeature);
@@ -31,6 +32,7 @@ FeatureManager.register('kgateway', KgatewayFeature);
 FeatureManager.register('spire', SpireFeature);
 FeatureManager.register('openshift-scc', OpenshiftSccFeature);
 FeatureManager.register('aws-load-balancer-controller', AwsLoadBalancerControllerFeature);
+FeatureManager.register('redpanda', RedpandaFeature);
 
 // Export for direct use if needed
 export {
@@ -45,4 +47,5 @@ export {
   SpireFeature,
   OpenshiftSccFeature,
   AwsLoadBalancerControllerFeature,
+  RedpandaFeature,
 };

@@ -69,6 +69,11 @@ const yamlSingleQuote = value => String(value).replaceAll("'", "''");
  *                                  // A realm named 'grafana' gets its sole user's username/password
  *                                  // sourced from GRAFANA_REALM_ADMIN_USERNAME/PASSWORD (see below)
  *                                  // instead of the realm's own username/defaultPassword fields.
+ *     roles: [{ name: string, composite?: string[] }]  // realm roles, composite = child role names
+ *     users: [...]  // existing fields, plus:
+ *       roles: string[]        // realm role names to assign (separate from groups/memberOf)
+ *       passwordEnvVar: string // read this user's password from an env var instead of
+ *                               // a literal password/defaultPassword
  *   externalDns: boolean,         // Optional: explicit override; auto-detected when external-dns addon is present
  * }
  *
@@ -84,6 +89,8 @@ const yamlSingleQuote = value => String(value).replaceAll("'", "''");
  *                                   only used when a 'grafana' realm is configured)
  *   GRAFANA_REALM_ADMIN_PASSWORD  - Grafana OIDC demo admin password (only required when a
  *                                   'grafana' realm is configured)
+ *   (plus any env var named in a realms[].users[].passwordEnvVar config entry -
+ *   dynamically required, validated the same way as the vars above)
  */
 export class KeycloakFeature extends AddonFeature {
   constructor(name, config) {
@@ -132,6 +139,10 @@ export class KeycloakFeature extends AddonFeature {
     this.grafanaAdminUsername = process.env.GRAFANA_REALM_ADMIN_USERNAME || 'grafana-admin';
     this.grafanaAdminPassword = process.env.GRAFANA_REALM_ADMIN_PASSWORD || '';
     this.hasGrafanaRealm = (config.realms || []).some(r => r.realm === 'grafana');
+    this.requiredUserPasswordEnvVars = (config.realms || [])
+      .flatMap(r => r.users || [])
+      .map(u => u.passwordEnvVar)
+      .filter(Boolean);
     const clusterAddons = config.clusterAddons || [];
     this.externalDns = config.externalDns === true || clusterAddons.includes('external-dns');
   }
@@ -144,6 +155,7 @@ export class KeycloakFeature extends AddonFeature {
       !this.postgresPassword && 'KEYCLOAK_POSTGRES_PASSWORD',
       this.soloUiClients?.enabled && !this.soloUiDefaultPassword && 'SOLO_UI_DEFAULT_PASSWORD',
       this.hasGrafanaRealm && !this.grafanaAdminPassword && 'GRAFANA_REALM_ADMIN_PASSWORD',
+      ...this.requiredUserPasswordEnvVars.filter(name => !process.env[name]),
     ].filter(Boolean);
     if (missing.length > 0) {
       throw new Error(
@@ -834,11 +846,67 @@ export class KeycloakFeature extends AddonFeature {
       }
     }
 
+    // Create realm roles (and their composites) before users, so user role
+    // assignment below can resolve each role's id.
+    const roleIds = {};
+    for (const role of realm.roles || []) {
+      const roleId = await this.createAndVerify(
+        `Role '${role.name}' in realm '${realm.realm}'`,
+        () =>
+          this.kcApi('POST', `${baseUrl}/admin/realms/${realm.realm}/roles`, token, {
+            name: role.name,
+            composite: !!(role.composite && role.composite.length),
+          }),
+        async () => {
+          const found = await this.lookupRole(baseUrl, token, role.name, realm.realm);
+          return found?.id || null;
+        },
+        { refreshFn: refreshToken }
+      );
+      if (!roleId) {
+        realmOk = false;
+        continue;
+      }
+      roleIds[role.name] = roleId;
+      this.log(`Created role '${role.name}' in realm '${realm.realm}'`, 'info');
+
+      if (role.composite?.length) {
+        const children = [];
+        for (const childName of role.composite) {
+          const child = await this.lookupRole(baseUrl, token, childName, realm.realm);
+          if (!child) {
+            this.log(
+              `Cannot add '${childName}' as a composite of '${role.name}' — child role was not found`,
+              'error'
+            );
+            realmOk = false;
+            continue;
+          }
+          children.push(child);
+        }
+        if (children.length) {
+          await this.kcApi(
+            'POST',
+            `${baseUrl}/admin/realms/${realm.realm}/roles/${encodeURIComponent(role.name)}/composites`,
+            token,
+            children
+          );
+          this.log(
+            `Added composites [${role.composite.join(', ')}] to role '${role.name}'`,
+            'info'
+          );
+        }
+      }
+    }
+
     const isGrafanaRealm = realm.realm === 'grafana';
     const defaultPassword = isGrafanaRealm ? this.grafanaAdminPassword : realm.defaultPassword;
     for (const user of realm.users || []) {
       const username = isGrafanaRealm ? this.grafanaAdminUsername : user.username;
-      const password = user.password || defaultPassword;
+      const password =
+        user.password ||
+        (user.passwordEnvVar && process.env[user.passwordEnvVar]) ||
+        defaultPassword;
       if (!password) {
         throw new Error(
           `No password for user '${username}' in realm '${realm.realm}'. Set defaultPassword or per-user password.`
@@ -881,6 +949,32 @@ export class KeycloakFeature extends AddonFeature {
             token
           );
           this.log(`Added '${username}' to group '${groupName}'`, 'info');
+        }
+      }
+
+      if (user.roles?.length) {
+        const roleReps = user.roles
+          .map(roleName => {
+            const id = roleIds[roleName];
+            if (!id) {
+              this.log(
+                `Cannot assign role '${roleName}' to '${username}' — role was not created`,
+                'error'
+              );
+              realmOk = false;
+              return null;
+            }
+            return { id, name: roleName };
+          })
+          .filter(Boolean);
+        if (roleReps.length) {
+          await this.kcApi(
+            'POST',
+            `${baseUrl}/admin/realms/${realm.realm}/users/${userId}/role-mappings/realm`,
+            token,
+            roleReps
+          );
+          this.log(`Assigned roles [${user.roles.join(', ')}] to '${username}'`, 'info');
         }
       }
     }
@@ -2014,6 +2108,31 @@ export class KeycloakFeature extends AddonFeature {
     if (!result.stdout) return null;
     try {
       return JSON.parse(result.stdout)[0]?.id || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Looks up a realm role's full representation by name. Unlike clients/users,
+   * Keycloak's role API supports direct by-name lookup (no query-and-filter).
+   */
+  async lookupRole(baseUrl, token, roleName, realm) {
+    const result = await CommandRunner.run(
+      'curl',
+      [
+        '-sSfk',
+        ...(this.curlResolveArgs || []),
+        '-H',
+        `Authorization: Bearer ${token}`,
+        `${baseUrl}/admin/realms/${realm}/roles/${encodeURIComponent(roleName)}`,
+      ],
+      { ignoreError: true }
+    );
+    if (result.exitCode !== 0) return null;
+    if (!result.stdout) return null;
+    try {
+      return JSON.parse(result.stdout);
     } catch {
       return null;
     }

@@ -67,6 +67,7 @@ spec:
       keycloak: keycloak.mesh-demo.kasunt.apac.fe.solo.io
       grafana: grafana.mesh-demo.kasunt.apac.fe.solo.io
       soloUi: soloui.mesh-demo.kasunt.apac.fe.solo.io
+      acmeBank: acme-bank.mesh-demo.kasunt.apac.fe.solo.io
     app:
       main: app.mesh-demo.kasunt.apac.fe.solo.io
 

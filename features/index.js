@@ -26,6 +26,7 @@ import { RedirectRewriteFeature } from './traffic-management/redirect-rewrite/in
 import { WaypointFeature } from './security/waypoint/index.js';
 import { DenyAllPolicyFeature } from './security/deny-all-policy/index.js';
 import { AuthorizationPolicyFeature } from './security/authorization-policy/index.js';
+import { CertificateFeature } from './security/certificate/index.js';
 import { EgressWaypointFeature } from './security/egress-waypoint/index.js';
 import { EgressAuthorizationFeature } from './security/egress-authorization/index.js';
 import { NetworkPolicyFeature } from './security/network-policy/index.js';
@@ -70,6 +71,7 @@ FeatureManager.register('redirect-rewrite', RedirectRewriteFeature);
 FeatureManager.register('waypoint', WaypointFeature);
 FeatureManager.register('deny-all-policy', DenyAllPolicyFeature);
 FeatureManager.register('authorization-policy', AuthorizationPolicyFeature);
+FeatureManager.register('certificate', CertificateFeature);
 FeatureManager.register('egress-waypoint', EgressWaypointFeature);
 FeatureManager.register('egress-authorization', EgressAuthorizationFeature);
 FeatureManager.register('network-policy', NetworkPolicyFeature);
@@ -116,6 +118,7 @@ export { RedirectRewriteFeature } from './traffic-management/redirect-rewrite/in
 export { WaypointFeature } from './security/waypoint/index.js';
 export { DenyAllPolicyFeature } from './security/deny-all-policy/index.js';
 export { AuthorizationPolicyFeature } from './security/authorization-policy/index.js';
+export { CertificateFeature } from './security/certificate/index.js';
 export { EgressWaypointFeature } from './security/egress-waypoint/index.js';
 export { EgressAuthorizationFeature } from './security/egress-authorization/index.js';
 export { NetworkPolicyFeature } from './security/network-policy/index.js';

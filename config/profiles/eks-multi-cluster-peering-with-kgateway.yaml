@@ -122,6 +122,12 @@ spec:
     clusters:
       - name: east
         addons:
+          - name: aws-load-balancer-controller
+            description: Proper NLB provisioning with VPN-restricted source ranges actually enforced - the legacy in-tree AWS cloud provider ignores the aws-load-balancer-* annotations the keycloak/telemetry/solo-ui/kgateway addons below already set
+            phase: pre
+            clusterName: '{{infra.clusters.east.cluster}}'
+            serviceAccountRoleArn: '{{infra.clusters.east.iam.albControllerRoleArn}}'
+
           - name: spire
             phase: pre
             certMode: self-signed

@@ -7,7 +7,7 @@ metadata:
 spec:
   name: abench
   provider: eks
-  environment: aws-dev
+  environment: aws-abench
 
   settings:
     nodes:
@@ -16,5 +16,5 @@ spec:
       private: true
 
   clusters:
-    - name: demo
+    - name: bench
       role: management

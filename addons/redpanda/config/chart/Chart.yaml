@@ -1,0 +1,5 @@
+apiVersion: v2
+name: redpanda
+description: Redpanda event broker for Acme Bank
+version: 0.1.0
+appVersion: '24.2.0'
