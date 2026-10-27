@@ -12,7 +12,7 @@ spec:
   settings:
     nodes:
       desired: 4
-      type: m6i.2xlarge
+      type: m6i.4xlarge
       private: true
 
   clusters:
