@@ -837,10 +837,11 @@ usecase
     '--infra <name>',
     'Infra profile name for {{env.*}} template resolution and kubeconfig context (auto-detected from the current kube context when omitted)'
   )
+  .option('-f, --force', 'Force removal of everything, including resources skipped by default')
   .action(async options => {
     try {
       if (options.current) {
-        await UseCaseManager.cleanupAll();
+        await UseCaseManager.cleanupAll({ force: options.force });
         return;
       }
 
@@ -857,7 +858,7 @@ usecase
         process.exit(1);
       }
 
-      await UseCaseManager.cleanup(usecaseName, { infra: options.infra });
+      await UseCaseManager.cleanup(usecaseName, { infra: options.infra, force: options.force });
     } catch (error) {
       Logger.error(`Failed to clean use case: ${error.message}`);
       process.exit(1);
