@@ -753,10 +753,18 @@ export class UseCaseManager {
   }
 
   /**
-   * Clean up a use case
+   * Clean up a use case.
+   * @param {string} name - Use case name or file path
+   * @param {Object} [options]
+   * @param {boolean} [options.force] - Remove everything, with no exceptions. False (the
+   *   default) skips resources that are costly/slow to re-provision - currently just the
+   *   `certificate` feature, since certs (especially real ACME/DNS-01 ones) are slow and
+   *   rate-limited to re-issue, so leaving them in place lets a re-deploy of the same use
+   *   case reuse them.
    */
   static async cleanup(name, options = {}) {
     const spinner = new SpinnerLogger();
+    const force = options.force || false;
 
     try {
       let filePath;
@@ -794,6 +802,14 @@ export class UseCaseManager {
         // Clean up features in reverse order
         for (const feature of [...features].reverse()) {
           const featureName = feature.name;
+
+          if (!force && featureName === 'certificate') {
+            Logger.info(
+              `Skipping certificate '${feature.config?.name}' - pass --force to include it`
+            );
+            continue;
+          }
+
           const rawConfig = feature.config || {};
           const resolved = templateContext
             ? TemplateResolver.resolveValues(rawConfig, templateContext)
@@ -922,10 +938,10 @@ export class UseCaseManager {
   /**
    * Clean up the currently deployed use case
    */
-  static async cleanupAll() {
+  static async cleanupAll(options = {}) {
     const currentUseCase = await this.getCurrentUseCase();
     if (currentUseCase) {
-      await this.cleanup(currentUseCase);
+      await this.cleanup(currentUseCase, options);
     } else {
       await this.clearCurrentUseCase();
       Logger.info('No use case currently deployed; nothing to clean');
