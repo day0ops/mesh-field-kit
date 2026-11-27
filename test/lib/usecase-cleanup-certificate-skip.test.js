@@ -6,6 +6,7 @@ import { tmpdir } from 'os';
 import { UseCaseManager } from '../../src/lib/usecase.js';
 import { Feature, FeatureManager } from '../../src/lib/feature.js';
 import { InfraStateManager } from '../../src/lib/infra-state.js';
+import { KubernetesHelper } from '../../src/lib/common.js';
 
 class RecordingFeature extends Feature {
   async deploy() {}
@@ -30,7 +31,10 @@ const usecaseYaml =
 
 // detectActiveInfra()'s precedence logic scans real infra state on disk - mock it out so
 // these tests never depend on (or get polluted by) whatever's actually provisioned.
-let originalListInfraProfiles, originalMatchProfilesByKubeContext;
+// getCurrentUseCase() falls back to the ambient kubectl context when no infra state
+// exists, so KubernetesHelper.kubectl must be mocked too - otherwise this test depends
+// on whatever cluster happens to be reachable from the machine running it.
+let originalListInfraProfiles, originalMatchProfilesByKubeContext, originalKubectl;
 
 describe('UseCaseManager.cleanup certificate skip/force', () => {
   let tmpRoot;
@@ -39,13 +43,16 @@ describe('UseCaseManager.cleanup certificate skip/force', () => {
     RecordingFeature.cleanedUp = [];
     originalListInfraProfiles = InfraStateManager.listInfraProfiles;
     originalMatchProfilesByKubeContext = InfraStateManager.matchProfilesByKubeContext;
+    originalKubectl = KubernetesHelper.kubectl;
     InfraStateManager.matchProfilesByKubeContext = async () => ({ kubeContext: null, matches: [] });
     InfraStateManager.listInfraProfiles = async () => [];
+    KubernetesHelper.kubectl = async () => ({ exitCode: 0, stdout: '' });
   });
 
   afterEach(() => {
     InfraStateManager.listInfraProfiles = originalListInfraProfiles;
     InfraStateManager.matchProfilesByKubeContext = originalMatchProfilesByKubeContext;
+    KubernetesHelper.kubectl = originalKubectl;
   });
 
   afterAll(async () => {
